@@ -13,11 +13,13 @@ import {
   ChevronRight,
   Clock,
   Timer,
-  Edit
+  Edit,
+  Save
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { generateSmartSchedule, analyzeConflicts } from './services/geminiService';
+import { fetchAll, postOne, deleteOne } from './src/api';
 import { startOfWeek, addDays, format, parseISO, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -81,29 +83,32 @@ const calculateDuration = (startTime: string, endTime: string): string => {
 // --- Main App ---
 
 export default function App() {
-  // Persistence Helper
-  const usePersistentState = <T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
-    const [state, setState] = useState<T>(() => {
-      try {
-        const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : initialValue;
-      } catch (e) {
-        console.error("Error loading state", e);
-        return initialValue;
-      }
-    });
-
-    useEffect(() => {
-      localStorage.setItem(key, JSON.stringify(state));
-    }, [key, state]);
-
-    return [state, setState];
-  };
-
   const [view, setView] = useState<ViewState>('DASHBOARD');
-  const [tutors, setTutors] = usePersistentState<Tutor[]>('centrocare_tutors', INITIAL_TUTORS);
-  const [youths, setYouths] = usePersistentState<Youth[]>('centrocare_youths', INITIAL_YOUTHS);
-  const [shifts, setShifts] = usePersistentState<Shift[]>('centrocare_shifts', INITIAL_SHIFTS);
+  const [tutors, setTutors] = useState<Tutor[]>([]);
+  const [youths, setYouths] = useState<Youth[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
+
+  // Load data from API on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const [t, y, s] = await Promise.all([
+          fetchAll<Tutor>('tutors'),
+          fetchAll<Youth>('youths'),
+          fetchAll<Shift>('shifts')
+        ]);
+        setTutors(t.length > 0 ? t : INITIAL_TUTORS);
+        setYouths(y.length > 0 ? y : INITIAL_YOUTHS);
+        setShifts(s.length > 0 ? s : INITIAL_SHIFTS);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Fallback to initial data if API fails
+        setTutors(INITIAL_TUTORS);
+        setYouths(INITIAL_YOUTHS);
+        setShifts(INITIAL_SHIFTS);
+      }
+    })();
+  }, []);
 
   // Date State for Calendar
   const [currentDate, setCurrentDate] = useState(new Date());

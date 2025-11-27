@@ -5,6 +5,7 @@ import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import path from "path";
 import { fileURLToPath } from "url";
+import routes from "./routes.js";
 
 // Load key.env specifically
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,8 +13,13 @@ dotenv.config({ path: path.join(__dirname, "key.env") });
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:3000" }));
+// CORS configuration - accept production frontend or localhost
+const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:3000";
+app.use(cors({ origin: allowedOrigin, credentials: true }));
 app.use(bodyParser.json());
+
+// Wire API routes
+app.use('/api', routes);
 
 // --- FIX QUI ---
 // Costruttore corretto per GoogleGenAI
@@ -141,9 +147,9 @@ app.post("/analyze-conflicts", async (req, res) => {
   }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () =>
-  console.log(`Backend running on http://localhost:${PORT}`)
+  console.log(`Backend running on port ${PORT}`)
 );
 
 console.log("Loaded Google API key:", process.env.GOOGLE_API_KEY ? "YES" : "NO");
