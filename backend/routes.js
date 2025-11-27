@@ -15,13 +15,17 @@ router.get('/tutors', async (req, res) => {
 
 router.post('/tutors', async (req, res) => {
     try {
-        const { id, name, specialties } = req.body;
+        const { id, name, specialties, maxHoursPerWeek, unavailableDays, notes } = req.body;
         await pool.query(
-            'INSERT INTO tutors (id, name, specialties) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name = $2, specialties = $3',
-            [id, name, JSON.stringify(specialties)]
+            `INSERT INTO tutors (id, name, specialties, maxHoursPerWeek, unavailableDays, notes) 
+       VALUES ($1, $2, $3, $4, $5, $6) 
+       ON CONFLICT (id) DO UPDATE SET 
+       name = $2, specialties = $3, maxHoursPerWeek = $4, unavailableDays = $5, notes = $6`,
+            [id, name, JSON.stringify(specialties || []), maxHoursPerWeek || 20, JSON.stringify(unavailableDays || []), notes || '']
         );
         res.json({ ok: true });
     } catch (error) {
+        console.error("Error saving tutor:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -47,13 +51,17 @@ router.get('/youths', async (req, res) => {
 
 router.post('/youths', async (req, res) => {
     try {
-        const { id, name, age } = req.body;
+        const { id, name, needs, requiredHoursPerWeek, notes } = req.body;
         await pool.query(
-            'INSERT INTO youths (id, name, age) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name = $2, age = $3',
-            [id, name, age]
+            `INSERT INTO youths (id, name, needs, requiredHoursPerWeek, notes) 
+       VALUES ($1, $2, $3, $4, $5) 
+       ON CONFLICT (id) DO UPDATE SET 
+       name = $2, needs = $3, requiredHoursPerWeek = $4, notes = $5`,
+            [id, name, JSON.stringify(needs || []), requiredHoursPerWeek || 4, notes || '']
         );
         res.json({ ok: true });
     } catch (error) {
+        console.error("Error saving youth:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -79,15 +87,17 @@ router.get('/shifts', async (req, res) => {
 
 router.post('/shifts', async (req, res) => {
     try {
-        const { id, tutorId, youthId, day, start, end } = req.body;
+        const { id, tutorId, youthId, date, startTime, endTime, activity } = req.body;
         await pool.query(
-            `INSERT INTO shifts (id, tutorId, youthId, day, start, "end") 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       ON CONFLICT (id) DO UPDATE SET tutorId = $2, youthId = $3, day = $4, start = $5, "end" = $6`,
-            [id, tutorId, youthId, day, start, end]
+            `INSERT INTO shifts (id, tutorId, youthId, date, startTime, endTime, activity) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       ON CONFLICT (id) DO UPDATE SET 
+       tutorId = $2, youthId = $3, date = $4, startTime = $5, endTime = $6, activity = $7`,
+            [id, tutorId, youthId, date, startTime, endTime, activity || '']
         );
         res.json({ ok: true });
     } catch (error) {
+        console.error("Error saving shift:", error);
         res.status(500).json({ error: error.message });
     }
 });
