@@ -138,86 +138,128 @@ export default function App() {
 
   // --- Handlers ---
 
-  const handleSaveTutor = () => {
+  const handleSaveTutor = async () => {
     if (!newTutor.name) return;
 
-    if (newTutor.id) {
-      // Update existing
-      setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...newTutor } as Tutor : t));
-    } else {
-      // Create new
-      const tutor: Tutor = {
-        id: Math.random().toString(36).slice(2, 11),
-        name: newTutor.name,
-        specialties: newTutor.specialties || [],
-        maxHoursPerWeek: newTutor.maxHoursPerWeek || 20,
-        unavailableDays: newTutor.unavailableDays || [],
-        notes: newTutor.notes || '',
-      };
-      setTutors([...tutors, tutor]);
+    try {
+      if (newTutor.id) {
+        // Update existing
+        const updatedTutor = { ...tutors.find(t => t.id === newTutor.id), ...newTutor } as Tutor;
+        await postOne('tutors', updatedTutor);
+        setTutors(tutors.map(t => t.id === newTutor.id ? updatedTutor : t));
+      } else {
+        // Create new
+        const tutor: Tutor = {
+          id: Math.random().toString(36).slice(2, 11),
+          name: newTutor.name,
+          specialties: newTutor.specialties || [],
+          maxHoursPerWeek: newTutor.maxHoursPerWeek || 20,
+          unavailableDays: newTutor.unavailableDays || [],
+          notes: newTutor.notes || '',
+        };
+        await postOne('tutors', tutor);
+        setTutors([...tutors, tutor]);
+      }
+      setIsTutorModalOpen(false);
+      setNewTutor({});
+    } catch (error) {
+      console.error("Error saving tutor:", error);
+      alert("Errore nel salvataggio del tutor");
     }
-
-    setIsTutorModalOpen(false);
-    setNewTutor({});
   };
 
-  const handleDeleteTutor = (id: string) => {
-    setTutors(tutors.filter(t => t.id !== id));
-    setShifts(shifts.filter(s => s.tutorId !== id)); // Cascade delete shifts
+  const handleDeleteTutor = async (id: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo tutor?")) return;
+    try {
+      await deleteOne('tutors', id);
+      setTutors(tutors.filter(t => t.id !== id));
+      setShifts(shifts.filter(s => s.tutorId !== id)); // Cascade delete shifts locally
+    } catch (error) {
+      console.error("Error deleting tutor:", error);
+      alert("Errore nell'eliminazione del tutor");
+    }
   };
 
-  const handleSaveYouth = () => {
+  const handleSaveYouth = async () => {
     if (!newYouth.name) return;
 
-    if (newYouth.id) {
-      // Update existing
-      setYouths(youths.map(y => y.id === newYouth.id ? { ...y, ...newYouth } as Youth : y));
-    } else {
-      // Create new
-      const youth: Youth = {
-        id: Math.random().toString(36).slice(2, 11),
-        name: newYouth.name,
-        needs: newYouth.needs || [],
-        requiredHoursPerWeek: newYouth.requiredHoursPerWeek || 4,
-        notes: newYouth.notes || '',
-      };
-      setYouths([...youths, youth]);
+    try {
+      if (newYouth.id) {
+        // Update existing
+        const updatedYouth = { ...youths.find(y => y.id === newYouth.id), ...newYouth } as Youth;
+        await postOne('youths', updatedYouth);
+        setYouths(youths.map(y => y.id === newYouth.id ? updatedYouth : y));
+      } else {
+        // Create new
+        const youth: Youth = {
+          id: Math.random().toString(36).slice(2, 11),
+          name: newYouth.name,
+          needs: newYouth.needs || [],
+          requiredHoursPerWeek: newYouth.requiredHoursPerWeek || 4,
+          notes: newYouth.notes || '',
+        };
+        await postOne('youths', youth);
+        setYouths([...youths, youth]);
+      }
+      setIsYouthModalOpen(false);
+      setNewYouth({});
+    } catch (error) {
+      console.error("Error saving youth:", error);
+      alert("Errore nel salvataggio del ragazzo");
     }
-
-    setIsYouthModalOpen(false);
-    setNewYouth({});
   };
 
-  const handleDeleteYouth = (id: string) => {
-    setYouths(youths.filter(y => y.id !== id));
-    setShifts(shifts.filter(s => s.youthId !== id));
+  const handleDeleteYouth = async (id: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo ragazzo?")) return;
+    try {
+      await deleteOne('youths', id);
+      setYouths(youths.filter(y => y.id !== id));
+      setShifts(shifts.filter(s => s.youthId !== id));
+    } catch (error) {
+      console.error("Error deleting youth:", error);
+      alert("Errore nell'eliminazione del ragazzo");
+    }
   };
 
-  const handleSaveShift = () => {
+  const handleSaveShift = async () => {
     if (!editingShift?.tutorId || !editingShift?.youthId || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
-    const shift: Shift = {
-      id: editingShift.id || Math.random().toString(36).slice(2, 11),
-      tutorId: editingShift.tutorId,
-      youthId: editingShift.youthId,
-      date: editingShift.date,
-      startTime: editingShift.startTime,
-      endTime: editingShift.endTime,
-      activity: editingShift.activity || 'Attività generica',
-    };
+    try {
+      const shift: Shift = {
+        id: editingShift.id || Math.random().toString(36).slice(2, 11),
+        tutorId: editingShift.tutorId,
+        youthId: editingShift.youthId,
+        date: editingShift.date,
+        startTime: editingShift.startTime,
+        endTime: editingShift.endTime,
+        activity: editingShift.activity || 'Attività generica',
+      };
 
-    if (editingShift.id) {
-      setShifts(shifts.map(s => s.id === shift.id ? shift : s));
-    } else {
-      setShifts([...shifts, shift]);
+      await postOne('shifts', shift);
+
+      if (editingShift.id) {
+        setShifts(shifts.map(s => s.id === shift.id ? shift : s));
+      } else {
+        setShifts([...shifts, shift]);
+      }
+      setIsShiftModalOpen(false);
+      setEditingShift(null);
+    } catch (error) {
+      console.error("Error saving shift:", error);
+      alert("Errore nel salvataggio del turno");
     }
-    setIsShiftModalOpen(false);
-    setEditingShift(null);
   };
 
-  const handleDeleteShift = (id: string) => {
-    setShifts(shifts.filter(s => s.id !== id));
-    if (editingShift?.id === id) setIsShiftModalOpen(false);
+  const handleDeleteShift = async (id: string) => {
+    if (!confirm("Eliminare questo turno?")) return;
+    try {
+      await deleteOne('shifts', id);
+      setShifts(shifts.filter(s => s.id !== id));
+      if (editingShift?.id === id) setIsShiftModalOpen(false);
+    } catch (error) {
+      console.error("Error deleting shift:", error);
+      alert("Errore nell'eliminazione del turno");
+    }
   };
 
   const openNewShiftModal = (tutorId?: string, dateStr?: string) => {
@@ -255,6 +297,10 @@ export default function App() {
     try {
       const startDateStr = format(startOfCurrentWeek, 'yyyy-MM-dd');
       const newShifts = await generateSmartSchedule(tutors, youths, startDateStr);
+
+      // Save generated shifts to DB
+      await Promise.all(newShifts.map(s => postOne('shifts', s)));
+
       // Remove existing shifts for this week to avoid duplication if re-generating
       const otherWeekShifts = shifts.filter(s => {
         // Safe check for date to prevent crashes
@@ -268,6 +314,7 @@ export default function App() {
       });
       setShifts([...otherWeekShifts, ...newShifts]);
     } catch (error) {
+      console.error(error);
       alert("Errore durante la generazione dei turni. Verifica la chiave API.");
     } finally {
       setIsGenerating(false);
@@ -303,17 +350,27 @@ export default function App() {
     // but clearing it on Drop is usually sufficient.
   };
 
-  const handleDrop = (e: React.DragEvent, tutorId: string, dateStr: string) => {
+  const handleDrop = async (e: React.DragEvent, tutorId: string, dateStr: string) => {
     e.preventDefault();
     const shiftId = e.dataTransfer.getData("text/plain");
 
     if (shiftId) {
-      setShifts(prevShifts => prevShifts.map(s => {
-        if (s.id === shiftId) {
-          return { ...s, tutorId, date: dateStr };
+      const shiftToUpdate = shifts.find(s => s.id === shiftId);
+      if (shiftToUpdate) {
+        const updatedShift = { ...shiftToUpdate, tutorId, date: dateStr };
+        try {
+          await postOne('shifts', updatedShift);
+          setShifts(prevShifts => prevShifts.map(s => {
+            if (s.id === shiftId) {
+              return updatedShift;
+            }
+            return s;
+          }));
+        } catch (error) {
+          console.error("Error updating shift drop:", error);
+          alert("Errore spostamento turno");
         }
-        return s;
-      }));
+      }
     }
     setDraggedShiftId(null);
     setDragOverCoords(null);
