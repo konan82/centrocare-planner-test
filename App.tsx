@@ -97,9 +97,10 @@ export default function App() {
           fetchAll<Youth>('youths'),
           fetchAll<Shift>('shifts')
         ]);
-        setTutors(t);
-        setYouths(y);
-        setShifts(s);
+        setTutors(Array.isArray(t) ? t : []);
+        setYouths(Array.isArray(y) ? y : []);
+        setShifts(Array.isArray(s) ? s : []);
+        console.log("Data loaded:", { t, y, s });
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to initial data if API fails
@@ -426,7 +427,7 @@ export default function App() {
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tutors.map(tutor => (
+        {Array.isArray(tutors) && tutors.map(tutor => (
           <Card key={tutor.id} className="p-6 relative hover:shadow-lg transition-shadow">
             <div className="absolute top-4 right-4 flex space-x-2">
               <button onClick={() => openEditTutorModal(tutor)} className="text-gray-300 hover:text-blue-500 transition-colors">
@@ -477,7 +478,7 @@ export default function App() {
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {youths.map(youth => (
+        {Array.isArray(youths) && youths.map(youth => (
           <Card key={youth.id} className="p-6 relative hover:shadow-lg transition-shadow border-l-4 border-l-amber-400">
             <div className="absolute top-4 right-4 flex space-x-2">
               <button onClick={() => openEditYouthModal(youth)} className="text-gray-300 hover:text-blue-500 transition-colors">
