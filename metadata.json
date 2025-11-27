@@ -1,0 +1,5 @@
+{
+  "name": "CentroCare Planner",
+  "description": "Una piattaforma gestionale per centri di assistenza che facilita l'associazione intelligente tra tutor e ragazzi, permettendo la pianificazione dei turni con supporto AI per il rispetto dei vincoli.",
+  "requestFramePermissions": []
+}
