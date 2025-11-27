@@ -97,9 +97,9 @@ export default function App() {
           fetchAll<Youth>('youths'),
           fetchAll<Shift>('shifts')
         ]);
-        setTutors(t.length > 0 ? t : INITIAL_TUTORS);
-        setYouths(y.length > 0 ? y : INITIAL_YOUTHS);
-        setShifts(s.length > 0 ? s : INITIAL_SHIFTS);
+        setTutors(t);
+        setYouths(y);
+        setShifts(s);
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to initial data if API fails
