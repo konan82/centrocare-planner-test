@@ -1,39 +1,48 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import pkg from 'pg';
+const { Pool } = pkg;
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// PostgreSQL connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Render PostgreSQL
+  }
+});
 
-// Use Render's persistent disk if available, otherwise local directory
-const dbPath = path.join(process.env.RENDER_VOLUME || __dirname, 'db.sqlite');
-const db = new Database(dbPath);
+// Initialize tables
+const initDB = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tutors (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        specialties JSONB NOT NULL
+      );
 
-// Create tables if they don't exist
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tutors (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    specialties TEXT NOT NULL
-  );
+      CREATE TABLE IF NOT EXISTS youths (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        age INTEGER NOT NULL
+      );
 
-  CREATE TABLE IF NOT EXISTS youths (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    age INTEGER NOT NULL
-  );
+      CREATE TABLE IF NOT EXISTS shifts (
+        id TEXT PRIMARY KEY,
+        tutorId TEXT NOT NULL,
+        youthId TEXT NOT NULL,
+        day TEXT NOT NULL,
+        start TEXT NOT NULL,
+        "end" TEXT NOT NULL,
+        FOREIGN KEY (tutorId) REFERENCES tutors(id),
+        FOREIGN KEY (youthId) REFERENCES youths(id)
+      );
+    `);
+    console.log('Database connected and tables initialized');
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  }
+};
 
-  CREATE TABLE IF NOT EXISTS shifts (
-    id TEXT PRIMARY KEY,
-    tutorId TEXT NOT NULL,
-    youthId TEXT NOT NULL,
-    day TEXT NOT NULL,
-    start TEXT NOT NULL,
-    "end" TEXT NOT NULL,
-    FOREIGN KEY (tutorId) REFERENCES tutors(id),
-    FOREIGN KEY (youthId) REFERENCES youths(id)
-  );
-`);
+// Run initialization
+initDB();
 
-console.log('Database initialized at:', dbPath);
-
-export default db;
+export default pool;

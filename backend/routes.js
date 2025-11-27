@@ -1,37 +1,34 @@
 import express from 'express';
-import db from './db.js';
+import pool from './db.js';
 
 const router = express.Router();
 
 // ----- Tutors -----
-router.get('/tutors', (req, res) => {
+router.get('/tutors', async (req, res) => {
     try {
-        const rows = db.prepare('SELECT * FROM tutors').all();
-        // Parse specialties JSON string back to array
-        const tutors = rows.map(row => ({
-            ...row,
-            specialties: JSON.parse(row.specialties)
-        }));
-        res.json(tutors);
+        const result = await pool.query('SELECT * FROM tutors');
+        res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.post('/tutors', (req, res) => {
+router.post('/tutors', async (req, res) => {
     try {
         const { id, name, specialties } = req.body;
-        db.prepare('INSERT OR REPLACE INTO tutors (id, name, specialties) VALUES (?, ?, ?)')
-            .run(id, name, JSON.stringify(specialties));
+        await pool.query(
+            'INSERT INTO tutors (id, name, specialties) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name = $2, specialties = $3',
+            [id, name, JSON.stringify(specialties)]
+        );
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.delete('/tutors/:id', (req, res) => {
+router.delete('/tutors/:id', async (req, res) => {
     try {
-        db.prepare('DELETE FROM tutors WHERE id = ?').run(req.params.id);
+        await pool.query('DELETE FROM tutors WHERE id = $1', [req.params.id]);
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -39,29 +36,31 @@ router.delete('/tutors/:id', (req, res) => {
 });
 
 // ----- Youths -----
-router.get('/youths', (req, res) => {
+router.get('/youths', async (req, res) => {
     try {
-        const rows = db.prepare('SELECT * FROM youths').all();
-        res.json(rows);
+        const result = await pool.query('SELECT * FROM youths');
+        res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.post('/youths', (req, res) => {
+router.post('/youths', async (req, res) => {
     try {
         const { id, name, age } = req.body;
-        db.prepare('INSERT OR REPLACE INTO youths (id, name, age) VALUES (?, ?, ?)')
-            .run(id, name, age);
+        await pool.query(
+            'INSERT INTO youths (id, name, age) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET name = $2, age = $3',
+            [id, name, age]
+        );
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.delete('/youths/:id', (req, res) => {
+router.delete('/youths/:id', async (req, res) => {
     try {
-        db.prepare('DELETE FROM youths WHERE id = ?').run(req.params.id);
+        await pool.query('DELETE FROM youths WHERE id = $1', [req.params.id]);
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -69,31 +68,33 @@ router.delete('/youths/:id', (req, res) => {
 });
 
 // ----- Shifts -----
-router.get('/shifts', (req, res) => {
+router.get('/shifts', async (req, res) => {
     try {
-        const rows = db.prepare('SELECT * FROM shifts').all();
-        res.json(rows);
+        const result = await pool.query('SELECT * FROM shifts');
+        res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.post('/shifts', (req, res) => {
+router.post('/shifts', async (req, res) => {
     try {
         const { id, tutorId, youthId, day, start, end } = req.body;
-        db.prepare(`
-      INSERT OR REPLACE INTO shifts
-      (id, tutorId, youthId, day, start, "end") VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, tutorId, youthId, day, start, end);
+        await pool.query(
+            `INSERT INTO shifts (id, tutorId, youthId, day, start, "end") 
+       VALUES ($1, $2, $3, $4, $5, $6) 
+       ON CONFLICT (id) DO UPDATE SET tutorId = $2, youthId = $3, day = $4, start = $5, "end" = $6`,
+            [id, tutorId, youthId, day, start, end]
+        );
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-router.delete('/shifts/:id', (req, res) => {
+router.delete('/shifts/:id', async (req, res) => {
     try {
-        db.prepare('DELETE FROM shifts WHERE id = ?').run(req.params.id);
+        await pool.query('DELETE FROM shifts WHERE id = $1', [req.params.id]);
         res.json({ ok: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
