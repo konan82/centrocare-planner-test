@@ -149,6 +149,9 @@ export default function App() {
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
   const [dragOverCoords, setDragOverCoords] = useState<{ tutorId: string, dateStr: string } | null>(null);
 
+  // Mobile Menu State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Helper: Get start of current week
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, i));
@@ -396,41 +399,84 @@ export default function App() {
   // --- Views ---
 
   const renderSidebar = () => (
-    <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-50 shadow-xl hidden md:flex">
-      <div className="p-6 border-b border-slate-700">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-          CentroCare
-        </h1>
-        <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
-      </div>
-      <nav className="flex-1 p-4 space-y-2">
-        <button onClick={() => setView('DASHBOARD')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-          <CalendarIcon size={20} />
-          <span>Dashboard & Turni</span>
-        </button>
-        <button onClick={() => setView('TUTORS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-          <UserCheck size={20} />
-          <span>Gestione Tutor</span>
-        </button>
-        <button onClick={() => setView('YOUTHS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-          <Users size={20} />
-          <span>Anagrafica Ragazzi</span>
-        </button>
-      </nav>
-      <div className="p-4 border-t border-slate-700">
-        <div className="bg-slate-800 rounded p-3 text-xs text-slate-400">
-          <p className="font-semibold text-slate-300">Stato Sistema</p>
-          <p className="mt-1">Tutor attivi: {tutors.length}</p>
-          <p>Ragazzi seguiti: {youths.length}</p>
+    <>
+      {/* Desktop Sidebar */}
+      <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-50 shadow-xl hidden md:flex">
+        <div className="p-6 border-b border-slate-700">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
+            CentroCare
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          <button onClick={() => setView('DASHBOARD')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+            <CalendarIcon size={20} />
+            <span>Dashboard & Turni</span>
+          </button>
+          <button onClick={() => setView('TUTORS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+            <UserCheck size={20} />
+            <span>Gestione Tutor</span>
+          </button>
+          <button onClick={() => setView('YOUTHS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+            <Users size={20} />
+            <span>Anagrafica Ragazzi</span>
+          </button>
+        </nav>
+        <div className="p-4 border-t border-slate-700">
+          <div className="bg-slate-800 rounded p-3 text-xs text-slate-400">
+            <p className="font-semibold text-slate-300">Stato Sistema</p>
+            <p className="mt-1">Tutor attivi: {tutors.length}</p>
+            <p>Ragazzi seguiti: {youths.length}</p>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile Sidebar */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
+                  CentroCare
+                </h1>
+                <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+              </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2">
+                <X size={24} />
+              </button>
+            </div>
+            <nav className="flex-1 p-4 space-y-2">
+              <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                <CalendarIcon size={20} />
+                <span>Dashboard & Turni</span>
+              </button>
+              <button onClick={() => { setView('TUTORS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                <UserCheck size={20} />
+                <span>Gestione Tutor</span>
+              </button>
+              <button onClick={() => { setView('YOUTHS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                <Users size={20} />
+                <span>Anagrafica Ragazzi</span>
+              </button>
+            </nav>
+            <div className="p-4 border-t border-slate-700">
+              <div className="bg-slate-800 rounded p-3 text-xs text-slate-400">
+                <p className="font-semibold text-slate-300">Stato Sistema</p>
+                <p className="mt-1">Tutor attivi: {tutors.length}</p>
+                <p>Ragazzi seguiti: {youths.length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 
   const renderMobileHeader = () => (
     <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-20">
       <span className="font-bold text-lg">CentroCare</span>
-      <button className="p-2"><Menu /></button>
+      <button onClick={() => setIsMobileMenuOpen(true)} className="p-2"><Menu /></button>
     </div>
   );
 
