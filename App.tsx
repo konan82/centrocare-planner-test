@@ -603,11 +603,14 @@ export default function App() {
                   </td>
                   {weekDays.map((day, i) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const dayShifts = shifts.filter(s =>
-                      s.tutorId === tutor.id &&
-                      s.date &&
-                      isSameDay(parseISO(s.date), day)
-                    );
+                    const dayShifts = shifts.filter(s => {
+                      if (s.tutorId !== tutor.id) return false;
+                      if (!s.date) return false;
+                      // Robust date comparison: compare YYYY-MM-DD strings
+                      // This handles both "2023-11-28" and "2023-11-28T..." formats safely
+                      const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+                      return shiftDate === dateStr;
+                    });
 
                     const isUnavailable = tutor.unavailableDays?.includes(day.getDay());
                     const isDragOver = dragOverCoords?.tutorId === tutor.id && dragOverCoords?.dateStr === dateStr;
