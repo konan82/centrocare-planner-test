@@ -686,6 +686,11 @@ export default function App() {
                       }
 
                       return matches;
+                    }).sort((a, b) => {
+                      // Sort by start time
+                      const timeA = a.startTime || '';
+                      const timeB = b.startTime || '';
+                      return timeA.localeCompare(timeB);
                     });
 
                     // Log results for first day of first tutor
