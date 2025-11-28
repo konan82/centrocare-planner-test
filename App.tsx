@@ -614,8 +614,20 @@ export default function App() {
                       // Robust date comparison: compare YYYY-MM-DD strings
                       // This handles both "2023-11-28" and "2023-11-28T..." formats safely
                       const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                      return shiftDate === dateStr;
+                      const matches = shiftDate === dateStr;
+
+                      // Debug logging (only for first tutor and first day to avoid spam)
+                      if (i === 0 && tutor.id === tutors[0]?.id) {
+                        console.log(`Filtering for ${tutor.name} on ${dateStr}: shift ${s.id} has date "${s.date}" -> normalized to "${shiftDate}" -> matches: ${matches}`);
+                      }
+
+                      return matches;
                     });
+
+                    // Log results for first day of first tutor
+                    if (i === 0 && tutor.id === tutors[0]?.id) {
+                      console.log(`Found ${dayShifts.length} shifts for ${tutor.name} on ${dateStr}`);
+                    }
 
                     const isUnavailable = tutor.unavailableDays?.includes(day.getDay());
                     const isDragOver = dragOverCoords?.tutorId === tutor.id && dragOverCoords?.dateStr === dateStr;
