@@ -55,7 +55,14 @@ const initDB = async () => {
       await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS needs JSONB DEFAULT '[]';`);
       await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS requiredHoursPerWeek INTEGER DEFAULT 4;`);
       await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS notes TEXT;`);
-      // We ignore 'age' column if it exists from previous schema
+      await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS notes TEXT;`);
+
+      // Remove legacy 'age' column if it exists (it had NOT NULL constraint which breaks new inserts)
+      try {
+        await client.query(`ALTER TABLE youths DROP COLUMN IF EXISTS age;`);
+      } catch (e) {
+        console.log("Could not drop age column, might not exist or other error:", e.message);
+      }
 
       // Shifts table
       await client.query(`
