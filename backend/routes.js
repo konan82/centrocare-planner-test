@@ -61,8 +61,10 @@ router.post('/youths', async (req, res) => {
         );
         res.json({ ok: true });
     } catch (error) {
-        console.error("Error saving youth:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Error saving youth:", error.message);
+        if (error.detail) console.error("Error detail:", error.detail);
+        if (error.code) console.error("Error code:", error.code);
+        res.status(500).json({ error: error.message, detail: error.detail });
     }
 });
 
