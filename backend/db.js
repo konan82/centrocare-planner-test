@@ -61,7 +61,14 @@ const initDB = async () => {
       try {
         await client.query(`ALTER TABLE youths DROP COLUMN IF EXISTS age;`);
       } catch (e) {
-        console.log("Could not drop age column, might not exist or other error:", e.message);
+        console.log("Could not drop age column:", e.message);
+        // Fallback: make it nullable so inserts don't fail
+        try {
+          await client.query(`ALTER TABLE youths ALTER COLUMN age DROP NOT NULL;`);
+          console.log("Made age column nullable as fallback");
+        } catch (e2) {
+          console.error("Failed to make age nullable:", e2.message);
+        }
       }
 
       // Shifts table
