@@ -439,7 +439,7 @@ export default function App() {
             </div>
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-lg">
-                {tutor.name.charAt(0)}
+                {tutor.name?.charAt(0) || '?'}
               </div>
               <div className="ml-4">
                 <h3 className="font-bold text-lg text-slate-800">{tutor.name}</h3>
@@ -449,16 +449,16 @@ export default function App() {
             <div className="mb-3">
               <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Specialità</p>
               <div className="flex flex-wrap gap-2">
-                {tutor.specialties.map(s => (
+                {tutor.specialties?.map(s => (
                   <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">{s}</span>
                 ))}
               </div>
             </div>
-            {tutor.unavailableDays.length > 0 && (
+            {tutor.unavailableDays?.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Non disponibile</p>
                 <p className="text-sm text-slate-600">
-                  {tutor.unavailableDays.map(d => DAYS_OF_WEEK[d === 0 ? 6 : d - 1]).join(', ')}
+                  {tutor.unavailableDays?.map(d => DAYS_OF_WEEK[d === 0 ? 6 : d - 1]).join(', ')}
                 </p>
               </div>
             )}
@@ -490,7 +490,7 @@ export default function App() {
             </div>
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center font-bold text-lg">
-                {youth.name.charAt(0)}
+                {youth.name?.charAt(0) || '?'}
               </div>
               <div className="ml-4">
                 <h3 className="font-bold text-lg text-slate-800">{youth.name}</h3>
@@ -500,7 +500,7 @@ export default function App() {
             <div className="mb-3">
               <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Esigenze</p>
               <div className="flex flex-wrap gap-2">
-                {youth.needs.map(n => (
+                {youth.needs?.map(n => (
                   <span key={n} className="px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-full border border-amber-100">{n}</span>
                 ))}
               </div>
@@ -587,7 +587,7 @@ export default function App() {
                   <td className="p-4 border-b border-r font-medium text-slate-700 bg-white sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50 border-l-4 border-l-transparent hover:border-l-teal-500 transition-all">
                     <div className="flex flex-col">
                       <span className="text-sm">{tutor.name}</span>
-                      <span className="text-xs text-slate-400">{tutor.specialties[0]}</span>
+                      <span className="text-xs text-slate-400">{tutor.specialties?.[0]}</span>
                     </div>
                   </td>
                   {weekDays.map((day, i) => {
@@ -598,7 +598,7 @@ export default function App() {
                       isSameDay(parseISO(s.date), day)
                     );
 
-                    const isUnavailable = tutor.unavailableDays.includes(day.getDay());
+                    const isUnavailable = tutor.unavailableDays?.includes(day.getDay());
                     const isDragOver = dragOverCoords?.tutorId === tutor.id && dragOverCoords?.dateStr === dateStr;
 
                     return (
