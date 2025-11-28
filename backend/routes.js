@@ -119,4 +119,16 @@ router.delete('/shifts/:id', async (req, res) => {
     }
 });
 
+// TEMPORARY: Clear all shifts
+router.delete('/shifts-clear-all/confirm', async (req, res) => {
+    try {
+        const result = await pool.query('DELETE FROM shifts');
+        console.log(`🗑️ Cleared ${result.rowCount} shifts from database`);
+        res.json({ ok: true, deleted: result.rowCount });
+    } catch (error) {
+        console.error("Error clearing shifts:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;
