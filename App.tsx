@@ -89,8 +89,14 @@ export default function App() {
   const [shifts, setShifts] = useState<Shift[]>([]);
 
   // Load data from API on mount
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     (async () => {
+      setIsLoading(true);
+      setLoadError(null);
+
       try {
         const [t, y, s] = await Promise.all([
           fetchAll<Tutor>('tutors'),
@@ -115,14 +121,16 @@ export default function App() {
         setShifts(normalizedShifts);
 
         console.log("Data loaded:", { tutors: t.length, youths: y.length, shifts: normalizedShifts.length });
-
+        setIsLoading(false);
 
       } catch (error) {
         console.error('Error loading data:', error);
-        // Fallback to initial data if API fails
-        setTutors(INITIAL_TUTORS);
-        setYouths(INITIAL_YOUTHS);
-        setShifts(INITIAL_SHIFTS);
+        setLoadError('Il backend sta riavviandosi (Render free tier). Riprovo tra 5 secondi...');
+
+        // Retry after 5 seconds (backend might be waking up)
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
       }
     })();
   }, []);
@@ -789,6 +797,16 @@ export default function App() {
         {renderMobileHeader()}
 
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {isLoading && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-8 shadow-xl text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-teal-600 mx-auto mb-4"></div>
+                <p className="text-lg font-semibold text-slate-700">Caricamento dati...</p>
+                {loadError && <p className="text-sm text-amber-600 mt-2">{loadError}</p>}
+              </div>
+            </div>
+          )}
+
           {view === 'DASHBOARD' && renderCalendar()}
           {view === 'TUTORS' && renderTutorsList()}
           {view === 'YOUTHS' && renderYouthsList()}
