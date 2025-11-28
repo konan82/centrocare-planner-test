@@ -82,6 +82,10 @@ router.get('/shifts', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM shifts');
         console.log(`GET /shifts: returning ${result.rows.length} shifts`);
+        if (result.rows.length > 0) {
+            console.log("First shift columns:", Object.keys(result.rows[0]));
+            console.log("First shift data:", result.rows[0]);
+        }
         res.json(result.rows);
     } catch (error) {
         console.error("GET /shifts error:", error);
