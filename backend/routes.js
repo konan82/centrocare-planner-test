@@ -81,8 +81,10 @@ router.delete('/youths/:id', async (req, res) => {
 router.get('/shifts', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM shifts');
+        console.log(`GET /shifts: returning ${result.rows.length} shifts`);
         res.json(result.rows);
     } catch (error) {
+        console.error("GET /shifts error:", error);
         res.status(500).json({ error: error.message });
     }
 });
