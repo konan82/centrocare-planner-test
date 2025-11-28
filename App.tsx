@@ -107,9 +107,14 @@ export default function App() {
           startTime: shift.startTime || shift.start,
           endTime: shift.endTime || shift.end
         }));
+
+        console.log("RAW shifts from API:", s);
+        console.log("NORMALIZED shifts:", normalizedShifts);
+        console.log("Sample shift dates:", normalizedShifts.slice(0, 3).map(sh => ({ id: sh.id, date: sh.date, tutorId: sh.tutorId })));
+
         setShifts(normalizedShifts);
 
-        console.log("Data loaded:", { t, y, s: normalizedShifts });
+        console.log("Data loaded:", { tutors: t.length, youths: y.length, shifts: normalizedShifts.length });
 
 
       } catch (error) {
