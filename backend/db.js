@@ -67,11 +67,42 @@ const initDB = async () => {
       } catch (e2) {
         console.error("Failed to make age nullable:", e2.message);
       }
-      client.release();
     }
-  };
 
-  // Run initialization
-  initDB();
+    // Shifts table with quoted column names for case sensitivity
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS shifts (
+        id TEXT PRIMARY KEY,
+        "tutorId" TEXT NOT NULL,
+        "youthId" TEXT NOT NULL,
+        date TEXT NOT NULL,
+        "startTime" TEXT NOT NULL,
+        "endTime" TEXT NOT NULL,
+        activity TEXT,
+        FOREIGN KEY ("tutorId") REFERENCES tutors(id),
+        FOREIGN KEY ("youthId") REFERENCES youths(id)
+      );
+    `);
 
-  export default pool;
+    // Migrate shifts columns - rename lowercase to camelCase
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN day TO date;`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN start TO "startTime";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN "end" TO "endTime";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN tutorid TO "tutorId";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN youthid TO "youthId";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN starttime TO "startTime";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts RENAME COLUMN endtime TO "endTime";`); } catch (e) { /* ignore */ }
+    try { await client.query(`ALTER TABLE shifts ADD COLUMN IF NOT EXISTS activity TEXT;`); } catch (e) { console.log("Migrate shifts failed:", e.message); }
+
+    console.log('Database schema initialized and migrated');
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  } finally {
+    client.release();
+  }
+};
+
+// Run initialization
+initDB();
+
+export default pool;
