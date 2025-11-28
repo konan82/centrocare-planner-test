@@ -543,6 +543,24 @@ export default function App() {
 
           <div className="flex space-x-3">
             <button
+              onClick={async () => {
+                if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
+                try {
+                  const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/shifts-clear-all/confirm`);
+                  const data = await res.json();
+                  alert(`Cancellati ${data.deleted} turni!`);
+                  setShifts([]);
+                } catch (error) {
+                  console.error(error);
+                  alert("Errore durante la cancellazione");
+                }
+              }}
+              className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 flex items-center border border-red-200"
+            >
+              <Trash2 size={18} className="mr-2" />
+              Cancella Tutti
+            </button>
+            <button
               onClick={handleAnalyze}
               disabled={isAnalyzing}
               className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center border border-indigo-200"
