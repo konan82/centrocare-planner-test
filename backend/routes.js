@@ -93,10 +93,10 @@ router.post('/shifts', async (req, res) => {
     try {
         const { id, tutorId, youthId, date, startTime, endTime, activity } = req.body;
         await pool.query(
-            `INSERT INTO shifts (id, tutorId, youthId, date, startTime, endTime, activity) 
+            `INSERT INTO shifts (id, "tutorId", "youthId", date, "startTime", "endTime", activity) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        ON CONFLICT (id) DO UPDATE SET 
-       tutorId = $2, youthId = $3, date = $4, startTime = $5, endTime = $6, activity = $7`,
+       "tutorId" = $2, "youthId" = $3, date = $4, "startTime" = $5, "endTime" = $6, activity = $7`,
             [id, tutorId, youthId, date, startTime, endTime, activity || '']
         );
         res.json({ ok: true });
