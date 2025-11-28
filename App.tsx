@@ -99,8 +99,19 @@ export default function App() {
         ]);
         setTutors(Array.isArray(t) ? t : []);
         setYouths(Array.isArray(y) ? y : []);
-        setShifts(Array.isArray(s) ? s : []);
-        console.log("Data loaded:", { t, y, s });
+
+        // Normalize shifts to handle potential schema mismatches (day vs date, start vs startTime)
+        const normalizedShifts = (Array.isArray(s) ? s : []).map((shift: any) => ({
+          ...shift,
+          date: shift.date || shift.day,
+          startTime: shift.startTime || shift.start,
+          endTime: shift.endTime || shift.end
+        }));
+        setShifts(normalizedShifts);
+
+        console.log("Data loaded:", { t, y, s: normalizedShifts });
+
+
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to initial data if API fails
