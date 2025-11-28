@@ -119,8 +119,8 @@ router.delete('/shifts/:id', async (req, res) => {
     }
 });
 
-// TEMPORARY: Clear all shifts
-router.delete('/shifts-clear-all/confirm', async (req, res) => {
+// TEMPORARY: Clear all shifts (GET so it works in browser)
+router.get('/shifts-clear-all/confirm', async (req, res) => {
     try {
         const result = await pool.query('DELETE FROM shifts');
         console.log(`🗑️ Cleared ${result.rowCount} shifts from database`);
