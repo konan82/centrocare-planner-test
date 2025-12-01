@@ -31,4 +31,4 @@ export interface Shift {
   activity: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR';
+export type ViewState = 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'SUMMARY';

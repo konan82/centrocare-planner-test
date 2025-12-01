@@ -14,13 +14,14 @@ import {
   Clock,
   Timer,
   Edit,
-  Save
+  Save,
+  BarChart3
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { generateSmartSchedule, analyzeConflicts } from './services/geminiService';
 import { fetchAll, postOne, deleteOne } from './src/api';
-import { startOfWeek, addDays, format, parseISO, isSameDay } from 'date-fns';
+import { startOfWeek, addDays, format, parseISO, isSameDay, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 // --- Components defined within App to share state easily for this demo ---
@@ -429,6 +430,10 @@ export default function App() {
             <Users size={20} />
             <span>Anagrafica Ragazzi</span>
           </button>
+          <button onClick={() => setView('SUMMARY')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'SUMMARY' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+            <BarChart3 size={20} />
+            <span>Riepilogo Ore</span>
+          </button>
         </nav>
         <div className="p-4 border-t border-slate-700">
           <div className="bg-slate-800 rounded p-3 text-xs text-slate-400">
@@ -466,6 +471,10 @@ export default function App() {
               <button onClick={() => { setView('YOUTHS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
                 <Users size={20} />
                 <span>Anagrafica Ragazzi</span>
+              </button>
+              <button onClick={() => { setView('SUMMARY'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'SUMMARY' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                <BarChart3 size={20} />
+                <span>Riepilogo Ore</span>
               </button>
             </nav>
             <div className="p-4 border-t border-slate-700">
@@ -787,6 +796,106 @@ export default function App() {
     );
   };
 
+  const renderSummary = () => {
+    // Helper to calculate hours from "HH:mm" - "HH:mm"
+    const getHours = (start: string, end: string) => {
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+    };
+
+    // Group shifts by month and week
+    const summaryData = tutors.map(tutor => {
+      const tutorShifts = shifts.filter(s => s.tutorId === tutor.id);
+
+      const monthlyHours: Record<string, number> = {};
+      const weeklyHours: Record<string, number> = {};
+
+      tutorShifts.forEach(shift => {
+        if (!shift.date || !shift.startTime || !shift.endTime) return;
+
+        // Use robust date parsing
+        const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
+        const date = parseISO(dateStr);
+
+        const monthKey = format(date, 'MMMM yyyy', { locale: it });
+        const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
+
+        const hours = getHours(shift.startTime, shift.endTime);
+
+        monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
+        weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
+      });
+
+      return {
+        ...tutor,
+        monthlyHours,
+        weeklyHours
+      };
+    });
+
+    return (
+      <div className="space-y-8">
+        <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore Lavorate</h2>
+
+        <div className="grid grid-cols-1 gap-6">
+          {summaryData.map(data => (
+            <Card key={data.id} className="p-6">
+              <div className="flex items-center mb-4 border-b pb-4">
+                <div className="w-10 h-10 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold mr-3">
+                  {data.name?.charAt(0) || '?'}
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">{data.name}</h3>
+                <span className="ml-auto text-sm text-slate-500">Max: {data.maxHoursPerWeek}h/sett</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
+                    <CalendarIcon size={16} className="mr-2" /> Per Mese
+                  </h4>
+                  <div className="space-y-2">
+                    {Object.entries(data.monthlyHours).length > 0 ? (
+                      Object.entries(data.monthlyHours).map(([month, hours]) => (
+                        <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                          <span className="capitalize text-slate-700">{month}</span>
+                          <span className="font-bold text-teal-600">{hours.toFixed(1)}h</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">Nessun dato mensile</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
+                    <Clock size={16} className="mr-2" /> Per Settimana
+                  </h4>
+                  <div className="space-y-2">
+                    {Object.entries(data.weeklyHours).length > 0 ? (
+                      Object.entries(data.weeklyHours).map(([week, hours]) => (
+                        <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                          <span className="text-slate-700">{week}</span>
+                          <span className={`font-bold ${hours > data.maxHoursPerWeek ? 'text-red-500' : 'text-teal-600'}`}>
+                            {hours.toFixed(1)}h
+                            {hours > data.maxHoursPerWeek && <AlertTriangle size={14} className="inline ml-1" />}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">Nessun dato settimanale</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // --- Main Render ---
 
   return (
@@ -810,6 +919,7 @@ export default function App() {
           {view === 'DASHBOARD' && renderCalendar()}
           {view === 'TUTORS' && renderTutorsList()}
           {view === 'YOUTHS' && renderYouthsList()}
+          {view === 'SUMMARY' && renderSummary()}
         </main>
       </div>
 
