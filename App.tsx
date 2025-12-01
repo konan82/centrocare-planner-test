@@ -161,6 +161,10 @@ export default function App() {
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Summary View State
+  const [summaryStartDate, setSummaryStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
   // Helper: Get start of current week
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, i));
@@ -804,9 +808,16 @@ export default function App() {
       return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
     };
 
+    // Filter shifts based on selected date range
+    const filteredShifts = shifts.filter(s => {
+      if (!s.date) return false;
+      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+      return d >= summaryStartDate && d <= summaryEndDate;
+    });
+
     // Group shifts by month and week
     const summaryData = tutors.map(tutor => {
-      const tutorShifts = shifts.filter(s => s.tutorId === tutor.id);
+      const tutorShifts = filteredShifts.filter(s => s.tutorId === tutor.id);
 
       const monthlyHours: Record<string, number> = {};
       const weeklyHours: Record<string, number> = {};
@@ -836,7 +847,33 @@ export default function App() {
 
     return (
       <div className="space-y-8">
-        <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore Lavorate</h2>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore Lavorate</h2>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
+              <div className="flex flex-col">
+                <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Dal</label>
+                <input
+                  type="date"
+                  value={summaryStartDate}
+                  onChange={e => setSummaryStartDate(e.target.value)}
+                  className="border-none bg-transparent text-slate-700 focus:ring-0 p-0 text-sm"
+                />
+              </div>
+              <div className="h-8 w-px bg-gray-300 mx-1"></div>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Al</label>
+                <input
+                  type="date"
+                  value={summaryEndDate}
+                  onChange={e => setSummaryEndDate(e.target.value)}
+                  className="border-none bg-transparent text-slate-700 focus:ring-0 p-0 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 gap-6">
           {summaryData.map(data => (
