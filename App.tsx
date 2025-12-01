@@ -164,6 +164,7 @@ export default function App() {
   // Summary View State
   const [summaryStartDate, setSummaryStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
 
   // Helper: Get start of current week
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -815,40 +816,91 @@ export default function App() {
       return d >= summaryStartDate && d <= summaryEndDate;
     });
 
-    // Group shifts by month and week
-    const summaryData = tutors.map(tutor => {
-      const tutorShifts = filteredShifts.filter(s => s.tutorId === tutor.id);
+    // Group shifts by month and week based on view mode
+    const summaryData = summaryViewMode === 'TUTORS'
+      ? tutors.map(tutor => {
+        const tutorShifts = filteredShifts.filter(s => s.tutorId === tutor.id);
 
-      const monthlyHours: Record<string, number> = {};
-      const weeklyHours: Record<string, number> = {};
+        const monthlyHours: Record<string, number> = {};
+        const weeklyHours: Record<string, number> = {};
 
-      tutorShifts.forEach(shift => {
-        if (!shift.date || !shift.startTime || !shift.endTime) return;
+        tutorShifts.forEach(shift => {
+          if (!shift.date || !shift.startTime || !shift.endTime) return;
 
-        // Use robust date parsing
-        const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
-        const date = parseISO(dateStr);
+          // Use robust date parsing
+          const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
+          const date = parseISO(dateStr);
 
-        const monthKey = format(date, 'MMMM yyyy', { locale: it });
-        const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
+          const monthKey = format(date, 'MMMM yyyy', { locale: it });
+          const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
 
-        const hours = getHours(shift.startTime, shift.endTime);
+          const hours = getHours(shift.startTime, shift.endTime);
 
-        monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
-        weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
+          monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
+          weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
+        });
+
+        return {
+          id: tutor.id,
+          name: tutor.name,
+          targetHours: tutor.maxHoursPerWeek,
+          monthlyHours,
+          weeklyHours,
+          type: 'TUTOR'
+        };
+      })
+      : youths.map(youth => {
+        const youthShifts = filteredShifts.filter(s => s.youthId === youth.id);
+
+        const monthlyHours: Record<string, number> = {};
+        const weeklyHours: Record<string, number> = {};
+
+        youthShifts.forEach(shift => {
+          if (!shift.date || !shift.startTime || !shift.endTime) return;
+
+          // Use robust date parsing
+          const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
+          const date = parseISO(dateStr);
+
+          const monthKey = format(date, 'MMMM yyyy', { locale: it });
+          const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
+
+          const hours = getHours(shift.startTime, shift.endTime);
+
+          monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
+          weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
+        });
+
+        return {
+          id: youth.id,
+          name: youth.name,
+          targetHours: youth.requiredHoursPerWeek,
+          monthlyHours,
+          weeklyHours,
+          type: 'YOUTH'
+        };
       });
-
-      return {
-        ...tutor,
-        monthlyHours,
-        weeklyHours
-      };
-    });
 
     return (
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore Lavorate</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore</h2>
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => setSummaryViewMode('TUTORS')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'TUTORS' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Tutor
+              </button>
+              <button
+                onClick={() => setSummaryViewMode('YOUTHS')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'YOUTHS' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Ragazzi
+              </button>
+            </div>
+          </div>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
@@ -877,13 +929,15 @@ export default function App() {
 
         <div className="grid grid-cols-1 gap-6">
           {summaryData.map(data => (
-            <Card key={data.id} className="p-6">
+            <Card key={data.id} className={`p-6 ${data.type === 'YOUTH' ? 'border-l-4 border-l-amber-400' : ''}`}>
               <div className="flex items-center mb-4 border-b pb-4">
-                <div className="w-10 h-10 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold mr-3">
+                <div className={`w-10 h-10 ${data.type === 'TUTOR' ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'} rounded-full flex items-center justify-center font-bold mr-3`}>
                   {data.name?.charAt(0) || '?'}
                 </div>
                 <h3 className="text-xl font-bold text-slate-800">{data.name}</h3>
-                <span className="ml-auto text-sm text-slate-500">Max: {data.maxHoursPerWeek}h/sett</span>
+                <span className="ml-auto text-sm text-slate-500">
+                  {data.type === 'TUTOR' ? 'Max' : 'Richiesto'}: {data.targetHours}h/sett
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -896,7 +950,7 @@ export default function App() {
                       Object.entries(data.monthlyHours).map(([month, hours]) => (
                         <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
                           <span className="capitalize text-slate-700">{month}</span>
-                          <span className="font-bold text-teal-600">{hours.toFixed(1)}h</span>
+                          <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hours.toFixed(1)}h</span>
                         </div>
                       ))
                     ) : (
@@ -911,15 +965,26 @@ export default function App() {
                   </h4>
                   <div className="space-y-2">
                     {Object.entries(data.weeklyHours).length > 0 ? (
-                      Object.entries(data.weeklyHours).map(([week, hours]) => (
-                        <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                          <span className="text-slate-700">{week}</span>
-                          <span className={`font-bold ${hours > data.maxHoursPerWeek ? 'text-red-500' : 'text-teal-600'}`}>
-                            {hours.toFixed(1)}h
-                            {hours > data.maxHoursPerWeek && <AlertTriangle size={14} className="inline ml-1" />}
-                          </span>
-                        </div>
-                      ))
+                      Object.entries(data.weeklyHours).map(([week, hours]) => {
+                        const isOverLimit = data.type === 'TUTOR' && hours > data.targetHours;
+                        const isUnderTarget = data.type === 'YOUTH' && hours < data.targetHours;
+
+                        let textColor = 'text-teal-600';
+                        if (data.type === 'YOUTH') textColor = 'text-amber-600';
+                        if (isOverLimit) textColor = 'text-red-500';
+                        if (isUnderTarget) textColor = 'text-orange-500';
+
+                        return (
+                          <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                            <span className="text-slate-700">{week}</span>
+                            <span className={`font-bold ${textColor}`}>
+                              {hours.toFixed(1)}h
+                              {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
+                              {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
+                            </span>
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="text-sm text-slate-400 italic">Nessun dato settimanale</p>
                     )}
