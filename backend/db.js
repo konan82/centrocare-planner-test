@@ -1,4 +1,5 @@
 import pkg from 'pg';
+import bcrypt from 'bcryptjs';
 const { Pool } = pkg;
 
 // PostgreSQL connection
@@ -93,6 +94,28 @@ const initDB = async () => {
     try { await client.query(`ALTER TABLE shifts RENAME COLUMN starttime TO "startTime";`); } catch (e) { /* ignore */ }
     try { await client.query(`ALTER TABLE shifts RENAME COLUMN endtime TO "endTime";`); } catch (e) { /* ignore */ }
     try { await client.query(`ALTER TABLE shifts ADD COLUMN IF NOT EXISTS activity TEXT;`); } catch (e) { console.log("Migrate shifts failed:", e.message); }
+
+    // Users table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        permissions JSONB DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed Admin User if not exists
+    const adminCheck = await client.query("SELECT * FROM users WHERE username = 'Admin'");
+    if (adminCheck.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash('abcde', 10);
+      await client.query(
+        "INSERT INTO users (username, password_hash, permissions) VALUES ($1, $2, $3)",
+        ['Admin', hashedPassword, JSON.stringify(['ALL'])]
+      );
+      console.log("Created default Admin user");
+    }
 
     console.log('Database schema initialized and migrated');
   } catch (error) {
