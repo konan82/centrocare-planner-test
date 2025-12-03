@@ -6,6 +6,7 @@ import {
   Plus,
   Trash2,
   BrainCircuit,
+  BrainCircuit,
   AlertTriangle,
   Menu,
   X,
@@ -86,9 +87,78 @@ const calculateDuration = (startTime: string, endTime: string): string => {
   return `${minutes}m`;
 };
 
+// --- Error Boundary ---
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+          <div className="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full border-l-4 border-red-500">
+            <h1 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
+              <AlertTriangle className="text-red-500 mr-2" />
+              Si è verificato un errore imprevisto
+            </h1>
+            <p className="text-slate-600 mb-4">L'applicazione ha riscontrato un problema critico.</p>
+
+            <div className="bg-slate-100 p-4 rounded-md overflow-auto text-xs font-mono text-slate-700 mb-6 max-h-64">
+              {this.state.error?.toString()}
+              {this.state.error?.stack && (
+                <div className="mt-2 pt-2 border-t border-slate-200 opacity-75">
+                  {this.state.error.stack}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
+              >
+                Riprova
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+              >
+                Reset Dati Locali (Logout forzato)
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // --- Main App ---
 
-export default function App() {
+export default function AppWrapper() {
+  return (
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  );
+}
+
+function App() {
   const [view, setView] = useState<ViewState>('LOGIN');
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [youths, setYouths] = useState<Youth[]>([]);
