@@ -455,8 +455,10 @@ export default function App() {
 
   const hasPermission = (perm: string) => {
     if (!currentUser) return false;
-    if (currentUser.permissions.includes('ALL')) return true;
-    return currentUser.permissions.includes(perm);
+    // Safety check: ensure permissions is an array
+    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
+    if (perms.includes('ALL')) return true;
+    return perms.includes(perm);
   };
 
   const handleLogout = () => {
