@@ -18,7 +18,9 @@ import {
   LogOut,
   Shield,
   UserPlus,
-  Settings
+  Settings,
+  Clock,
+  Timer
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
