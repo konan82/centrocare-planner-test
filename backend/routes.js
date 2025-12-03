@@ -67,6 +67,20 @@ router.put('/users/:id', async (req, res) => {
     }
 });
 
+// Update User Permissions (dedicated endpoint)
+router.put('/users/:id/permissions', async (req, res) => {
+    const { permissions } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE users SET permissions = $1 WHERE id = $2 RETURNING id, username, permissions',
+            [JSON.stringify(permissions), req.params.id]
+        );
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Delete User
 router.delete('/users/:id', async (req, res) => {
     try {
