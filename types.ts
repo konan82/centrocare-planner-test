@@ -31,4 +31,10 @@ export interface Shift {
   activity: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'SUMMARY';
+export interface User {
+  id: number;
+  username: string;
+  permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
+}
+
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'SUMMARY' | 'USER_MANAGEMENT';
