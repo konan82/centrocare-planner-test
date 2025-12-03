@@ -1471,7 +1471,10 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
 function UserManagementView() {
   const [users, setUsers] = useState<User[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'] });
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     fetchUsers();
@@ -1517,6 +1520,34 @@ function UserManagementView() {
     }
   };
 
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setEditPermissions([...user.permissions]);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdatePermissions = async () => {
+    if (!editingUser) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users/${editingUser.id}/permissions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: editPermissions })
+      });
+      if (res.ok) {
+        setIsEditModalOpen(false);
+        setEditingUser(null);
+        fetchUsers();
+        alert("Permessi aggiornati con successo!");
+      } else {
+        alert("Errore nell'aggiornamento dei permessi");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Errore nell'aggiornamento dei permessi");
+    }
+  };
+
   const togglePermission = (perm: string) => {
     setNewUser(prev => {
       const perms = prev.permissions.includes('ALL') ? [] : prev.permissions;
@@ -1524,6 +1555,17 @@ function UserManagementView() {
         return { ...prev, permissions: perms.filter(p => p !== perm) };
       } else {
         return { ...prev, permissions: [...perms, perm] };
+      }
+    });
+  };
+
+  const toggleEditPermission = (perm: string) => {
+    setEditPermissions(prev => {
+      const perms = prev.includes('ALL') ? [] : prev;
+      if (perms.includes(perm)) {
+        return perms.filter(p => p !== perm);
+      } else {
+        return [...perms, perm];
       }
     });
   };
@@ -1554,11 +1596,24 @@ function UserManagementView() {
                   <span className="text-xs text-slate-500">ID: {user.id}</span>
                 </div>
               </div>
-              {user.username !== 'Admin' && (
-                <button onClick={() => handleDeleteUser(user.id)} className="text-slate-400 hover:text-red-500">
-                  <Trash2 size={18} />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEditModal(user)}
+                  className="text-slate-400 hover:text-teal-600 transition-colors"
+                  title="Modifica permessi"
+                >
+                  <Edit size={18} />
                 </button>
-              )}
+                {user.username !== 'Admin' && (
+                  <button
+                    onClick={() => handleDeleteUser(user.id)}
+                    className="text-slate-400 hover:text-red-500 transition-colors"
+                    title="Elimina utente"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1613,7 +1668,7 @@ function UserManagementView() {
                 <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
               </label>
               <div className="border-t my-2"></div>
-              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY'].map(perm => (
+              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'].map(perm => (
                 <label key={perm} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -1622,7 +1677,7 @@ function UserManagementView() {
                     disabled={newUser.permissions.includes('ALL')}
                     className="rounded text-teal-600 focus:ring-teal-500"
                   />
-                  <span className="text-sm capitalize">{perm.toLowerCase()}</span>
+                  <span className="text-sm capitalize">{perm.replace('_', ' ').toLowerCase()}</span>
                 </label>
               ))}
             </div>
@@ -1630,6 +1685,51 @@ function UserManagementView() {
           <div className="flex justify-end space-x-3 mt-6">
             <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
             <button onClick={handleCreateUser} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Crea Utente</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Permissions Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifica Permessi">
+        <div className="space-y-4">
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold">Utente: </span>
+              {editingUser?.username}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={editPermissions.includes('ALL')}
+                  onChange={() => setEditPermissions(['ALL'])}
+                  className="rounded text-teal-600 focus:ring-teal-500"
+                />
+                <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
+              </label>
+              <div className="border-t my-2"></div>
+              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'].map(perm => (
+                <label key={perm} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={editPermissions.includes(perm)}
+                    onChange={() => toggleEditPermission(perm)}
+                    disabled={editPermissions.includes('ALL')}
+                    className="rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-sm capitalize">{perm.replace('_', ' ').toLowerCase()}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 mt-6">
+            <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
+            <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Salva Modifiche</button>
           </div>
         </div>
       </Modal>
