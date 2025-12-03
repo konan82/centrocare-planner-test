@@ -1132,504 +1132,507 @@ function App() {
               </div>
             </Card>
           ))}
+        </div>
+      </div>
+    );
+  };
 
+  // --- Main Render ---
 
-            // --- Main Render ---
-
-          if (view === 'LOGIN') {
+  if (view === 'LOGIN') {
     return (
-          <LoginView
-            onLoginSuccess={(data) => {
-              localStorage.setItem('token', data.token);
-              localStorage.setItem('user', JSON.stringify(data.user));
-              setToken(data.token);
-              setCurrentUser(data.user);
-              setView('DASHBOARD');
-            }}
-          />
-          );
+      <LoginView
+        onLoginSuccess={(data) => {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setToken(data.token);
+          setCurrentUser(data.user);
+          setView('DASHBOARD');
+        }}
+      />
+    );
   }
 
-          return (
-          <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-            {renderSidebar()}
+  return (
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
+      {renderSidebar()}
 
-            <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-              {renderMobileHeader()}
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+        {renderMobileHeader()}
 
-              <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-                {isLoading && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-8 shadow-xl text-center">
-                      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-teal-600 mx-auto mb-4"></div>
-                      <p className="text-lg font-semibold text-slate-700">Caricamento dati...</p>
-                      {loadError && <p className="text-sm text-amber-600 mt-2">{loadError}</p>}
-                    </div>
-                  </div>
-                )}
-
-                {view === 'DASHBOARD' && renderCalendar()}
-                {view === 'TUTORS' && renderTutorsList()}
-                {view === 'YOUTHS' && renderYouthsList()}
-                {view === 'SUMMARY' && renderSummary()}
-                {view === 'USER_MANAGEMENT' && <UserManagementView />}
-              </main>
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {isLoading && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-8 shadow-xl text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-teal-600 mx-auto mb-4"></div>
+                <p className="text-lg font-semibold text-slate-700">Caricamento dati...</p>
+                {loadError && <p className="text-sm text-amber-600 mt-2">{loadError}</p>}
+              </div>
             </div>
+          )}
 
-            {/* --- Modals --- */}
+          {view === 'DASHBOARD' && renderCalendar()}
+          {view === 'TUTORS' && renderTutorsList()}
+          {view === 'YOUTHS' && renderYouthsList()}
+          {view === 'SUMMARY' && renderSummary()}
+          {view === 'USER_MANAGEMENT' && <UserManagementView />}
+        </main>
+      </div>
 
-            {/* Shift Modal */}
-            <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tutor</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                    value={editingShift?.tutorId}
-                    onChange={e => setEditingShift({ ...editingShift, tutorId: e.target.value })}
-                  >
-                    <option value="">Seleziona Tutor</option>
-                    {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                    value={editingShift?.youthId}
-                    onChange={e => setEditingShift({ ...editingShift, youthId: e.target.value })}
-                  >
-                    <option value="">Seleziona Ragazzo/a</option>
-                    {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
-                    <input
-                      type="date"
-                      className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                      value={editingShift?.date}
-                      onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
-                    <input
-                      type="text"
-                      className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                      placeholder="Es. Compiti"
-                      value={editingShift?.activity}
-                      onChange={e => setEditingShift({ ...editingShift, activity: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Inizio</label>
-                    <input
-                      type="time"
-                      className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                      value={editingShift?.startTime}
-                      onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Fine</label>
-                    <input
-                      type="time"
-                      className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                      value={editingShift?.endTime}
-                      onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <button onClick={handleSaveShift} className="w-full bg-teal-600 text-white py-3 rounded-lg font-medium hover:bg-teal-700 mt-2 shadow-sm">
-                  Salva Turno
-                </button>
-              </div>
-            </Modal>
+      {/* --- Modals --- */}
 
-            {/* Tutor Modal */}
-            <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newTutor.name || ''}
-                    onChange={e => setNewTutor({ ...newTutor, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ore Max / Settimana</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newTutor.maxHoursPerWeek || ''}
-                    onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: parseInt(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newTutor.specialties?.join(', ') || ''}
-                    onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
-                  <textarea
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newTutor.notes || ''}
-                    onChange={e => setNewTutor({ ...newTutor, notes: e.target.value })}
-                  />
-                </div>
-                <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                  <span className="text-sm font-medium text-gray-700 block mb-2">Giorni NON disponibili:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {DAYS_OF_WEEK.map((day, idx) => {
-                      const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // Map UI (Mon-Sun) to JS Date (Sun=0)
-                      return (
-                        <button
-                          key={day}
-                          onClick={() => {
-                            const current = newTutor.unavailableDays || [];
-                            const updated = current.includes(dayIndex)
-                              ? current.filter(d => d !== dayIndex)
-                              : [...current, dayIndex];
-                            setNewTutor({ ...newTutor, unavailableDays: updated });
-                          }}
-                          className={`text-xs px-2 py-1 rounded border ${newTutor.unavailableDays?.includes(dayIndex) ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-gray-200 text-slate-700'}`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <button onClick={handleSaveTutor} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
-                  {newTutor.id ? "Salva Modifiche" : "Aggiungi Tutor"}
-                </button>
-              </div>
-            </Modal>
-
-            {/* Youth Modal */}
-            <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newYouth.name || ''}
-                    onChange={e => setNewYouth({ ...newYouth, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newYouth.requiredHoursPerWeek || ''}
-                    onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: parseInt(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newYouth.needs?.join(', ') || ''}
-                    onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
-                  <textarea
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                    value={newYouth.notes || ''}
-                    onChange={e => setNewYouth({ ...newYouth, notes: e.target.value })}
-                  />
-                </div>
-                <button onClick={handleSaveYouth} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
-                  {newYouth.id ? "Salva Modifiche" : "Aggiungi Profilo"}
-                </button>
-              </div>
-            </Modal>
+      {/* Shift Modal */}
+      <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor</label>
+            <select
+              className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+              value={editingShift?.tutorId}
+              onChange={e => setEditingShift({ ...editingShift, tutorId: e.target.value })}
+            >
+              <option value="">Seleziona Tutor</option>
+              {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
           </div>
-          );
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a</label>
+            <select
+              className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+              value={editingShift?.youthId}
+              onChange={e => setEditingShift({ ...editingShift, youthId: e.target.value })}
+            >
+              <option value="">Seleziona Ragazzo/a</option>
+              {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
+              <input
+                type="date"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+                value={editingShift?.date}
+                onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
+              <input
+                type="text"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+                placeholder="Es. Compiti"
+                value={editingShift?.activity}
+                onChange={e => setEditingShift({ ...editingShift, activity: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Inizio</label>
+              <input
+                type="time"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+                value={editingShift?.startTime}
+                onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Fine</label>
+              <input
+                type="time"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
+                value={editingShift?.endTime}
+                onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
+              />
+            </div>
+          </div>
+          <button onClick={handleSaveShift} className="w-full bg-teal-600 text-white py-3 rounded-lg font-medium hover:bg-teal-700 mt-2 shadow-sm">
+            Salva Turno
+          </button>
+        </div>
+      </Modal>
+
+      {/* Tutor Modal */}
+      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newTutor.name || ''}
+              onChange={e => setNewTutor({ ...newTutor, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ore Max / Settimana</label>
+            <input
+              type="number"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newTutor.maxHoursPerWeek || ''}
+              onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newTutor.specialties?.join(', ') || ''}
+              onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+            <textarea
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newTutor.notes || ''}
+              onChange={e => setNewTutor({ ...newTutor, notes: e.target.value })}
+            />
+          </div>
+          <div className="bg-gray-50 p-3 rounded border border-gray-200">
+            <span className="text-sm font-medium text-gray-700 block mb-2">Giorni NON disponibili:</span>
+            <div className="flex flex-wrap gap-2">
+              {DAYS_OF_WEEK.map((day, idx) => {
+                const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // Map UI (Mon-Sun) to JS Date (Sun=0)
+                return (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      const current = newTutor.unavailableDays || [];
+                      const updated = current.includes(dayIndex)
+                        ? current.filter(d => d !== dayIndex)
+                        : [...current, dayIndex];
+                      setNewTutor({ ...newTutor, unavailableDays: updated });
+                    }}
+                    className={`text-xs px-2 py-1 rounded border ${newTutor.unavailableDays?.includes(dayIndex) ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-gray-200 text-slate-700'}`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button onClick={handleSaveTutor} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
+            {newTutor.id ? "Salva Modifiche" : "Aggiungi Tutor"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Youth Modal */}
+      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"}>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newYouth.name || ''}
+              onChange={e => setNewYouth({ ...newYouth, name: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
+            <input
+              type="number"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newYouth.requiredHoursPerWeek || ''}
+              onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newYouth.needs?.join(', ') || ''}
+              onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+            <textarea
+              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+              value={newYouth.notes || ''}
+              onChange={e => setNewYouth({ ...newYouth, notes: e.target.value })}
+            />
+          </div>
+          <button onClick={handleSaveYouth} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
+            {newYouth.id ? "Salva Modifiche" : "Aggiungi Profilo"}
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
 }
 
-          // --- Extracted Components ---
+// --- Extracted Components ---
 
-          interface LoginViewProps {
-            onLoginSuccess: (data: {token: string; user: User }) => void;
+interface LoginViewProps {
+  onLoginSuccess: (data: { token: string; user: User }) => void;
 }
 
-          function LoginView({onLoginSuccess}: LoginViewProps) {
+function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [username, setUsername] = useState('');
-          const [password, setPassword] = useState('');
-          const [error, setError] = useState('');
-          const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
-            e.preventDefault();
-          setLoading(true);
-          setError('');
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-          try {
+    try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/login`, {
-            method: 'POST',
-          headers: {'Content-Type': 'application/json' },
-          body: JSON.stringify({username, password})
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
 
-          const data = await res.json();
+      const data = await res.json();
 
-          if (!res.ok) throw new Error(data.error || 'Login fallito');
+      if (!res.ok) throw new Error(data.error || 'Login fallito');
 
-          onLoginSuccess(data);
+      onLoginSuccess(data);
     } catch (err: any) {
-            setError(err.message);
+      setError(err.message);
     } finally {
-            setLoading(false);
+      setLoading(false);
     }
   };
 
-          return (
-          <div className="min-h-screen flex items-center justify-center bg-slate-900">
-            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500 mb-2">
-                  CentroCare
-                </h1>
-                <p className="text-slate-500">Accedi per continuare</p>
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500 mb-2">
+            CentroCare
+          </h1>
+          <p className="text-slate-500">Accedi per continuare</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4 text-sm flex items-center">
+            <AlertTriangle size={16} className="mr-2" />
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <UserCheck size={18} className="text-slate-400" />
               </div>
-
-              {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4 text-sm flex items-center">
-                  <AlertTriangle size={16} className="mr-2" />
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <UserCheck size={18} className="text-slate-400" />
-                    </div>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
-                      placeholder="Inserisci username"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock size={18} className="text-slate-400" />
-                    </div>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
-                      placeholder="Inserisci password"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 transition-all"
-                >
-                  {loading ? 'Accesso in corso...' : 'Accedi'}
-                </button>
-              </form>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
+                placeholder="Inserisci username"
+                required
+              />
             </div>
           </div>
-          );
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock size={18} className="text-slate-400" />
+              </div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
+                placeholder="Inserisci password"
+                required
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 transition-all"
+          >
+            {loading ? 'Accesso in corso...' : 'Accedi'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
-          function UserManagementView() {
+function UserManagementView() {
   const [users, setUsers] = useState<User[]>([]);
-          const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-          const [newUser, setNewUser] = useState({username: '', password: '', permissions: ['DASHBOARD'] });
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'] });
 
   useEffect(() => {
-            fetchUsers();
+    fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users`);
-          const data = await res.json();
-          setUsers(Array.isArray(data) ? data : []);
+      const data = await res.json();
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
-            console.error("Error fetching users:", error);
+      console.error("Error fetching users:", error);
     }
   };
 
   const handleCreateUser = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users`, {
-            method: 'POST',
-          headers: {'Content-Type': 'application/json' },
-          body: JSON.stringify(newUser)
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
       });
-          if (res.ok) {
-            setIsUserModalOpen(false);
-          setNewUser({username: '', password: '', permissions: ['DASHBOARD'] });
-          fetchUsers();
-          alert("Utente creato con successo!");
+      if (res.ok) {
+        setIsUserModalOpen(false);
+        setNewUser({ username: '', password: '', permissions: ['DASHBOARD'] });
+        fetchUsers();
+        alert("Utente creato con successo!");
       } else {
-            alert("Errore nella creazione utente");
+        alert("Errore nella creazione utente");
       }
     } catch (error) {
-            console.error(error);
+      console.error(error);
     }
   };
 
   const handleDeleteUser = async (id: number) => {
     if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
-          try {
-            await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users/${id}`, { method: 'DELETE' });
-          fetchUsers();
+    try {
+      await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users/${id}`, { method: 'DELETE' });
+      fetchUsers();
     } catch (error) {
-            console.error(error);
+      console.error(error);
     }
   };
 
   const togglePermission = (perm: string) => {
-            setNewUser(prev => {
-              const perms = prev.permissions.includes('ALL') ? [] : prev.permissions;
-              if (perms.includes(perm)) {
-                return { ...prev, permissions: perms.filter(p => p !== perm) };
-              } else {
-                return { ...prev, permissions: [...perms, perm] };
-              }
-            });
+    setNewUser(prev => {
+      const perms = prev.permissions.includes('ALL') ? [] : prev.permissions;
+      if (perms.includes(perm)) {
+        return { ...prev, permissions: perms.filter(p => p !== perm) };
+      } else {
+        return { ...prev, permissions: [...perms, perm] };
+      }
+    });
   };
 
-          return (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-slate-800">Gestione Utenti</h2>
-              <button
-                onClick={() => setIsUserModalOpen(true)}
-                className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
-              >
-                <UserPlus size={20} className="mr-2" />
-                Nuovo Utente
-              </button>
-            </div>
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Gestione Utenti</h2>
+        <button
+          onClick={() => setIsUserModalOpen(true)}
+          className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
+        >
+          <UserPlus size={20} className="mr-2" />
+          Nuovo Utente
+        </button>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {users.map(user => (
-                <Card key={user.id} className="p-6 relative">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold mr-3">
-                        {user.username.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-800">{user.username}</h3>
-                        <span className="text-xs text-slate-500">ID: {user.id}</span>
-                      </div>
-                    </div>
-                    {user.username !== 'Admin' && (
-                      <button onClick={() => handleDeleteUser(user.id)} className="text-slate-400 hover:text-red-500">
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-400 uppercase">Permessi</p>
-                    <div className="flex flex-wrap gap-2">
-                      {user.permissions.includes('ALL') ? (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold border border-purple-200 flex items-center">
-                          <Shield size={10} className="mr-1" /> ADMIN
-                        </span>
-                      ) : (
-                        user.permissions.map(p => (
-                          <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{p}</span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* Create User Modal */}
-            <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-                  <input
-                    type="text"
-                    value={newUser.username}
-                    onChange={e => setNewUser({ ...newUser, username: e.target.value })}
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {users.map(user => (
+          <Card key={user.id} className="p-6 relative">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold mr-3">
+                  {user.username.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                  <input
-                    type="password"
-                    value={newUser.password}
-                    onChange={e => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={newUser.permissions.includes('ALL')}
-                        onChange={() => setNewUser({ ...newUser, permissions: ['ALL'] })}
-                        className="rounded text-teal-600 focus:ring-teal-500"
-                      />
-                      <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
-                    </label>
-                    <div className="border-t my-2"></div>
-                    {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY'].map(perm => (
-                      <label key={perm} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={newUser.permissions.includes(perm)}
-                          onChange={() => togglePermission(perm)}
-                          disabled={newUser.permissions.includes('ALL')}
-                          className="rounded text-teal-600 focus:ring-teal-500"
-                        />
-                        <span className="text-sm capitalize">{perm.toLowerCase()}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
-                  <button onClick={handleCreateUser} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Crea Utente</button>
+                  <h3 className="font-bold text-slate-800">{user.username}</h3>
+                  <span className="text-xs text-slate-500">ID: {user.id}</span>
                 </div>
               </div>
-            </Modal>
+              {user.username !== 'Admin' && (
+                <button onClick={() => handleDeleteUser(user.id)} className="text-slate-400 hover:text-red-500">
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase">Permessi</p>
+              <div className="flex flex-wrap gap-2">
+                {user.permissions.includes('ALL') ? (
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold border border-purple-200 flex items-center">
+                    <Shield size={10} className="mr-1" /> ADMIN
+                  </span>
+                ) : (
+                  user.permissions.map(p => (
+                    <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{p}</span>
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Create User Modal */}
+      <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <input
+              type="text"
+              value={newUser.username}
+              onChange={e => setNewUser({ ...newUser, username: e.target.value })}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            />
           </div>
-          );
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <input
+              type="password"
+              value={newUser.password}
+              onChange={e => setNewUser({ ...newUser, password: e.target.value })}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={newUser.permissions.includes('ALL')}
+                  onChange={() => setNewUser({ ...newUser, permissions: ['ALL'] })}
+                  className="rounded text-teal-600 focus:ring-teal-500"
+                />
+                <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
+              </label>
+              <div className="border-t my-2"></div>
+              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY'].map(perm => (
+                <label key={perm} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={newUser.permissions.includes(perm)}
+                    onChange={() => togglePermission(perm)}
+                    disabled={newUser.permissions.includes('ALL')}
+                    className="rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-sm capitalize">{perm.toLowerCase()}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3 mt-6">
+            <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
+            <button onClick={handleCreateUser} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Crea Utente</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
 }
