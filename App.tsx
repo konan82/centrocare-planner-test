@@ -98,8 +98,40 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
+  // Check Auth on Mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    const storedUserStr = localStorage.getItem('user');
+
+    if (storedToken && storedToken !== 'null' && storedToken !== 'undefined' && storedUserStr && storedUserStr !== 'null' && storedUserStr !== 'undefined') {
+      try {
+        const parsedUser = JSON.parse(storedUserStr);
+        if (parsedUser && parsedUser.id && parsedUser.username) {
+          setCurrentUser(parsedUser);
+          setToken(storedToken);
+          setView('DASHBOARD');
+        } else {
+          throw new Error('Invalid user data');
+        }
+      } catch (e) {
+        console.error("Auth error:", e);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setCurrentUser(null);
+        setView('LOGIN');
+      }
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setToken(null);
+      setCurrentUser(null);
+      setView('LOGIN');
+    }
+  }, []);
+
   // Load data from API on mount
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1302,6 +1334,10 @@ export default function App() {
   };
 
   // --- Main Render ---
+
+  if (view === 'LOGIN') {
+    return renderLogin();
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
