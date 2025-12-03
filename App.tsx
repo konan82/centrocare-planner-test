@@ -478,9 +478,9 @@ export default function App() {
           <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
           <div className="mt-4 flex items-center text-xs text-slate-300 bg-slate-800 p-2 rounded">
             <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center mr-2 font-bold">
-              {currentUser?.username.charAt(0).toUpperCase()}
+              {currentUser?.username?.charAt(0).toUpperCase() || '?'}
             </div>
-            <span>{currentUser?.username}</span>
+            <span>{currentUser?.username || 'Utente'}</span>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">
