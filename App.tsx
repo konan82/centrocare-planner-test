@@ -215,8 +215,24 @@ function App() {
           fetchAll<Youth>('youths'),
           fetchAll<Shift>('shifts')
         ]);
-        setTutors(Array.isArray(t) ? t : []);
-        setYouths(Array.isArray(y) ? y : []);
+
+        // Normalize tutors to ensure maxHoursPerWeek is a number
+        const normalizedTutors = (Array.isArray(t) ? t : []).map((tutor: any) => ({
+          ...tutor,
+          maxHoursPerWeek: typeof tutor.maxHoursPerWeek === 'string' ? parseInt(tutor.maxHoursPerWeek) : tutor.maxHoursPerWeek
+        }));
+
+        // Normalize youths to ensure requiredHoursPerWeek is a number
+        const normalizedYouths = (Array.isArray(y) ? y : []).map((youth: any) => ({
+          ...youth,
+          requiredHoursPerWeek: typeof youth.requiredHoursPerWeek === 'string' ? parseInt(youth.requiredHoursPerWeek) : youth.requiredHoursPerWeek
+        }));
+
+        console.log('🔵 Sample youth from DB:', y[0]);
+        console.log('🔵 After normalization:', normalizedYouths[0]);
+
+        setTutors(normalizedTutors);
+        setYouths(normalizedYouths);
 
         // Normalize shifts to handle potential schema mismatches (day vs date, start vs startTime)
         const normalizedShifts = (Array.isArray(s) ? s : []).map((shift: any) => ({
@@ -232,7 +248,7 @@ function App() {
 
         setShifts(normalizedShifts);
 
-        console.log("Data loaded:", { tutors: t.length, youths: y.length, shifts: normalizedShifts.length });
+        console.log("Data loaded:", { tutors: normalizedTutors.length, youths: normalizedYouths.length, shifts: normalizedShifts.length });
         setIsLoading(false);
 
       } catch (error) {
