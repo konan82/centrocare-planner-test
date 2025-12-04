@@ -332,6 +332,7 @@ function App() {
       if (newYouth.id) {
         // Update existing
         const updatedYouth = { ...youths.find(y => y.id === newYouth.id), ...newYouth } as Youth;
+        console.log('📝 Updating youth:', updatedYouth);
         await postOne('youths', updatedYouth);
         setYouths(youths.map(y => y.id === newYouth.id ? updatedYouth : y));
       } else {
@@ -343,6 +344,8 @@ function App() {
           requiredHoursPerWeek: newYouth.requiredHoursPerWeek ?? 4,
           notes: newYouth.notes || '',
         };
+        console.log('✨ Creating new youth:', youth);
+        console.log('   requiredHoursPerWeek value:', youth.requiredHoursPerWeek, 'type:', typeof youth.requiredHoursPerWeek);
         await postOne('youths', youth);
         setYouths([...youths, youth]);
       }

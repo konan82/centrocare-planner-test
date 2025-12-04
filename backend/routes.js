@@ -140,12 +140,17 @@ router.get('/youths', async (req, res) => {
 router.post('/youths', async (req, res) => {
     try {
         const { id, name, needs, requiredHoursPerWeek, notes } = req.body;
+        console.log('🔵 Backend received youth data:', { id, name, requiredHoursPerWeek, type: typeof requiredHoursPerWeek });
+
+        const finalHours = requiredHoursPerWeek ?? 4;
+        console.log('🔵 Final hours to save:', finalHours, 'type:', typeof finalHours);
+
         await pool.query(
             `INSERT INTO youths (id, name, needs, requiredHoursPerWeek, notes) 
        VALUES ($1, $2, $3, $4, $5) 
        ON CONFLICT (id) DO UPDATE SET 
        name = $2, needs = $3, requiredHoursPerWeek = $4, notes = $5`,
-            [id, name, JSON.stringify(needs || []), requiredHoursPerWeek ?? 4, notes || '']
+            [id, name, JSON.stringify(needs || []), finalHours, notes || '']
         );
         res.json({ ok: true });
     } catch (error) {
