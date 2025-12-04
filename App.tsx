@@ -298,7 +298,7 @@ function App() {
           id: Math.random().toString(36).slice(2, 11),
           name: newTutor.name,
           specialties: newTutor.specialties || [],
-          maxHoursPerWeek: newTutor.maxHoursPerWeek || 20,
+          maxHoursPerWeek: newTutor.maxHoursPerWeek ?? 20,
           unavailableDays: newTutor.unavailableDays || [],
           notes: newTutor.notes || '',
         };
@@ -340,7 +340,7 @@ function App() {
           id: Math.random().toString(36).slice(2, 11),
           name: newYouth.name,
           needs: newYouth.needs || [],
-          requiredHoursPerWeek: newYouth.requiredHoursPerWeek || 4,
+          requiredHoursPerWeek: newYouth.requiredHoursPerWeek ?? 4,
           notes: newYouth.notes || '',
         };
         await postOne('youths', youth);
@@ -1270,8 +1270,8 @@ function App() {
             <input
               type="number"
               className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newTutor.maxHoursPerWeek || ''}
-              onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: parseInt(e.target.value) })}
+              value={newTutor.maxHoursPerWeek ?? ''}
+              onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
             />
           </div>
           <div>
@@ -1337,8 +1337,8 @@ function App() {
             <input
               type="number"
               className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newYouth.requiredHoursPerWeek || ''}
-              onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: parseInt(e.target.value) })}
+              value={newYouth.requiredHoursPerWeek ?? ''}
+              onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
             />
           </div>
           <div>
