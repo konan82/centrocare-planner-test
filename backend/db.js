@@ -31,15 +31,18 @@ const initDB = async () => {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         specialties JSONB NOT NULL,
-        maxHoursPerWeek INTEGER DEFAULT 20,
-        unavailableDays JSONB DEFAULT '[]',
+        "maxHoursPerWeek" INTEGER DEFAULT 20,
+        "unavailableDays" JSONB DEFAULT '[]',
         notes TEXT
       );
     `);
-    // Add missing columns to tutors (run independently)
-    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS maxHoursPerWeek INTEGER DEFAULT 20;`); } catch (e) { console.log("Migrate tutors failed:", e.message); }
-    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS unavailableDays JSONB DEFAULT '[]';`); } catch (e) { console.log("Migrate tutors failed:", e.message); }
-    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS notes TEXT;`); } catch (e) { console.log("Migrate tutors failed:", e.message); }
+    // Migrate existing columns to quoted names
+    try { await client.query(`ALTER TABLE tutors RENAME COLUMN maxhoursperweek TO "maxHoursPerWeek";`); } catch (e) { console.log("Migrate tutors case:", e.message); }
+    try { await client.query(`ALTER TABLE tutors RENAME COLUMN unavailabledays TO "unavailableDays";`); } catch (e) { console.log("Migrate tutors case:", e.message); }
+    // Add missing columns if they don't exist
+    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS "maxHoursPerWeek" INTEGER DEFAULT 20;`); } catch (e) { console.log("Add maxHoursPerWeek failed:", e.message); }
+    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS "unavailableDays" JSONB DEFAULT '[]';`); } catch (e) { console.log("Add unavailableDays failed:", e.message); }
+    try { await client.query(`ALTER TABLE tutors ADD COLUMN IF NOT EXISTS notes TEXT;`); } catch (e) { console.log("Add notes failed:", e.message); }
 
     // Youths table
     await client.query(`
@@ -47,14 +50,16 @@ const initDB = async () => {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         needs JSONB DEFAULT '[]',
-        requiredHoursPerWeek INTEGER DEFAULT 4,
+        "requiredHoursPerWeek" INTEGER DEFAULT 4,
         notes TEXT
       );
     `);
-    // Add missing columns to youths
-    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS needs JSONB DEFAULT '[]';`); } catch (e) { console.log("Migrate youths failed:", e.message); }
-    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS requiredHoursPerWeek INTEGER DEFAULT 4;`); } catch (e) { console.log("Migrate youths failed:", e.message); }
-    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS notes TEXT;`); } catch (e) { console.log("Migrate youths failed:", e.message); }
+    // Migrate existing column to quoted name
+    try { await client.query(`ALTER TABLE youths RENAME COLUMN requiredhoursperweek TO "requiredHoursPerWeek";`); } catch (e) { console.log("Migrate youths case:", e.message); }
+    // Add missing columns if they don't exist
+    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS needs JSONB DEFAULT '[]';`); } catch (e) { console.log("Add needs failed:", e.message); }
+    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS "requiredHoursPerWeek" INTEGER DEFAULT 4;`); } catch (e) { console.log("Add requiredHoursPerWeek failed:", e.message); }
+    try { await client.query(`ALTER TABLE youths ADD COLUMN IF NOT EXISTS notes TEXT;`); } catch (e) { console.log("Add notes failed:", e.message); }
 
     // Remove legacy 'age' column
     try {

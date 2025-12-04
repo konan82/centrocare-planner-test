@@ -105,10 +105,10 @@ router.post('/tutors', async (req, res) => {
     try {
         const { id, name, specialties, maxHoursPerWeek, unavailableDays, notes } = req.body;
         await pool.query(
-            `INSERT INTO tutors (id, name, specialties, maxHoursPerWeek, unavailableDays, notes) 
+            `INSERT INTO tutors (id, name, specialties, "maxHoursPerWeek", "unavailableDays", notes) 
        VALUES ($1, $2, $3, $4, $5, $6) 
        ON CONFLICT (id) DO UPDATE SET 
-       name = $2, specialties = $3, maxHoursPerWeek = $4, unavailableDays = $5, notes = $6`,
+       name = $2, specialties = $3, "maxHoursPerWeek" = $4, "unavailableDays" = $5, notes = $6`,
             [id, name, JSON.stringify(specialties || []), maxHoursPerWeek ?? 20, JSON.stringify(unavailableDays || []), notes || '']
         );
         res.json({ ok: true });
@@ -131,6 +131,11 @@ router.delete('/tutors/:id', async (req, res) => {
 router.get('/youths', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM youths');
+        console.log('🟢 GET /youths returning', result.rows.length, 'youths');
+        if (result.rows.length > 0) {
+            console.log('🟢 Sample youth from DB:', result.rows[0]);
+            console.log('🟢 requiredHoursPerWeek type:', typeof result.rows[0].requiredhoursperweek);
+        }
         res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -146,10 +151,10 @@ router.post('/youths', async (req, res) => {
         console.log('🔵 Final hours to save:', finalHours, 'type:', typeof finalHours);
 
         await pool.query(
-            `INSERT INTO youths (id, name, needs, requiredHoursPerWeek, notes) 
+            `INSERT INTO youths (id, name, needs, "requiredHoursPerWeek", notes) 
        VALUES ($1, $2, $3, $4, $5) 
        ON CONFLICT (id) DO UPDATE SET 
-       name = $2, needs = $3, requiredHoursPerWeek = $4, notes = $5`,
+       name = $2, needs = $3, "requiredHoursPerWeek" = $4, notes = $5`,
             [id, name, JSON.stringify(needs || []), finalHours, notes || '']
         );
         res.json({ ok: true });
