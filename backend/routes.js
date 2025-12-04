@@ -109,7 +109,7 @@ router.post('/tutors', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6) 
        ON CONFLICT (id) DO UPDATE SET 
        name = $2, specialties = $3, maxHoursPerWeek = $4, unavailableDays = $5, notes = $6`,
-            [id, name, JSON.stringify(specialties || []), maxHoursPerWeek || 20, JSON.stringify(unavailableDays || []), notes || '']
+            [id, name, JSON.stringify(specialties || []), maxHoursPerWeek ?? 20, JSON.stringify(unavailableDays || []), notes || '']
         );
         res.json({ ok: true });
     } catch (error) {
@@ -145,7 +145,7 @@ router.post('/youths', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) 
        ON CONFLICT (id) DO UPDATE SET 
        name = $2, needs = $3, requiredHoursPerWeek = $4, notes = $5`,
-            [id, name, JSON.stringify(needs || []), requiredHoursPerWeek || 4, notes || '']
+            [id, name, JSON.stringify(needs || []), requiredHoursPerWeek ?? 4, notes || '']
         );
         res.json({ ok: true });
     } catch (error) {
