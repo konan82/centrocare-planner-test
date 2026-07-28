@@ -1,7 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { Tutor, Youth, Shift } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (aiClient) return aiClient;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Chiave API Gemini mancante. Imposta VITE_GEMINI_API_KEY nelle variabili d'ambiente.");
+  }
+  aiClient = new GoogleGenAI({ apiKey });
+  return aiClient;
+};
 
 export interface ConflictIssue {
   severity: "error" | "warning" | "info";
@@ -38,7 +48,7 @@ Output: SOLO array JSON valido. Formato:
 {"tutorId":"x","youthId":"x","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","activity":"x"}`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3.1-flash-lite",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" },
@@ -133,7 +143,7 @@ score: 100 = perfetto, 0 = pessimo. Segna severity "error" per problemi gravi, "
   };
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
       model: "gemini-3.1-flash-lite",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" },
