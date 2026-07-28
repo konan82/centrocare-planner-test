@@ -1015,7 +1015,18 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {tutors.map(tutor => (
+              {tutors.map(tutor => {
+                const weekShiftsForTutor = shifts.filter(s => {
+                  if (s.tutorId !== tutor.id || !s.date) return false;
+                  const d = typeof s.date === 'string' ? parseISO(s.date.split('T')[0]) : new Date(s.date);
+                  return d >= startOfCurrentWeek && d <= addDays(startOfCurrentWeek, 6);
+                });
+                const tutorWeekHours = weekShiftsForTutor.reduce((sum, s) => {
+                  const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
+                  const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+                  return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+                }, 0);
+                return (
                 <tr key={tutor.id} className="hover:bg-slate-50 transition-colors group">
                   <td className={`p-4 border-b border-r font-medium text-slate-700 bg-white sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50 border-l-4 ${getTutorColor(tutor.id, tutors).border} transition-all`}>
                     <div className="flex items-center gap-2">
@@ -1023,6 +1034,9 @@ function App() {
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold">{tutor.name}</span>
                         <span className="text-xs text-slate-400">{tutor.specialties?.[0]}</span>
+                        <span className={`text-xs font-medium mt-0.5 ${tutorWeekHours > 0 ? 'text-teal-600' : 'text-slate-300'}`}>
+                          {tutorWeekHours}h / {tutor.maxHoursPerWeek}h
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -1127,7 +1141,8 @@ function App() {
                     );
                   })}
                 </tr>
-              ))}
+              );
+            })}
             </tbody>
           </table>
         </div>
