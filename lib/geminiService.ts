@@ -134,27 +134,34 @@ export const analyzeConflicts = (
     }
   });
 
-  // 3. Ore max superate
+  // 3. Ore max superate (verifica per ogni settimana)
   tutors.forEach(t => {
     if (!t.maxHoursPerWeek) return;
-    const tutorShifts = shifts.filter(s => s.tutorId === t.id);
-    let totalMin = 0;
+    const tutorShifts = shifts.filter(s => s.tutorId === t.id && s.date);
+
+    // Group shifts by ISO week
+    const weeks: Record<string, number> = {};
     tutorShifts.forEach(s => {
       if (!s.startTime || !s.endTime) return;
+      const d = new Date(s.date + 'T12:00:00');
+      const weekKey = `${d.getFullYear()}-W${String(Math.ceil((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000 / 7)).padStart(2, '0')}`;
       const [sh, sm] = s.startTime.split(':').map(Number);
       const [eh, em] = s.endTime.split(':').map(Number);
-      totalMin += (eh * 60 + em) - (sh * 60 + sm);
+      weeks[weekKey] = (weeks[weekKey] || 0) + ((eh * 60 + em) - (sh * 60 + sm));
     });
-    const totalHours = totalMin / 60;
-    if (totalHours > t.maxHoursPerWeek) {
-      issues.push({
-        severity: 'warning',
-        category: 'Ore settimanali',
-        title: `Ore massime superate`,
-        description: `${t.name} ha ${totalHours}h assegnate, superando il limite di ${t.maxHoursPerWeek}h.`,
-        affectedTutors: [t.name],
-      });
-    }
+
+    Object.entries(weeks).forEach(([week, totalMin]) => {
+      const totalHours = totalMin / 60;
+      if (totalHours > t.maxHoursPerWeek) {
+        issues.push({
+          severity: 'warning',
+          category: 'Ore settimanali',
+          title: `Ore massime superate`,
+          description: `${t.name} ha ${totalHours}h assegnate nella settimana ${week}, superando il limite di ${t.maxHoursPerWeek}h.`,
+          affectedTutors: [t.name],
+        });
+      }
+    });
   });
 
   // 4. Turni con orari strani
