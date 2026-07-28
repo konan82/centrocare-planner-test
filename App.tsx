@@ -34,6 +34,40 @@ import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, format, parseISO, isSameDay, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 
+const TUTOR_COLORS = [
+  { bg: 'bg-blue-100', border: 'border-l-blue-500', text: 'text-blue-800', hover: 'hover:bg-blue-200', badge: 'bg-blue-500' },
+  { bg: 'bg-emerald-100', border: 'border-l-emerald-500', text: 'text-emerald-800', hover: 'hover:bg-emerald-200', badge: 'bg-emerald-500' },
+  { bg: 'bg-violet-100', border: 'border-l-violet-500', text: 'text-violet-800', hover: 'hover:bg-violet-200', badge: 'bg-violet-500' },
+  { bg: 'bg-amber-100', border: 'border-l-amber-500', text: 'text-amber-800', hover: 'hover:bg-amber-200', badge: 'bg-amber-500' },
+  { bg: 'bg-rose-100', border: 'border-l-rose-500', text: 'text-rose-800', hover: 'hover:bg-rose-200', badge: 'bg-rose-500' },
+  { bg: 'bg-cyan-100', border: 'border-l-cyan-500', text: 'text-cyan-800', hover: 'hover:bg-cyan-200', badge: 'bg-cyan-500' },
+  { bg: 'bg-orange-100', border: 'border-l-orange-500', text: 'text-orange-800', hover: 'hover:bg-orange-200', badge: 'bg-orange-500' },
+  { bg: 'bg-pink-100', border: 'border-l-pink-500', text: 'text-pink-800', hover: 'hover:bg-pink-200', badge: 'bg-pink-500' },
+  { bg: 'bg-indigo-100', border: 'border-l-indigo-500', text: 'text-indigo-800', hover: 'hover:bg-indigo-200', badge: 'bg-indigo-500' },
+  { bg: 'bg-lime-100', border: 'border-l-lime-500', text: 'text-lime-800', hover: 'hover:bg-lime-200', badge: 'bg-lime-500' },
+];
+
+const YOUTH_COLORS = [
+  { bg: 'bg-sky-100', border: 'border-sky-300', text: 'text-sky-800', badge: 'bg-sky-500' },
+  { bg: 'bg-fuchsia-100', border: 'border-fuchsia-300', text: 'text-fuchsia-800', badge: 'bg-fuchsia-500' },
+  { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-800', badge: 'bg-teal-500' },
+  { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', badge: 'bg-yellow-500' },
+  { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', badge: 'bg-red-500' },
+  { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', badge: 'bg-green-500' },
+  { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-800', badge: 'bg-purple-500' },
+  { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', badge: 'bg-blue-500' },
+];
+
+const getTutorColor = (tutorId: string, tutors: Tutor[]) => {
+  const idx = tutors.findIndex(t => t.id === tutorId);
+  return TUTOR_COLORS[idx % TUTOR_COLORS.length];
+};
+
+const getYouthColor = (youthId: string, youths: Youth[]) => {
+  const idx = youths.findIndex(y => y.id === youthId);
+  return YOUTH_COLORS[idx % YOUTH_COLORS.length];
+};
+
 // --- Components defined within App to share state easily for this demo ---
 
 interface ModalProps {
@@ -717,7 +751,7 @@ function App() {
               </button>
             </div>
             <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-lg">
+              <div className={`w-12 h-12 ${getTutorColor(tutor.id, tutors).bg} ${getTutorColor(tutor.id, tutors).text} rounded-full flex items-center justify-center font-bold text-lg`}>
                 {tutor.name?.charAt(0) || '?'}
               </div>
               <div className="ml-4">
@@ -983,10 +1017,13 @@ function App() {
             <tbody>
               {tutors.map(tutor => (
                 <tr key={tutor.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="p-4 border-b border-r font-medium text-slate-700 bg-white sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50 border-l-4 border-l-transparent hover:border-l-teal-500 transition-all">
-                    <div className="flex flex-col">
-                      <span className="text-sm">{tutor.name}</span>
-                      <span className="text-xs text-slate-400">{tutor.specialties?.[0]}</span>
+                  <td className={`p-4 border-b border-r font-medium text-slate-700 bg-white sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50 border-l-4 ${getTutorColor(tutor.id, tutors).border} transition-all`}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${getTutorColor(tutor.id, tutors).badge} flex-shrink-0`}></div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">{tutor.name}</span>
+                        <span className="text-xs text-slate-400">{tutor.specialties?.[0]}</span>
+                      </div>
                     </div>
                   </td>
                   {weekDays.map((day, i) => {
@@ -1048,7 +1085,7 @@ function App() {
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, shift.id)}
                                 onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                className={`bg-teal-100 hover:bg-teal-200 border border-teal-200 text-teal-800 p-2 rounded text-xs cursor-move shadow-sm transition-all flex flex-col group/item
+                                className={`${getYouthColor(shift.youthId, youths).bg} ${getYouthColor(shift.youthId, youths).hover} border ${getYouthColor(shift.youthId, youths).border} ${getYouthColor(shift.youthId, youths).text} p-2 rounded text-xs cursor-move shadow-sm transition-all flex flex-col group/item
                                   ${isDragging ? 'opacity-50 scale-95' : 'opacity-100'}
                                 `}
                               >
