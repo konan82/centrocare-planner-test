@@ -20,11 +20,16 @@ import {
   UserPlus,
   Settings,
   Clock,
-  Timer
+  Timer,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info,
+  TrendingUp
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
-import { generateSmartSchedule, analyzeConflicts } from './lib/geminiService';
+import { generateSmartSchedule, analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, format, parseISO, isSameDay, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -272,7 +277,7 @@ function App() {
 
   // AI State
   const [isGenerating, setIsGenerating] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<ConflictAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Drag and Drop State
@@ -818,19 +823,121 @@ function App() {
 
         {/* AI Analysis Result */}
         {analysisResult && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm relative animate-fadeIn">
-            <button onClick={() => setAnalysisResult(null)} className="absolute top-2 right-2 text-yellow-600 hover:text-yellow-800"><X size={16} /></button>
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">Analisi AI</h3>
-                <div className="mt-2 text-sm text-yellow-700 whitespace-pre-line">
-                  {analysisResult}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-fadeIn">
+            {/* Header with score */}
+            <div className={`px-6 py-4 flex items-center justify-between ${
+              analysisResult.score >= 80 ? 'bg-emerald-50 border-b border-emerald-200' :
+              analysisResult.score >= 50 ? 'bg-amber-50 border-b border-amber-200' :
+              'bg-red-50 border-b border-red-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-full ${
+                  analysisResult.score >= 80 ? 'bg-emerald-100' :
+                  analysisResult.score >= 50 ? 'bg-amber-100' :
+                  'bg-red-100'
+                }`}>
+                  {analysisResult.score >= 80 ? <CheckCircle className="h-6 w-6 text-emerald-600" /> :
+                   analysisResult.score >= 50 ? <AlertTriangle className="h-6 w-6 text-amber-600" /> :
+                   <XCircle className="h-6 w-6 text-red-600" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Analisi AI Conflitti</h3>
+                  <p className="text-sm text-gray-600">{analysisResult.summary}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className={`text-3xl font-black ${
+                    analysisResult.score >= 80 ? 'text-emerald-600' :
+                    analysisResult.score >= 50 ? 'text-amber-600' :
+                    'text-red-600'
+                  }`}>{analysisResult.score}</div>
+                  <div className="text-xs text-gray-500 font-medium">/ 100</div>
+                </div>
+                <button onClick={() => setAnalysisResult(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
+
+            {/* Score bar */}
+            <div className="px-6 pt-3">
+              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    analysisResult.score >= 80 ? 'bg-emerald-500' :
+                    analysisResult.score >= 50 ? 'bg-amber-500' :
+                    'bg-red-500'
+                  }`}
+                  style={{ width: `${analysisResult.score}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Stats bar */}
+            <div className="px-6 py-3 flex gap-4 text-sm">
+              {analysisResult.issues.filter(i => i.severity === 'error').length > 0 && (
+                <span className="flex items-center gap-1 text-red-600 font-semibold">
+                  <XCircle size={14} /> {analysisResult.issues.filter(i => i.severity === 'error').length} Errori
+                </span>
+              )}
+              {analysisResult.issues.filter(i => i.severity === 'warning').length > 0 && (
+                <span className="flex items-center gap-1 text-amber-600 font-semibold">
+                  <AlertCircle size={14} /> {analysisResult.issues.filter(i => i.severity === 'warning').length} Avvisi
+                </span>
+              )}
+              {analysisResult.issues.filter(i => i.severity === 'info').length > 0 && (
+                <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                  <Info size={14} /> {analysisResult.issues.filter(i => i.severity === 'info').length} Suggerimenti
+                </span>
+              )}
+              {analysisResult.issues.length === 0 && (
+                <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                  <CheckCircle size={14} /> Nessun problema trovato!
+                </span>
+              )}
+            </div>
+
+            {/* Issues list */}
+            {analysisResult.issues.length > 0 && (
+              <div className="px-6 pb-4 space-y-2">
+                {analysisResult.issues.map((issue, idx) => (
+                  <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${
+                    issue.severity === 'error' ? 'bg-red-50 border-red-200' :
+                    issue.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
+                    'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className={`mt-0.5 flex-shrink-0 ${
+                      issue.severity === 'error' ? 'text-red-500' :
+                      issue.severity === 'warning' ? 'text-amber-500' :
+                      'text-blue-500'
+                    }`}>
+                      {issue.severity === 'error' ? <XCircle size={18} /> :
+                       issue.severity === 'warning' ? <AlertCircle size={18} /> :
+                       <Info size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
+                          issue.severity === 'error' ? 'bg-red-100 text-red-700' :
+                          issue.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>{issue.category}</span>
+                        <span className="font-semibold text-gray-900 text-sm">{issue.title}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1">{issue.description}</p>
+                      {issue.affectedDates && issue.affectedDates.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {issue.affectedDates.map((d, i) => (
+                            <span key={i} className="text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-600">{d}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

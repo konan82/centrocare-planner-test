@@ -3,6 +3,21 @@ import { Tutor, Youth, Shift } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
+export interface ConflictIssue {
+  severity: "error" | "warning" | "info";
+  category: string;
+  title: string;
+  description: string;
+  affectedTutors?: string[];
+  affectedDates?: string[];
+}
+
+export interface ConflictAnalysis {
+  issues: ConflictIssue[];
+  summary: string;
+  score: number;
+}
+
 export const generateSmartSchedule = async (
   tutors: Tutor[],
   youths: Youth[],
@@ -59,22 +74,47 @@ Output: SOLO array JSON valido. Formato:
 export const analyzeConflicts = async (
   tutors: Tutor[],
   shifts: Shift[]
-): Promise<string> => {
-  const prompt = `Analizza conflitti turni centro educativo.
+): Promise<ConflictAnalysis> => {
+  const prompt = `Analizza conflitti turni centro educativo e restituisci JSON strutturato.
 Dati tutor: ${JSON.stringify(tutors.map(t => ({ id: t.id, name: t.name, maxHours: t.maxHoursPerWeek, off: t.unavailableDays })))}
 Turni: ${JSON.stringify(shifts.map(s => ({ tutorId: s.tutorId, date: s.date, start: s.startTime, end: s.endTime })))}
 
 Controlla:
-1. Sovrapposizioni orari stesso tutor
+1. Sovrapposizioni orari stesso tutor (stessa data e ora)
 2. Turni in giorni indisponibili
 3. Ore max superate
+4. Turni con orari strani (< 14:00 o > 19:00)
+5. Tutor non utilizzati
 
-Rispondi con elenco puntato in italiano. Se ok, dillo.`;
+Rispondi SOLO con questo JSON (nessun testo extra):
+{
+  "issues": [
+    {
+      "severity": "error|warning|info",
+      "category": "Categoria problema",
+      "title": "Titolo breve",
+      "description": "Descrizione dettagliata",
+      "affectedTutors": ["id tutor"],
+      "affectedDates": ["YYYY-MM-DD"]
+    }
+  ],
+  "summary": "Riassunto in 1-2 frasi dello stato generale",
+  "score": 0-100
+}
+
+score: 100 = perfetto, 0 = pessimo. Segna severity "error" per problemi gravi, "warning" per moderati, "info" per suggerimenti.`;
+
+  const fallback: ConflictAnalysis = {
+    issues: [],
+    summary: "Errore durante l'analisi.",
+    score: 0,
+  };
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-lite",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json" },
     });
 
     let text: string;
@@ -83,12 +123,24 @@ Rispondi con elenco puntato in italiano. Se ok, dillo.`;
     } else if ((response as any).candidates && (response as any).candidates.length > 0) {
       text = (response as any).candidates[0].content.parts[0].text;
     } else {
-      text = "Nessuna risposta generata.";
+      return fallback;
     }
 
-    return text;
+    let cleanText = text.trim();
+    if (cleanText.startsWith("```json")) {
+      cleanText = cleanText.replace(/^```json/, "").replace(/```$/, "");
+    }
+
+    const data = JSON.parse(cleanText);
+    if (!data.issues) return fallback;
+
+    return {
+      issues: data.issues || [],
+      summary: data.summary || "Analisi completata.",
+      score: typeof data.score === "number" ? data.score : 50,
+    };
   } catch (error) {
     console.error("Errore analisi conflitti:", error);
-    return "Errore durante l'analisi.";
+    return fallback;
   }
 };
