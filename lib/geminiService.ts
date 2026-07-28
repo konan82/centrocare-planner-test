@@ -8,48 +8,24 @@ export const generateSmartSchedule = async (
   youths: Youth[],
   startDate: string
 ): Promise<Shift[]> => {
-  const fullPrompt = `
-    Sei un esperto di pianificazione turni per un centro educativo.
-    
-    DATI DI INPUT (JSON):
-    ${JSON.stringify({ tutors, youths, startDate })}
-    
-    OBIETTIVO:
-    Genera una pianificazione settimanale (lunedì-sabato) distribuendo i ragazzi su TUTTI i tutor disponibili.
-    
-    REGOLE FONDAMENTALI:
-    1. DEVI usare TUTTI i tutor disponibili, distribuendo equamente i ragazzi tra di essi.
-    2. Rispetta le unavailableDays di ogni tutor (0=Domenica, 1=Lunedì, ..., 6=Sabato).
-    3. Ogni tutor NON deve superare le sue maxHoursPerWeek totali nella settimana.
-    4. Prioritizza l'abbinamento tra le specialties del tutor e i needs del ragazzo quando possibile.
-    5. I turni devono essere tra le 14:00 e le 19:00 (orario pomeriggio centro).
-    6. Durata turno tipica: 1-2 ore per ragazzo.
-    7. Ogni ragazzo deve ricevere le sue requiredHoursPerWeek totali nella settimana.
-    8. Un tutor NON può avere turni sovrapposti (non può seguire 2 ragazzi nella stessa fascia oraria).
-    9. Genera turni per ogni giorno lunedì-sabato della settimana a partire da startDate.
-    10. Assegna un'attività descrittiva per ogni turno (es. "Attività motoria", "Supporto compiti", "Socializzazione", "Attività creativa").
-    
-    ESEMPIO DI DISTRIBUZIONE CORRETTA:
-    Se hai 3 tutor e 6 ragazzi, ogni tutor dovrebbe avere circa 2 ragazzi nella settimana.
-    Se hai 2 tutor e 4 ragazzi, ogni tutor dovrebbe avere circa 2 ragazzi.
-    
-    OUTPUT RICHIESTO:
-    Restituisci SOLAMENTE un array JSON valido di oggetti turno. Non aggiungere markdown o altro testo.
-    Formato oggetto turno:
-    {
-      "tutorId": "id_tutor",
-      "youthId": "id_ragazzo",
-      "date": "YYYY-MM-DD",
-      "startTime": "HH:MM",
-      "endTime": "HH:MM",
-      "activity": "Attività proposta"
-    }
-  `;
+  const prompt = `Pianifica turni settimanali (lun-sab) per centro educativo.
+Dati: ${JSON.stringify({ tutors: tutors.map(t => ({ id: t.id, name: t.name, specialties: t.specialties, maxHours: t.maxHoursPerWeek, off: t.unavailableDays })), youths: youths.map(y => ({ id: y.id, name: y.name, needs: y.needs, hours: y.requiredHoursPerWeek })), startDate })}
+
+Regole:
+- USA TUTTI i tutor, distribuisci equamente i ragazzi
+- Rispetta unavailableDays (0=dom, 1=lu, ..., 6=sab)
+- Max ore/tutor = maxHours, ogni ragazzo = requiredHours
+- Turni 14:00-19:00, durata 1-2h, no sovrapposti
+- Abbinamento specialties↔needs quando possibile
+- Assegna attività (es. "Motorio", "Compiti", "Socializzazione")
+
+Output: SOLO array JSON valido. Formato:
+{"tutorId":"x","youthId":"x","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","activity":"x"}`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      model: "gemini-3.1-flash-lite",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { responseMimeType: "application/json" },
     });
 
@@ -84,25 +60,21 @@ export const analyzeConflicts = async (
   tutors: Tutor[],
   shifts: Shift[]
 ): Promise<string> => {
-  const fullPrompt = `
-    Analizza la seguente pianificazione turni per trovare conflitti o problemi.
-    
-    DATI (JSON):
-    ${JSON.stringify({ tutors, shifts })}
-    
-    CONTROLLA:
-    1. Tutor assegnati a più ragazzi contemporaneamente (sovrapposizione orari).
-    2. Tutor che lavorano in giorni in cui non sono disponibili.
-    3. Rispetto delle ore massime dei tutor.
-    
-    OUTPUT:
-    Rispondi con un breve report testuale in italiano che elenca i problemi trovati. Usa elenchi puntati. Se è tutto ok, dillo.
-  `;
+  const prompt = `Analizza conflitti turni centro educativo.
+Dati tutor: ${JSON.stringify(tutors.map(t => ({ id: t.id, name: t.name, maxHours: t.maxHoursPerWeek, off: t.unavailableDays })))}
+Turni: ${JSON.stringify(shifts.map(s => ({ tutorId: s.tutorId, date: s.date, start: s.startTime, end: s.endTime })))}
+
+Controlla:
+1. Sovrapposizioni orari stesso tutor
+2. Turni in giorni indisponibili
+3. Ore max superate
+
+Rispondi con elenco puntato in italiano. Se ok, dillo.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+      model: "gemini-3.1-flash-lite",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
     let text: string;
