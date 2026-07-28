@@ -6,7 +6,6 @@ import {
   Plus,
   Trash2,
   BrainCircuit,
-  BrainCircuit,
   AlertTriangle,
   Menu,
   X,
@@ -25,8 +24,8 @@ import {
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
-import { generateSmartSchedule, analyzeConflicts } from './services/geminiService';
-import { fetchAll, postOne, deleteOne } from './src/api';
+import { generateSmartSchedule, analyzeConflicts } from './lib/geminiService';
+import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, format, parseISO, isSameDay, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -170,37 +169,41 @@ function App() {
 
   // Check Auth on Mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUserStr = localStorage.getItem('user');
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (storedToken && storedToken !== 'null' && storedToken !== 'undefined' && storedUserStr && storedUserStr !== 'null' && storedUserStr !== 'undefined') {
-      try {
-        const parsedUser = JSON.parse(storedUserStr);
-        if (parsedUser && parsedUser.id && parsedUser.username) {
-          setCurrentUser(parsedUser);
-          setToken(storedToken);
+      if (session?.user) {
+        // Fetch profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) {
+          setCurrentUser({
+            id: session.user.id,
+            username: profile.username,
+            permissions: profile.permissions || [],
+          });
+          setToken(session.access_token);
           setView('DASHBOARD');
-        } else {
-          throw new Error('Invalid user data');
+          return;
         }
-      } catch (e) {
-        console.error("Auth error:", e);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setToken(null);
-        setCurrentUser(null);
-        setView('LOGIN');
       }
-    } else {
+
+      // No valid session
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setToken(null);
       setCurrentUser(null);
       setView('LOGIN');
-    }
+    };
+
+    checkAuth();
   }, []);
 
-  // Load data from API on mount
+  // Load data from Supabase on mount
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -211,54 +214,45 @@ function App() {
 
       try {
         const [t, y, s] = await Promise.all([
-          fetchAll<Tutor>('tutors'),
-          fetchAll<Youth>('youths'),
-          fetchAll<Shift>('shifts')
+          supabase.from('tutors').select('*'),
+          supabase.from('youths').select('*'),
+          supabase.from('shifts').select('*')
         ]);
 
-        // Normalize tutors to ensure maxHoursPerWeek is a number
-        const normalizedTutors = (Array.isArray(t) ? t : []).map((tutor: any) => ({
+        if (t.error) throw t.error;
+        if (y.error) throw y.error;
+        if (s.error) throw s.error;
+
+        const normalizedTutors = (t.data || []).map((tutor: any) => ({
           ...tutor,
-          maxHoursPerWeek: typeof tutor.maxHoursPerWeek === 'string' ? parseInt(tutor.maxHoursPerWeek) : tutor.maxHoursPerWeek
+          specialties: tutor.specialties || [],
+          unavailableDays: tutor.unavailable_days || [],
+          maxHoursPerWeek: tutor.max_hours_per_week
         }));
 
-        // Normalize youths to ensure requiredHoursPerWeek is a number
-        const normalizedYouths = (Array.isArray(y) ? y : []).map((youth: any) => ({
+        const normalizedYouths = (y.data || []).map((youth: any) => ({
           ...youth,
-          requiredHoursPerWeek: typeof youth.requiredHoursPerWeek === 'string' ? parseInt(youth.requiredHoursPerWeek) : youth.requiredHoursPerWeek
+          needs: youth.needs || [],
+          requiredHoursPerWeek: youth.required_hours_per_week
         }));
 
-        console.log('🔵 Sample youth from DB:', y[0]);
-        console.log('🔵 After normalization:', normalizedYouths[0]);
+        const normalizedShifts = (s.data || []).map((shift: any) => ({
+          ...shift,
+          tutorId: shift.tutor_id,
+          youthId: shift.youth_id,
+          startTime: shift.start_time,
+          endTime: shift.end_time
+        }));
 
         setTutors(normalizedTutors);
         setYouths(normalizedYouths);
-
-        // Normalize shifts to handle potential schema mismatches (day vs date, start vs startTime)
-        const normalizedShifts = (Array.isArray(s) ? s : []).map((shift: any) => ({
-          ...shift,
-          date: shift.date || shift.day,
-          startTime: shift.startTime || shift.start,
-          endTime: shift.endTime || shift.end
-        }));
-
-        console.log("RAW shifts from API:", s);
-        console.log("NORMALIZED shifts:", normalizedShifts);
-        console.log("Sample shift dates:", normalizedShifts.slice(0, 3).map(sh => ({ id: sh.id, date: sh.date, tutorId: sh.tutorId })));
-
         setShifts(normalizedShifts);
 
-        console.log("Data loaded:", { tutors: normalizedTutors.length, youths: normalizedYouths.length, shifts: normalizedShifts.length });
         setIsLoading(false);
-
       } catch (error) {
         console.error('Error loading data:', error);
-        setLoadError('Il backend sta riavviandosi (Render free tier). Riprovo tra 5 secondi...');
-
-        // Retry after 5 seconds (backend might be waking up)
-        setTimeout(() => {
-          window.location.reload();
-        }, 5000);
+        setLoadError('Errore nel caricamento dati. Riprovo tra 5 secondi...');
+        setTimeout(() => { window.location.reload(); }, 5000);
       }
     })();
   }, []);
@@ -303,23 +297,22 @@ function App() {
     if (!newTutor.name) return;
 
     try {
+      const tutorData = {
+        id: newTutor.id || Math.random().toString(36).slice(2, 11),
+        name: newTutor.name,
+        specialties: newTutor.specialties || [],
+        max_hours_per_week: newTutor.maxHoursPerWeek ?? 20,
+        unavailable_days: newTutor.unavailableDays || [],
+        notes: newTutor.notes || '',
+      };
+
+      const { error } = await supabase.from('tutors').upsert(tutorData);
+      if (error) throw error;
+
       if (newTutor.id) {
-        // Update existing
-        const updatedTutor = { ...tutors.find(t => t.id === newTutor.id), ...newTutor } as Tutor;
-        await postOne('tutors', updatedTutor);
-        setTutors(tutors.map(t => t.id === newTutor.id ? updatedTutor : t));
+        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days } : t));
       } else {
-        // Create new
-        const tutor: Tutor = {
-          id: Math.random().toString(36).slice(2, 11),
-          name: newTutor.name,
-          specialties: newTutor.specialties || [],
-          maxHoursPerWeek: newTutor.maxHoursPerWeek ?? 20,
-          unavailableDays: newTutor.unavailableDays || [],
-          notes: newTutor.notes || '',
-        };
-        await postOne('tutors', tutor);
-        setTutors([...tutors, tutor]);
+        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days }]);
       }
       setIsTutorModalOpen(false);
       setNewTutor({});
@@ -332,9 +325,10 @@ function App() {
   const handleDeleteTutor = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo tutor?")) return;
     try {
-      await deleteOne('tutors', id);
+      const { error } = await supabase.from('tutors').delete().eq('id', id);
+      if (error) throw error;
       setTutors(tutors.filter(t => t.id !== id));
-      setShifts(shifts.filter(s => s.tutorId !== id)); // Cascade delete shifts locally
+      setShifts(shifts.filter(s => s.tutorId !== id));
     } catch (error) {
       console.error("Error deleting tutor:", error);
       alert("Errore nell'eliminazione del tutor");
@@ -345,25 +339,21 @@ function App() {
     if (!newYouth.name) return;
 
     try {
+      const youthData = {
+        id: newYouth.id || Math.random().toString(36).slice(2, 11),
+        name: newYouth.name,
+        needs: newYouth.needs || [],
+        required_hours_per_week: newYouth.requiredHoursPerWeek ?? 4,
+        notes: newYouth.notes || '',
+      };
+
+      const { error } = await supabase.from('youths').upsert(youthData);
+      if (error) throw error;
+
       if (newYouth.id) {
-        // Update existing
-        const updatedYouth = { ...youths.find(y => y.id === newYouth.id), ...newYouth } as Youth;
-        console.log('📝 Updating youth:', updatedYouth);
-        await postOne('youths', updatedYouth);
-        setYouths(youths.map(y => y.id === newYouth.id ? updatedYouth : y));
+        setYouths(youths.map(y => y.id === newYouth.id ? { ...y, ...youthData, requiredHoursPerWeek: youthData.required_hours_per_week } : y));
       } else {
-        // Create new
-        const youth: Youth = {
-          id: Math.random().toString(36).slice(2, 11),
-          name: newYouth.name,
-          needs: newYouth.needs || [],
-          requiredHoursPerWeek: newYouth.requiredHoursPerWeek ?? 4,
-          notes: newYouth.notes || '',
-        };
-        console.log('✨ Creating new youth:', youth);
-        console.log('   requiredHoursPerWeek value:', youth.requiredHoursPerWeek, 'type:', typeof youth.requiredHoursPerWeek);
-        await postOne('youths', youth);
-        setYouths([...youths, youth]);
+        setYouths([...youths, { ...youthData, requiredHoursPerWeek: youthData.required_hours_per_week }]);
       }
       setIsYouthModalOpen(false);
       setNewYouth({});
@@ -376,7 +366,8 @@ function App() {
   const handleDeleteYouth = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo ragazzo?")) return;
     try {
-      await deleteOne('youths', id);
+      const { error } = await supabase.from('youths').delete().eq('id', id);
+      if (error) throw error;
       setYouths(youths.filter(y => y.id !== id));
       setShifts(shifts.filter(s => s.youthId !== id));
     } catch (error) {
@@ -389,22 +380,31 @@ function App() {
     if (!editingShift?.tutorId || !editingShift?.youthId || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
     try {
-      const shift: Shift = {
+      const shiftData = {
         id: editingShift.id || Math.random().toString(36).slice(2, 11),
-        tutorId: editingShift.tutorId,
-        youthId: editingShift.youthId,
+        tutor_id: editingShift.tutorId,
+        youth_id: editingShift.youthId,
         date: editingShift.date,
-        startTime: editingShift.startTime,
-        endTime: editingShift.endTime,
+        start_time: editingShift.startTime,
+        end_time: editingShift.endTime,
         activity: editingShift.activity || 'Attività generica',
       };
 
-      await postOne('shifts', shift);
+      const { error } = await supabase.from('shifts').upsert(shiftData);
+      if (error) throw error;
+
+      const normalizedShift = {
+        ...shiftData,
+        tutorId: shiftData.tutor_id,
+        youthId: shiftData.youth_id,
+        startTime: shiftData.start_time,
+        endTime: shiftData.end_time,
+      };
 
       if (editingShift.id) {
-        setShifts(shifts.map(s => s.id === shift.id ? shift : s));
+        setShifts(shifts.map(s => s.id === normalizedShift.id ? normalizedShift : s));
       } else {
-        setShifts([...shifts, shift]);
+        setShifts([...shifts, normalizedShift]);
       }
       setIsShiftModalOpen(false);
       setEditingShift(null);
@@ -417,7 +417,8 @@ function App() {
   const handleDeleteShift = async (id: string) => {
     if (!confirm("Eliminare questo turno?")) return;
     try {
-      await deleteOne('shifts', id);
+      const { error } = await supabase.from('shifts').delete().eq('id', id);
+      if (error) throw error;
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
     } catch (error) {
@@ -462,12 +463,22 @@ function App() {
       const startDateStr = format(startOfCurrentWeek, 'yyyy-MM-dd');
       const newShifts = await generateSmartSchedule(tutors, youths, startDateStr);
 
-      // Save generated shifts to DB
-      await Promise.all(newShifts.map(s => postOne('shifts', s)));
+      // Save generated shifts to Supabase
+      const shiftsToSave = newShifts.map(s => ({
+        id: s.id,
+        tutor_id: s.tutorId,
+        youth_id: s.youthId,
+        date: s.date,
+        start_time: s.startTime,
+        end_time: s.endTime,
+        activity: s.activity || '',
+      }));
+
+      const { error } = await supabase.from('shifts').upsert(shiftsToSave);
+      if (error) throw error;
 
       // Remove existing shifts for this week to avoid duplication if re-generating
       const otherWeekShifts = shifts.filter(s => {
-        // Safe check for date to prevent crashes
         if (!s.date) return false;
         try {
           const d = parseISO(s.date);
@@ -523,13 +534,12 @@ function App() {
       if (shiftToUpdate) {
         const updatedShift = { ...shiftToUpdate, tutorId, date: dateStr };
         try {
-          await postOne('shifts', updatedShift);
-          setShifts(prevShifts => prevShifts.map(s => {
-            if (s.id === shiftId) {
-              return updatedShift;
-            }
-            return s;
-          }));
+          const { error } = await supabase.from('shifts').update({
+            tutor_id: tutorId,
+            date: dateStr,
+          }).eq('id', shiftId);
+          if (error) throw error;
+          setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
         } catch (error) {
           console.error("Error updating shift drop:", error);
           alert("Errore spostamento turno");
@@ -550,7 +560,8 @@ function App() {
     return perms.includes(perm);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setToken(null);
@@ -772,9 +783,9 @@ function App() {
               onClick={async () => {
                 if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
                 try {
-                  const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/shifts-clear-all/confirm`);
-                  const data = await res.json();
-                  alert(`Cancellati ${data.deleted} turni!`);
+                  const { error, count } = await supabase.from('shifts').delete().neq('id', '');
+                  if (error) throw error;
+                  alert(`Turni cancellati con successo!`);
                   setShifts([]);
                 } catch (error) {
                   console.error(error);
@@ -1393,7 +1404,7 @@ interface LoginViewProps {
 }
 
 function LoginView({ onLoginSuccess }: LoginViewProps) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1404,17 +1415,30 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
     setError('');
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
+      if (authError) throw authError;
 
-      if (!res.ok) throw new Error(data.error || 'Login fallito');
+      // Fetch profile for permissions
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
 
-      onLoginSuccess(data);
+      if (profileError) throw profileError;
+
+      onLoginSuccess({
+        token: data.session.access_token,
+        user: {
+          id: data.user.id,
+          username: profile.username,
+          permissions: profile.permissions || [],
+        },
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -1441,17 +1465,17 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <UserCheck size={18} className="text-slate-400" />
               </div>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
-                placeholder="Inserisci username"
+                placeholder="Inserisci email"
                 required
               />
             </div>
@@ -1501,9 +1525,13 @@ function UserManagementView() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users`);
-      const data = await res.json();
-      setUsers(Array.isArray(data) ? data : []);
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (error) throw error;
+      setUsers(Array.isArray(data) ? data.map(p => ({
+        id: p.id,
+        username: p.username,
+        permissions: p.permissions || [],
+      })) : []);
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -1511,28 +1539,34 @@ function UserManagementView() {
 
   const handleCreateUser = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
+      // Create user in Supabase Auth
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: `${newUser.username}@centrocare.local`,
+        password: newUser.password,
+        email_confirm: true,
+        user_metadata: {
+          username: newUser.username,
+          permissions: newUser.permissions,
+        },
       });
-      if (res.ok) {
-        setIsUserModalOpen(false);
-        setNewUser({ username: '', password: '', permissions: ['DASHBOARD'] });
-        fetchUsers();
-        alert("Utente creato con successo!");
-      } else {
-        alert("Errore nella creazione utente");
-      }
-    } catch (error) {
+
+      if (error) throw error;
+
+      setIsUserModalOpen(false);
+      setNewUser({ username: '', password: '', permissions: ['DASHBOARD'] });
+      fetchUsers();
+      alert("Utente creato con successo!");
+    } catch (error: any) {
       console.error(error);
+      alert(`Errore: ${error.message}`);
     }
   };
 
-  const handleDeleteUser = async (id: number) => {
+  const handleDeleteUser = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
     try {
-      await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users/${id}`, { method: 'DELETE' });
+      const { error } = await supabase.auth.admin.deleteUser(id);
+      if (error) throw error;
       fetchUsers();
     } catch (error) {
       console.error(error);
@@ -1548,19 +1582,17 @@ function UserManagementView() {
   const handleUpdatePermissions = async () => {
     if (!editingUser) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/users/${editingUser.id}/permissions`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: editPermissions })
-      });
-      if (res.ok) {
-        setIsEditModalOpen(false);
-        setEditingUser(null);
-        fetchUsers();
-        alert("Permessi aggiornati con successo!");
-      } else {
-        alert("Errore nell'aggiornamento dei permessi");
-      }
+      const { error } = await supabase
+        .from('profiles')
+        .update({ permissions: editPermissions })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+      fetchUsers();
+      alert("Permessi aggiornati con successo!");
     } catch (error) {
       console.error(error);
       alert("Errore nell'aggiornamento dei permessi");

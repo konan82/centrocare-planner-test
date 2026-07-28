@@ -32,7 +32,7 @@ export interface Shift {
 }
 
 export interface User {
-  id: number;
+  id: string;
   username: string;
   permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
 }

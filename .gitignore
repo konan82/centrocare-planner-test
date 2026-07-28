@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
+
+# Archives
+*.zip
+
+# Old backend
+_backend_old/
