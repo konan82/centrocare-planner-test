@@ -1539,18 +1539,25 @@ function UserManagementView() {
 
   const handleCreateUser = async () => {
     try {
-      // Create user in Supabase Auth
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: `${newUser.username}@centrocare.local`,
-        password: newUser.password,
-        email_confirm: true,
-        user_metadata: {
-          username: newUser.username,
-          permissions: newUser.permissions,
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            email: `${newUser.username}@centrocare.local`,
+            password: newUser.password,
+            username: newUser.username,
+            permissions: newUser.permissions,
+          }),
+        }
+      );
 
-      if (error) throw error;
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || 'Failed to create user');
 
       setIsUserModalOpen(false);
       setNewUser({ username: '', password: '', permissions: ['DASHBOARD'] });
@@ -1565,11 +1572,24 @@ function UserManagementView() {
   const handleDeleteUser = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
     try {
-      const { error } = await supabase.auth.admin.deleteUser(id);
-      if (error) throw error;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ userId: id }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || 'Failed to delete user');
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      alert(`Errore: ${error.message}`);
     }
   };
 
