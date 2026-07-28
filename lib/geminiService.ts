@@ -9,20 +9,29 @@ export const generateSmartSchedule = async (
   startDate: string
 ): Promise<Shift[]> => {
   const fullPrompt = `
-    Sei un assistente per la pianificazione dei turni in un centro educativo.
+    Sei un esperto di pianificazione turni per un centro educativo.
     
     DATI DI INPUT (JSON):
     ${JSON.stringify({ tutors, youths, startDate })}
     
     OBIETTIVO:
-    Genera una pianificazione settimanale ottimizzata assegnando i ragazzi ai tutor.
+    Genera una pianificazione settimanale (lunedì-sabato) distribuendo i ragazzi su TUTTI i tutor disponibili.
     
-    REGOLE:
-    1. Rispetta le disponibilità dei tutor (unavailableDays: 0=Domenica, 1=Lunedì, ecc).
-    2. Non superare le ore massime dei tutor.
-    3. Cerca di coprire le ore richieste dai ragazzi.
-    4. I turni devono essere tra le 14:00 e le 19:00.
-    5. Durata turno tipica: 1-2 ore.
+    REGOLE FONDAMENTALI:
+    1. DEVI usare TUTTI i tutor disponibili, distribuendo equamente i ragazzi tra di essi.
+    2. Rispetta le unavailableDays di ogni tutor (0=Domenica, 1=Lunedì, ..., 6=Sabato).
+    3. Ogni tutor NON deve superare le sue maxHoursPerWeek totali nella settimana.
+    4. Prioritizza l'abbinamento tra le specialties del tutor e i needs del ragazzo quando possibile.
+    5. I turni devono essere tra le 14:00 e le 19:00 (orario pomeriggio centro).
+    6. Durata turno tipica: 1-2 ore per ragazzo.
+    7. Ogni ragazzo deve ricevere le sue requiredHoursPerWeek totali nella settimana.
+    8. Un tutor NON può avere turni sovrapposti (non può seguire 2 ragazzi nella stessa fascia oraria).
+    9. Genera turni per ogni giorno lunedì-sabato della settimana a partire da startDate.
+    10. Assegna un'attività descrittiva per ogni turno (es. "Attività motoria", "Supporto compiti", "Socializzazione", "Attività creativa").
+    
+    ESEMPIO DI DISTRIBUZIONE CORRETTA:
+    Se hai 3 tutor e 6 ragazzi, ogni tutor dovrebbe avere circa 2 ragazzi nella settimana.
+    Se hai 2 tutor e 4 ragazzi, ogni tutor dovrebbe avere circa 2 ragazzi.
     
     OUTPUT RICHIESTO:
     Restituisci SOLAMENTE un array JSON valido di oggetti turno. Non aggiungere markdown o altro testo.
