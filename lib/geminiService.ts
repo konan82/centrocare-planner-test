@@ -39,7 +39,7 @@ export const generateSmartSchedule = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-09-2025",
+      model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
       config: { responseMimeType: "application/json" },
     });
@@ -92,7 +92,7 @@ export const analyzeConflicts = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-09-2025",
+      model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
     });
 
