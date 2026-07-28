@@ -30,3 +30,4 @@ dist-ssr
 
 # Old backend
 _backend_old/
+backend/
