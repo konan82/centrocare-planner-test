@@ -277,6 +277,7 @@ function App() {
 
   // AI State
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ConflictAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -462,13 +463,34 @@ function App() {
     setIsYouthModalOpen(true);
   }
 
-  const handleGenerateSchedule = async () => {
+  const handleGenerateSchedule = async (clearWeek: boolean) => {
+    setShowConfirmClear(false);
     setIsGenerating(true);
     try {
       const startDateStr = format(startOfCurrentWeek, 'yyyy-MM-dd');
+
+      if (clearWeek) {
+        const weekEnd = format(addDays(startOfCurrentWeek, 6), 'yyyy-MM-dd');
+        const weekDates: string[] = [];
+        for (let i = 0; i < 7; i++) {
+          weekDates.push(format(addDays(startOfCurrentWeek, i), 'yyyy-MM-dd'));
+        }
+        const { error: delErr } = await supabase
+          .from('shifts')
+          .delete()
+          .in('date', weekDates);
+        if (delErr) throw delErr;
+        setShifts(prev => prev.filter(s => {
+          if (!s.date) return false;
+          try {
+            const d = s.date;
+            return d < startDateStr || d > weekEnd;
+          } catch { return true; }
+        }));
+      }
+
       const newShifts = await generateSmartSchedule(tutors, youths, startDateStr);
 
-      // Save generated shifts to Supabase
       const shiftsToSave = newShifts.map(s => ({
         id: s.id,
         tutor_id: s.tutorId,
@@ -482,7 +504,6 @@ function App() {
       const { error } = await supabase.from('shifts').upsert(shiftsToSave);
       if (error) throw error;
 
-      // Remove existing shifts for this week to avoid duplication if re-generating
       const otherWeekShifts = shifts.filter(s => {
         if (!s.date) return false;
         try {
@@ -811,7 +832,7 @@ function App() {
               Analizza Conflitti
             </button>
             <button
-              onClick={handleGenerateSchedule}
+              onClick={() => setShowConfirmClear(true)}
               disabled={isGenerating}
               className="px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg hover:from-teal-600 hover:to-emerald-600 shadow-md flex items-center transition-all"
             >
@@ -1317,6 +1338,39 @@ function App() {
       </div>
 
       {/* --- Modals --- */}
+
+      {/* Confirm Clear Week Modal */}
+      <Modal isOpen={showConfirmClear} onClose={() => setShowConfirmClear(false)} title="Conferma generazione turni">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-100 rounded-full flex-shrink-0 mt-0.5">
+              <AlertTriangle size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Vuoi <strong>cancellare i turni della settimana corrente</strong> prima di generare nuovi turni con l'AI?
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                I turni di altre settimane non verranno toccati.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => handleGenerateSchedule(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              No, sovrapponi
+            </button>
+            <button
+              onClick={() => handleGenerateSchedule(true)}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Si, cancella e rigenera
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Shift Modal */}
       <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"}>
