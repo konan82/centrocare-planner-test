@@ -75,9 +75,29 @@ export const analyzeConflicts = async (
   tutors: Tutor[],
   shifts: Shift[]
 ): Promise<ConflictAnalysis> => {
+  const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+  const tutorMap = Object.fromEntries(tutors.map(t => [t.id, t.name]));
+  const shiftsEnriched = shifts.map(s => {
+    const d = new Date(s.date + 'T12:00:00');
+    return {
+      tutor: tutorMap[s.tutorId] || s.tutorId,
+      date: s.date,
+      day: dayNames[d.getDay()],
+      start: s.startTime,
+      end: s.endTime,
+    };
+  });
+  const tutorsData = tutors.map(t => ({
+    name: t.name,
+    maxHours: t.maxHoursPerWeek,
+    off: t.unavailableDays.map(d => dayNames[d]),
+  }));
+
   const prompt = `Analizza conflitti turni centro educativo e restituisci JSON strutturato.
-Dati tutor: ${JSON.stringify(tutors.map(t => ({ id: t.id, name: t.name, maxHours: t.maxHoursPerWeek, off: t.unavailableDays })))}
-Turni: ${JSON.stringify(shifts.map(s => ({ tutorId: s.tutorId, date: s.date, start: s.startTime, end: s.endTime })))}
+Tutor: ${JSON.stringify(tutorsData)}
+Turni: ${JSON.stringify(shiftsEnriched)}
+
+Regole giorni indisponibili: i giorni "off" indicano i giorni di riposo del tutor. Se un turno cade in un giorno off, è un errore.
 
 Controlla:
 1. Sovrapposizioni orari stesso tutor (stessa data e ora)
@@ -85,6 +105,8 @@ Controlla:
 3. Ore max superate
 4. Turni con orari strani (< 14:00 o > 19:00)
 5. Tutor non utilizzati
+
+IMPORTANTE: usa SOLO i nomi dei tutor (es. "Tutor 1") nei campi title e description. MAI usare gli ID nei testi.
 
 Rispondi SOLO con questo JSON (nessun testo extra):
 {
@@ -94,7 +116,7 @@ Rispondi SOLO con questo JSON (nessun testo extra):
       "category": "Categoria problema",
       "title": "Titolo breve",
       "description": "Descrizione dettagliata",
-      "affectedTutors": ["id tutor"],
+      "affectedTutors": ["nome tutor"],
       "affectedDates": ["YYYY-MM-DD"]
     }
   ],
