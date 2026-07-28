@@ -556,9 +556,9 @@ function App() {
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = () => {
     setIsAnalyzing(true);
-    const report = await analyzeConflicts(tutors, shifts);
+    const report = analyzeConflicts(tutors, shifts);
     setAnalysisResult(report);
     setIsAnalyzing(false);
   };

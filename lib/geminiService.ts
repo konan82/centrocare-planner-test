@@ -81,98 +81,124 @@ Output: SOLO array JSON valido. Formato:
   }
 };
 
-export const analyzeConflicts = async (
+export const analyzeConflicts = (
   tutors: Tutor[],
   shifts: Shift[]
-): Promise<ConflictAnalysis> => {
+): ConflictAnalysis => {
   const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+  const issues: ConflictIssue[] = [];
   const tutorMap = Object.fromEntries(tutors.map(t => [t.id, t.name]));
-  const shiftsEnriched = shifts.map(s => {
-    const d = new Date(s.date + 'T12:00:00');
-    return {
-      tutor: tutorMap[s.tutorId] || s.tutorId,
-      date: s.date,
-      day: dayNames[d.getDay()],
-      start: s.startTime,
-      end: s.endTime,
-    };
-  });
-  const tutorsData = tutors.map(t => ({
-    name: t.name,
-    maxHours: t.maxHoursPerWeek,
-    off: t.unavailableDays.map(d => dayNames[d]),
-  }));
 
-  const prompt = `Analizza conflitti turni centro educativo e restituisci JSON strutturato.
-Tutor: ${JSON.stringify(tutorsData)}
-Turni: ${JSON.stringify(shiftsEnriched)}
-
-Regole giorni indisponibili: i giorni "off" indicano i giorni di riposo del tutor. Se un turno cade in un giorno off, è un errore.
-
-Controlla:
-1. Sovrapposizioni orari stesso tutor (stessa data e ora)
-2. Turni in giorni indisponibili
-3. Ore max superate
-4. Turni con orari strani (< 14:00 o > 19:00)
-5. Tutor non utilizzati
-
-IMPORTANTE: usa SOLO i nomi dei tutor (es. "Tutor 1") nei campi title e description. MAI usare gli ID nei testi.
-
-Rispondi SOLO con questo JSON (nessun testo extra):
-{
-  "issues": [
-    {
-      "severity": "error|warning|info",
-      "category": "Categoria problema",
-      "title": "Titolo breve",
-      "description": "Descrizione dettagliata",
-      "affectedTutors": ["nome tutor"],
-      "affectedDates": ["YYYY-MM-DD"]
-    }
-  ],
-  "summary": "Riassunto in 1-2 frasi dello stato generale",
-  "score": 0-100
-}
-
-score: 100 = perfetto, 0 = pessimo. Segna severity "error" per problemi gravi, "warning" per moderati, "info" per suggerimenti.`;
-
-  const fallback: ConflictAnalysis = {
-    issues: [],
-    summary: "Errore durante l'analisi.",
-    score: 0,
-  };
-
-  try {
-    const response = await getAiClient().models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { responseMimeType: "application/json" },
+  // 1. Turni in giorni di riposo
+  tutors.forEach(t => {
+    if (!t.unavailableDays?.length) return;
+    const tutorShifts = shifts.filter(s => s.tutorId === t.id);
+    tutorShifts.forEach(s => {
+      if (!s.date) return;
+      const d = new Date(s.date + 'T12:00:00');
+      const dayOfWeek = d.getDay();
+      if (t.unavailableDays.includes(dayOfWeek)) {
+        issues.push({
+          severity: 'error',
+          category: 'Disponibilità',
+          title: `Turno in giorno di riposo`,
+          description: `${t.name} ha un turno il ${dayNames[dayOfWeek]} (${s.date}), giorno in cui è segnato come non disponibile.`,
+          affectedTutors: [t.name],
+          affectedDates: [s.date],
+        });
+      }
     });
+  });
 
-    let text: string;
-    if (typeof response.text === "function") {
-      text = await response.text();
-    } else if ((response as any).candidates && (response as any).candidates.length > 0) {
-      text = (response as any).candidates[0].content.parts[0].text;
-    } else {
-      return fallback;
+  // 2. Sovrapposizioni orari stesso tutor
+  tutors.forEach(t => {
+    const tutorShifts = shifts.filter(s => s.tutorId === t.id);
+    for (let i = 0; i < tutorShifts.length; i++) {
+      for (let j = i + 1; j < tutorShifts.length; j++) {
+        const a = tutorShifts[i];
+        const b = tutorShifts[j];
+        if (a.date !== b.date) continue;
+        if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) continue;
+        const aS = a.startTime, aE = a.endTime, bS = b.startTime, bE = b.endTime;
+        if (aS < bE && bS < aE) {
+          issues.push({
+            severity: 'error',
+            category: 'Sovrapposizione',
+            title: `Turni sovrapposti`,
+            description: `${t.name} ha due turni sovrapposti il ${a.date}: ${aS}-${aE} e ${bS}-${bE}.`,
+            affectedTutors: [t.name],
+            affectedDates: [a.date],
+          });
+        }
+      }
     }
+  });
 
-    let cleanText = text.trim();
-    if (cleanText.startsWith("```json")) {
-      cleanText = cleanText.replace(/^```json/, "").replace(/```$/, "");
+  // 3. Ore max superate
+  tutors.forEach(t => {
+    if (!t.maxHoursPerWeek) return;
+    const tutorShifts = shifts.filter(s => s.tutorId === t.id);
+    let totalMin = 0;
+    tutorShifts.forEach(s => {
+      if (!s.startTime || !s.endTime) return;
+      const [sh, sm] = s.startTime.split(':').map(Number);
+      const [eh, em] = s.endTime.split(':').map(Number);
+      totalMin += (eh * 60 + em) - (sh * 60 + sm);
+    });
+    const totalHours = totalMin / 60;
+    if (totalHours > t.maxHoursPerWeek) {
+      issues.push({
+        severity: 'warning',
+        category: 'Ore settimanali',
+        title: `Ore massime superate`,
+        description: `${t.name} ha ${totalHours}h assegnate, superando il limite di ${t.maxHoursPerWeek}h.`,
+        affectedTutors: [t.name],
+      });
     }
+  });
 
-    const data = JSON.parse(cleanText);
-    if (!data.issues) return fallback;
+  // 4. Turni con orari strani
+  shifts.forEach(s => {
+    if (!s.startTime || !s.endTime) return;
+    const [sh, sm] = s.startTime.split(':').map(Number);
+    const [eh, em] = s.endTime.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+    if (startMin < 14 * 60 || endMin > 19 * 60) {
+      issues.push({
+        severity: 'warning',
+        category: 'Orario anomalo',
+        title: `Turno fuori orario`,
+        description: `${tutorMap[s.tutorId] || s.tutorId} ha un turno il ${s.date} dalle ${s.startTime} alle ${s.endTime}, fuori dalla fascia 14:00-19:00.`,
+        affectedTutors: [tutorMap[s.tutorId] || s.tutorId],
+        affectedDates: [s.date],
+      });
+    }
+  });
 
-    return {
-      issues: data.issues || [],
-      summary: data.summary || "Analisi completata.",
-      score: typeof data.score === "number" ? data.score : 50,
-    };
-  } catch (error) {
-    console.error("Errore analisi conflitti:", error);
-    return fallback;
-  }
+  // 5. Tutor non utilizzati
+  tutors.forEach(t => {
+    const hasShifts = shifts.some(s => s.tutorId === t.id);
+    if (!hasShifts) {
+      issues.push({
+        severity: 'info',
+        category: 'Assegnazione',
+        title: `Tutor senza turni`,
+        description: `${t.name} non ha turni assegnati.`,
+        affectedTutors: [t.name],
+      });
+    }
+  });
+
+  const score = Math.max(0, 100 - issues.reduce((penalty, issue) => {
+    return penalty + (issue.severity === 'error' ? 20 : issue.severity === 'warning' ? 10 : 3);
+  }, 0));
+
+  const severityCounts = { error: 0, warning: 0, info: 0 };
+  issues.forEach(i => severityCounts[i.severity]++);
+  const summary = issues.length === 0
+    ? 'Nessun conflitto rilevato. La pianificazione è ottimale.'
+    : `Rilevati ${issues.length} problema/i: ${severityCounts.error} errori, ${severityCounts.warning} warning, ${severityCounts.info} info.`;
+
+  return { issues, summary, score };
 };
