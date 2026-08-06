@@ -24,7 +24,12 @@ import {
   XCircle,
   AlertCircle,
   Info,
-  TrendingUp
+  TrendingUp,
+  IdCard,
+  Phone,
+  HeartPulse,
+  Target,
+  BookOpen
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
@@ -118,6 +123,27 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({ children, className = "" }) => (
   <div className={`bg-white rounded-lg shadow-md border border-gray-100 ${className}`}>
     {children}
+  </div>
+);
+
+const fieldCls = "w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition placeholder:text-slate-400";
+
+interface YouthSectionProps {
+  icon: React.ReactNode;
+  title: string;
+  chipBg: string;
+  headerBg: string;
+  textColor: string;
+  children: React.ReactNode;
+}
+
+const YouthSection: React.FC<YouthSectionProps> = ({ icon, title, chipBg, headerBg, textColor, children }) => (
+  <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b ${headerBg}`}>
+      <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm ${chipBg}`}>{icon}</span>
+      <h4 className={`font-bold text-sm tracking-wide ${textColor}`}>{title}</h4>
+    </div>
+    <div className="px-4 py-4">{children}</div>
   </div>
 );
 
@@ -1842,15 +1868,47 @@ function App() {
 
       {/* Youth Modal */}
       <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="lg">
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Dati Anagrafici</h4>
+        <div className="space-y-4">
+          {/* Header scheda */}
+          <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
+            <div className="h-2 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
+            <div className="flex items-center gap-4 px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center text-2xl font-bold shadow-md shrink-0">
+                {newYouth.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-bold text-slate-800 truncate">{newYouth.name || 'Nuovo Ragazzo/a'}</h3>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {getAge(newYouth.birthDate) !== null && (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                      {getAge(newYouth.birthDate)} anni
+                    </span>
+                  )}
+                  {newYouth.gender && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${newYouth.gender === 'Femmina' ? 'bg-pink-100 text-pink-700' : 'bg-violet-100 text-violet-700'}`}>
+                      {newYouth.gender}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    newYouth.status === 'pausa' ? 'bg-amber-100 text-amber-700'
+                    : newYouth.status === 'archiviato' ? 'bg-slate-200 text-slate-600'
+                    : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {newYouth.status === 'pausa' ? 'In pausa' : newYouth.status === 'archiviato' ? 'Archiviato' : 'Attivo'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <YouthSection icon={<IdCard size={16} />} title="Dati Anagrafici" chipBg="bg-blue-500" headerBg="bg-gradient-to-r from-blue-50 to-white border-blue-100" textColor="text-blue-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo <span className="text-red-500">*</span></label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Nome e cognome"
                   value={newYouth.name || ''}
                   onChange={e => setNewYouth({ ...newYouth, name: e.target.value })}
                 />
@@ -1859,7 +1917,7 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Data di nascita</label>
                 <input
                   type="date"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
                   value={newYouth.birthDate || ''}
                   onChange={e => setNewYouth({ ...newYouth, birthDate: e.target.value || undefined })}
                 />
@@ -1867,7 +1925,7 @@ function App() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Sesso</label>
                 <select
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
                   value={newYouth.gender || ''}
                   onChange={e => setNewYouth({ ...newYouth, gender: e.target.value })}
                 >
@@ -1881,7 +1939,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Luogo di nascita</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Città"
                   value={newYouth.birthPlace || ''}
                   onChange={e => setNewYouth({ ...newYouth, birthPlace: e.target.value })}
                 />
@@ -1890,7 +1949,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nazionalità</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Italiana"
                   value={newYouth.nationality || ''}
                   onChange={e => setNewYouth({ ...newYouth, nationality: e.target.value })}
                 />
@@ -1899,7 +1959,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Codice fiscale</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900 uppercase"
+                  className={`${fieldCls} uppercase`}
+                  placeholder="RSSMRA10A01H501Z"
                   value={newYouth.fiscalCode || ''}
                   onChange={e => setNewYouth({ ...newYouth, fiscalCode: e.target.value.toUpperCase() })}
                 />
@@ -1908,21 +1969,23 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
                 <input
                   type="tel"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="3XX XXX XXXX"
                   value={newYouth.phone || ''}
                   onChange={e => setNewYouth({ ...newYouth, phone: e.target.value })}
                 />
               </div>
             </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Famiglia e Contatti</h4>
+          </YouthSection>
+
+          <YouthSection icon={<Phone size={16} />} title="Famiglia e Contatti" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Genitore / Tutore</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Nome e cognome"
                   value={newYouth.parentName || ''}
                   onChange={e => setNewYouth({ ...newYouth, parentName: e.target.value })}
                 />
@@ -1931,7 +1994,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Telefono genitore</label>
                 <input
                   type="tel"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="3XX XXX XXXX"
                   value={newYouth.parentPhone || ''}
                   onChange={e => setNewYouth({ ...newYouth, parentPhone: e.target.value })}
                 />
@@ -1940,41 +2004,49 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email genitore</label>
                 <input
                   type="email"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="genitore@email.it"
                   value={newYouth.parentEmail || ''}
                   onChange={e => setNewYouth({ ...newYouth, parentEmail: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Consenso privacy (data)</label>
-                <input
-                  type="date"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                  value={newYouth.privacyConsentDate || ''}
-                  onChange={e => setNewYouth({ ...newYouth, privacyConsentDate: e.target.value || null })}
-                />
-              </div>
-              <div className="flex items-end pb-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+              <div className="sm:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-emerald-800 flex items-center gap-1.5">
+                      <CheckCircle size={15} /> Consenso privacy (GDPR)
+                    </p>
+                    <p className="text-xs text-emerald-700/70 mt-0.5">Data di firma dell'informativa per minori</p>
+                  </div>
                   <input
-                    type="checkbox"
-                    className="w-4 h-4 accent-teal-600"
-                    checked={newYouth.outingsAuthorized || false}
-                    onChange={e => setNewYouth({ ...newYouth, outingsAuthorized: e.target.checked })}
+                    type="date"
+                    className={fieldCls + " sm:w-44"}
+                    value={newYouth.privacyConsentDate || ''}
+                    onChange={e => setNewYouth({ ...newYouth, privacyConsentDate: e.target.value || null })}
                   />
-                  Autorizzazione uscite
-                </label>
+                </div>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-emerald-200/70">
+                  <p className="text-sm text-slate-600">Autorizzazione uscite</p>
+                  <button
+                    type="button"
+                    onClick={() => setNewYouth({ ...newYouth, outingsAuthorized: !(newYouth.outingsAuthorized || false) })}
+                    className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${newYouth.outingsAuthorized ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${newYouth.outingsAuthorized ? 'left-[22px]' : 'left-0.5'}`} />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Salute e Vulnerabilità</h4>
+          </YouthSection>
+
+          <YouthSection icon={<HeartPulse size={16} />} title="Salute e Vulnerabilità" chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Diagnosi (virgola)</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="DSA, ADHD, ..."
                   value={newYouth.diagnoses?.join(', ') || ''}
                   onChange={e => setNewYouth({ ...newYouth, diagnoses: (e.target.value || '').split(',').map(s => s.trim()).filter(Boolean) })}
                 />
@@ -1983,7 +2055,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Allergie</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Lattosio, pollini, ..."
                   value={newYouth.allergies || ''}
                   onChange={e => setNewYouth({ ...newYouth, allergies: e.target.value })}
                 />
@@ -1992,7 +2065,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Farmaci / Terapie</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Eventuali trattamenti"
                   value={newYouth.medications || ''}
                   onChange={e => setNewYouth({ ...newYouth, medications: e.target.value })}
                 />
@@ -2001,20 +2075,21 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Medico di riferimento</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Nome e specializzazione"
                   value={newYouth.doctor || ''}
                   onChange={e => setNewYouth({ ...newYouth, doctor: e.target.value })}
                 />
               </div>
             </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Percorso al Centro</h4>
+          </YouthSection>
+
+          <YouthSection icon={<Target size={16} />} title="Percorso al Centro" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Tutor referente</label>
                 <select
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
                   value={newYouth.referringTutorId || ''}
                   onChange={e => setNewYouth({ ...newYouth, referringTutorId: e.target.value || null })}
                 >
@@ -2026,41 +2101,49 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
                 <input
                   type="date"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
                   value={newYouth.entryDate || ''}
                   onChange={e => setNewYouth({ ...newYouth, entryDate: e.target.value || null })}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Stato</label>
-                <select
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-                  value={newYouth.status || 'attivo'}
-                  onChange={e => setNewYouth({ ...newYouth, status: e.target.value })}
-                >
-                  <option value="attivo">Attivo</option>
-                  <option value="pausa">In pausa</option>
-                  <option value="archiviato">Archiviato</option>
-                </select>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato</label>
+                <div className="flex gap-2">
+                  {[
+                    { v: 'attivo', label: 'Attivo', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
+                    { v: 'pausa', label: 'In pausa', on: 'bg-amber-500 text-white border-amber-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-amber-400' },
+                    { v: 'archiviato', label: 'Archiviato', on: 'bg-slate-500 text-white border-slate-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-slate-400' },
+                  ].map(o => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setNewYouth({ ...newYouth, status: o.v })}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${(newYouth.status || 'attivo') === o.v ? o.on : o.off}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Obiettivi educativi</label>
                 <textarea
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls + " min-h-[70px]"}
+                  placeholder="Obiettivi di supporto e crescita"
                   value={newYouth.goals || ''}
                   onChange={e => setNewYouth({ ...newYouth, goals: e.target.value })}
                 />
               </div>
             </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Programma</h4>
+          </YouthSection>
+
+          <YouthSection icon={<BookOpen size={16} />} title="Programma" chipBg="bg-amber-500" headerBg="bg-gradient-to-r from-amber-50 to-white border-amber-100" textColor="text-amber-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
                 <input
                   type="number"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
                   value={newYouth.requiredHoursPerWeek ?? ''}
                   onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                 />
@@ -2069,7 +2152,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls}
+                  placeholder="Supporto motorio, socializzazione, ..."
                   value={newYouth.needs?.join(', ') || ''}
                   onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
                 />
@@ -2077,16 +2161,23 @@ function App() {
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
                 <textarea
-                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  className={fieldCls + " min-h-[70px]"}
+                  placeholder="Annotazioni libere"
                   value={newYouth.notes || ''}
                   onChange={e => setNewYouth({ ...newYouth, notes: e.target.value })}
                 />
               </div>
             </div>
+          </YouthSection>
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setIsYouthModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
+              Annulla
+            </button>
+            <button onClick={handleSaveYouth} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
+              <Save size={16} /> {newYouth.id ? "Salva Modifiche" : "Aggiungi Profilo"}
+            </button>
           </div>
-          <button onClick={handleSaveYouth} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
-            {newYouth.id ? "Salva Modifiche" : "Aggiungi Profilo"}
-          </button>
         </div>
       </Modal>
     </div>
