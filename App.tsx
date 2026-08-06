@@ -1031,43 +1031,53 @@ function App() {
                   const DAY_END = 20 * 60; // 20:00
                   const SLOT = 15; // granularità 15 min
                   const ROW_COUNT = (DAY_END - DAY_START) / SLOT; // 52
+                  const ROW_H = 28; // altezza riga (h-7) in px
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-                  // Precompute per-day: shifts grouped by start slot + consumed slots
-                  // (covered by the rowSpan of multi-quarter shifts).
-                  const dayPlans = weekDays.map(day => {
+                  // Per-day layout: card positions (slot index, span, column) per shift.
+                  // Overlapping shifts are placed side by side via greedy interval coloring.
+                  const dayLayouts = weekDays.map(day => {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayShifts = shifts.filter(s => {
                       if (!s.date) return false;
                       const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                      if (shiftDate !== dateStr) return false;
-                      const [sh, sm] = (s.startTime || '').split(':').map(Number);
-                      return !isNaN(sh) && !isNaN(sm);
-                    }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-
-                    const startMap: Record<number, Shift[]> = {};
-                    const spanAt: Record<number, number> = {};
-                    const consumed: Record<number, boolean> = {};
-
-                    dayShifts.forEach(s => {
-                      const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
-                      const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
-                      const startMin = sh * 60 + sm;
-                      const endMin = Math.max(startMin + SLOT, eh * 60 + em);
-                      const slot = Math.round((startMin - DAY_START) / SLOT);
-                      if (slot < 0 || slot >= ROW_COUNT) return;
-                      const span = Math.max(1, Math.ceil((endMin - startMin) / SLOT));
-                      (startMap[slot] = startMap[slot] || []).push(s);
-                      spanAt[slot] = Math.max(spanAt[slot] || 1, Math.min(span, ROW_COUNT - slot));
+                      return shiftDate === dateStr;
                     });
 
-                    Object.keys(startMap).map(Number).sort((a, b) => a - b).forEach(slot => {
-                      if (consumed[slot]) return;
-                      const span = spanAt[slot];
-                      for (let c = slot + 1; c < slot + span && c < ROW_COUNT; c++) consumed[c] = true;
+                    const placed = dayShifts
+                      .map(s => {
+                        const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
+                        const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+                        const startMin = sh * 60 + sm;
+                        const endMin = Math.max(startMin + SLOT, eh * 60 + em);
+                        const slotIdx = Math.round((startMin - DAY_START) / SLOT);
+                        const span = Math.max(1, Math.ceil((endMin - startMin) / SLOT));
+                        return { shift: s, slotIdx, span };
+                      })
+                      .filter(p => p.slotIdx >= 0 && p.slotIdx < ROW_COUNT)
+                      .sort((a, b) => a.slotIdx - b.slotIdx);
+
+                    // Greedy interval coloring: overlapping shifts get distinct columns.
+                    const colEnds: number[] = [];
+                    const colOf: number[] = [];
+                    placed.forEach(p => {
+                      const startAbs = p.slotIdx * SLOT + DAY_START;
+                      const endAbs = (p.slotIdx + p.span) * SLOT + DAY_START;
+                      let col = colEnds.findIndex(e => e <= startAbs);
+                      if (col === -1) {
+                        col = colEnds.length;
+                        colEnds.push(0);
+                      }
+                      colEnds[col] = Math.max(colEnds[col], endAbs);
+                      colOf.push(col);
                     });
 
-                    return { dateStr, startMap, spanAt, consumed };
+                    return {
+                      dateStr,
+                      placed,
+                      colOf,
+                      colCount: Math.max(1, colOf.length ? Math.max(...colOf) + 1 : 1),
+                    };
                   });
 
                   return Array.from({ length: ROW_COUNT }).map((_, rowIdx) => {
@@ -1075,35 +1085,31 @@ function App() {
                     const slotLabel = fmt(minutes);
                     const isHour = minutes % 60 === 0;
                     const isBand = Math.floor(minutes / 60) % 2 === 0;
+                    const topBorderCls = isHour
+                      ? 'border-t-2 border-slate-300'
+                      : 'border-t border-dashed border-slate-200';
+
                     return (
                       <tr key={rowIdx} className="h-7">
                         <td className={`sticky left-0 z-20 border-r border-slate-200 w-14 text-center align-top ${
                           isBand ? 'bg-slate-100/70' : 'bg-white'
-                        } ${isHour ? 'border-t-2 border-slate-300' : 'border-t border-dashed border-slate-200'}`}>
+                        } ${topBorderCls}`}>
                           <span className={`inline-flex items-center px-0.5 py-px text-[10px] tabular-nums ${
                             isHour ? 'font-bold text-slate-600' : 'text-slate-400'
                           }`}>
                             {slotLabel}
                           </span>
                         </td>
-                        {dayPlans.map((plan, i) => {
-                          if (plan.consumed[rowIdx]) return null; // covered by a rowSpan above
-
-                          const dateStr = plan.dateStr;
-                          const cellShifts = plan.startMap[rowIdx] || [];
-                          const span = plan.spanAt[rowIdx];
-                          const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.minutes === minutes;
+                        {dayLayouts.map((layout, i) => {
+                          const isDragOver = dragOverCoords?.dateStr === layout.dateStr && dragOverCoords?.minutes === minutes;
 
                           return (
                             <td
                               key={i}
-                              rowSpan={span || undefined}
-                              onDragOver={(e) => handleDragOver(e, dateStr, minutes)}
-                              onDrop={(e) => handleDrop(e, dateStr, minutes)}
-                              onClick={() => openNewShiftModal('', dateStr, slotLabel)}
-                              className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot p-0.5 ${
-                                isHour ? 'border-t-2 border-slate-300' : 'border-t border-dashed border-slate-200'
-                              } ${
+                              onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
+                              onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
+                              onClick={() => openNewShiftModal('', layout.dateStr, slotLabel)}
+                              className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
                                 isDragOver
@@ -1112,70 +1118,84 @@ function App() {
                               }`}
                             >
                               <button
-                                onClick={(e) => { e.stopPropagation(); openNewShiftModal('', dateStr, slotLabel); }}
-                                className="absolute top-0.5 right-0.5 z-10 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
+                                onClick={(e) => { e.stopPropagation(); openNewShiftModal('', layout.dateStr, slotLabel); }}
+                                className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
                               >
                                 <Plus size={12} />
                               </button>
 
-                              <div className="absolute inset-0 flex flex-col gap-0.5 p-0.5 overflow-hidden">
-                                {cellShifts.map(shift => {
-                                  const tutor = tutors.find(t => t.id === shift.tutorId);
-                                  const youth = youths.find(y => y.id === shift.youthId);
-                                  const isDragging = draggedShiftId === shift.id;
-                                  const tColor = getTutorColor(shift.tutorId, tutors);
-                                  const yColor = getYouthColor(shift.youthId, youths);
+                              {rowIdx === 0 && (
+                                <div
+                                  className="absolute z-0 pointer-events-none"
+                                  style={{ top: -2, right: -1, left: 0, height: ROW_COUNT * ROW_H }}
+                                >
+                                  {layout.placed.map((p, idx) => {
+                                    const shift = p.shift;
+                                    const tutor = tutors.find(t => t.id === shift.tutorId);
+                                    const youth = youths.find(y => y.id === shift.youthId);
+                                    const isDragging = draggedShiftId === shift.id;
+                                    const tColor = getTutorColor(shift.tutorId, tutors);
+                                    const yColor = getYouthColor(shift.youthId, youths);
+                                    const col = layout.colOf[idx];
+                                    const wPct = 100 / layout.colCount;
 
-                                  return (
-                                    <div
-                                      key={shift.id}
-                                      draggable
-                                      onDragStart={(e) => handleDragStart(e, shift.id)}
-                                      onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                      className={`relative flex-1 min-h-[26px] rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1 text-[10px] cursor-move shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden group/item
-                                        ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
-                                      `}
-                                    >
-                                      <div className="flex items-center justify-between gap-1">
-                                        <div className="flex items-center gap-1 min-w-0">
-                                          <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[7px] font-bold flex items-center justify-center shadow-sm`}>
-                                            {getInitials(tutor?.name)}
-                                          </span>
-                                          <span className="truncate font-bold text-slate-700 pointer-events-none">
-                                            {tutor?.name || 'Sconosciuto'}
+                                    return (
+                                      <div
+                                        key={shift.id}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, shift.id)}
+                                        onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1 text-[10px] cursor-move shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden group/item
+                                          ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+                                        `}
+                                        style={{
+                                          top: p.slotIdx * ROW_H + 1,
+                                          height: p.span * ROW_H - 2,
+                                          left: `${col * wPct}%`,
+                                          width: `calc(${wPct}% - 2px)`,
+                                        }}
+                                      >
+                                        <div className="flex items-center justify-between gap-1">
+                                          <div className="flex items-center gap-1 min-w-0">
+                                            <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[7px] font-bold flex items-center justify-center shadow-sm`}>
+                                              {getInitials(tutor?.name)}
+                                            </span>
+                                            <span className="truncate font-bold text-slate-700 pointer-events-none">
+                                              {tutor?.name || 'Sconosciuto'}
+                                            </span>
+                                          </div>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
+                                            className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
+                                          >
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+
+                                        <div className="mt-0.5 flex items-center gap-1">
+                                          <Clock size={9} className="text-slate-400 shrink-0" />
+                                          <span className="rounded bg-white/70 px-1 py-px text-[9px] font-bold text-slate-600 tabular-nums pointer-events-none">
+                                            {shift.startTime}–{shift.endTime}
                                           </span>
                                         </div>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
-                                          className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
-                                        >
-                                          <Trash2 size={10} />
-                                        </button>
-                                      </div>
 
-                                      <div className="mt-0.5 flex items-center gap-1">
-                                        <Clock size={9} className="text-slate-400 shrink-0" />
-                                        <span className="rounded bg-white/70 px-1 py-px text-[9px] font-bold text-slate-600 tabular-nums pointer-events-none">
-                                          {shift.startTime}–{shift.endTime}
-                                        </span>
-                                      </div>
-
-                                      <div className="mt-0.5 flex items-center gap-1 min-w-0">
-                                        <span className={`h-1 w-1 rounded-full ${yColor.badge} shrink-0`}></span>
-                                        <span className="truncate font-semibold text-slate-600 pointer-events-none">
-                                          {youth?.name || 'Sconosciuto'}
-                                        </span>
-                                      </div>
-
-                                      {shift.activity && (
-                                        <div className="mt-0.5 truncate italic text-slate-500 pointer-events-none">
-                                          {shift.activity}
+                                        <div className="mt-0.5 flex items-center gap-1 min-w-0">
+                                          <span className={`h-1 w-1 rounded-full ${yColor.badge} shrink-0`}></span>
+                                          <span className="truncate font-semibold text-slate-600 pointer-events-none">
+                                            {youth?.name || 'Sconosciuto'}
+                                          </span>
                                         </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
+
+                                        {shift.activity && (
+                                          <div className="mt-0.5 truncate italic text-slate-500 pointer-events-none">
+                                            {shift.activity}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </td>
                           );
                         })}
