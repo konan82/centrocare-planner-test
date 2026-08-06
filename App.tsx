@@ -72,6 +72,17 @@ const getInitials = (name?: string) => {
   return name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 };
 
+const getAge = (birthDate?: string) => {
+  if (!birthDate) return null;
+  const b = parseISO(birthDate);
+  if (isNaN(b.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+};
+
 // --- Components defined within App to share state easily for this demo ---
 
 interface ModalProps {
@@ -79,18 +90,19 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  size?: 'md' | 'lg';
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeIn">
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'} overflow-hidden animate-fadeIn`}>
         <div className="flex justify-between items-center p-4 border-b bg-teal-600 text-white">
           <h3 className="font-semibold text-lg">{title}</h3>
           <button onClick={onClose}><X size={20} /></button>
         </div>
-        <div className="p-6 text-slate-900">
+        <div className="p-6 text-slate-900 max-h-[80vh] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -256,7 +268,26 @@ function App() {
         const normalizedYouths = (y.data || []).map((youth: any) => ({
           ...youth,
           needs: youth.needs || [],
-          requiredHoursPerWeek: youth.required_hours_per_week
+          diagnoses: youth.diagnoses || [],
+          requiredHoursPerWeek: youth.required_hours_per_week,
+          birthDate: youth.birth_date || undefined,
+          birthPlace: youth.birth_place || '',
+          gender: youth.gender || '',
+          nationality: youth.nationality || '',
+          fiscalCode: youth.fiscal_code || '',
+          phone: youth.phone || '',
+          parentName: youth.parent_name || '',
+          parentPhone: youth.parent_phone || '',
+          parentEmail: youth.parent_email || '',
+          privacyConsentDate: youth.privacy_consent_date || null,
+          outingsAuthorized: youth.outings_authorized || false,
+          allergies: youth.allergies || '',
+          medications: youth.medications || '',
+          doctor: youth.doctor || '',
+          referringTutorId: youth.referring_tutor_id || null,
+          entryDate: youth.entry_date || null,
+          status: youth.status || 'attivo',
+          goals: youth.goals || '',
         }));
 
         const normalizedShifts = (s.data || []).map((shift: any) => ({
@@ -388,6 +419,25 @@ function App() {
         needs: newYouth.needs || [],
         required_hours_per_week: newYouth.requiredHoursPerWeek ?? 4,
         notes: newYouth.notes || '',
+        birth_date: newYouth.birthDate || null,
+        birth_place: newYouth.birthPlace || '',
+        gender: newYouth.gender || '',
+        nationality: newYouth.nationality || '',
+        fiscal_code: newYouth.fiscalCode || '',
+        phone: newYouth.phone || '',
+        parent_name: newYouth.parentName || '',
+        parent_phone: newYouth.parentPhone || '',
+        parent_email: newYouth.parentEmail || '',
+        privacy_consent_date: newYouth.privacyConsentDate || null,
+        outings_authorized: newYouth.outingsAuthorized || false,
+        diagnoses: newYouth.diagnoses || [],
+        allergies: newYouth.allergies || '',
+        medications: newYouth.medications || '',
+        doctor: newYouth.doctor || '',
+        referring_tutor_id: newYouth.referringTutorId || null,
+        entry_date: newYouth.entryDate || null,
+        status: newYouth.status || 'attivo',
+        goals: newYouth.goals || '',
       };
 
       const { error } = await supabase.from('youths').upsert(youthData);
@@ -806,7 +856,9 @@ function App() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Array.isArray(youths) && youths.map(youth => (
           <Card key={youth.id} className="p-6 relative hover:shadow-lg transition-shadow border-l-4 border-l-amber-400">
-            <div className="absolute top-4 right-4 flex space-x-2">
+            <div className="absolute top-4 right-4 flex space-x-2 items-center">
+              {youth.status === 'pausa' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pausa</span>}
+              {youth.status === 'archiviato' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-200 text-slate-600 border border-slate-300">Archiviato</span>}
               <button onClick={() => openEditYouthModal(youth)} className="text-gray-300 hover:text-blue-500 transition-colors">
                 <Edit size={18} />
               </button>
@@ -820,7 +872,10 @@ function App() {
               </div>
               <div className="ml-4">
                 <h3 className="font-bold text-lg text-slate-800">{youth.name}</h3>
-                <p className="text-sm text-slate-500">Richiede {youth.requiredHoursPerWeek}h / settimana</p>
+                <p className="text-sm text-slate-500">
+                  Richiede {youth.requiredHoursPerWeek}h / settimana
+                  {getAge(youth.birthDate) !== null && ` · ${getAge(youth.birthDate)} anni`}
+                </p>
               </div>
             </div>
             <div className="mb-3">
@@ -831,6 +886,12 @@ function App() {
                 ))}
               </div>
             </div>
+            {(youth.parentName || youth.parentPhone) && (
+              <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-2.5 mt-3 border border-slate-100 space-y-1">
+                {youth.parentName && <p><span className="font-medium">Genitore:</span> {youth.parentName}</p>}
+                {youth.parentPhone && <p><span className="font-medium">Tel:</span> {youth.parentPhone}</p>}
+              </div>
+            )}
             {youth.notes && <p className="text-sm text-slate-500 italic mt-4 border-t pt-3">"{youth.notes}"</p>}
           </Card>
         ))}
@@ -1780,42 +1841,248 @@ function App() {
       </Modal>
 
       {/* Youth Modal */}
-      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"}>
-        <div className="space-y-4">
+      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="lg">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-            <input
-              type="text"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newYouth.name || ''}
-              onChange={e => setNewYouth({ ...newYouth, name: e.target.value })}
-            />
+            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Dati Anagrafici</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo *</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.name || ''}
+                  onChange={e => setNewYouth({ ...newYouth, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data di nascita</label>
+                <input
+                  type="date"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.birthDate || ''}
+                  onChange={e => setNewYouth({ ...newYouth, birthDate: e.target.value || undefined })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Sesso</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.gender || ''}
+                  onChange={e => setNewYouth({ ...newYouth, gender: e.target.value })}
+                >
+                  <option value="">—</option>
+                  <option value="Maschio">Maschio</option>
+                  <option value="Femmina">Femmina</option>
+                  <option value="Altro">Altro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Luogo di nascita</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.birthPlace || ''}
+                  onChange={e => setNewYouth({ ...newYouth, birthPlace: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nazionalità</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.nationality || ''}
+                  onChange={e => setNewYouth({ ...newYouth, nationality: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Codice fiscale</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900 uppercase"
+                  value={newYouth.fiscalCode || ''}
+                  onChange={e => setNewYouth({ ...newYouth, fiscalCode: e.target.value.toUpperCase() })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                <input
+                  type="tel"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.phone || ''}
+                  onChange={e => setNewYouth({ ...newYouth, phone: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
-            <input
-              type="number"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newYouth.requiredHoursPerWeek ?? ''}
-              onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-            />
+            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Famiglia e Contatti</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Genitore / Tutore</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.parentName || ''}
+                  onChange={e => setNewYouth({ ...newYouth, parentName: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono genitore</label>
+                <input
+                  type="tel"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.parentPhone || ''}
+                  onChange={e => setNewYouth({ ...newYouth, parentPhone: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email genitore</label>
+                <input
+                  type="email"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.parentEmail || ''}
+                  onChange={e => setNewYouth({ ...newYouth, parentEmail: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Consenso privacy (data)</label>
+                <input
+                  type="date"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.privacyConsentDate || ''}
+                  onChange={e => setNewYouth({ ...newYouth, privacyConsentDate: e.target.value || null })}
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-teal-600"
+                    checked={newYouth.outingsAuthorized || false}
+                    onChange={e => setNewYouth({ ...newYouth, outingsAuthorized: e.target.checked })}
+                  />
+                  Autorizzazione uscite
+                </label>
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
-            <input
-              type="text"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newYouth.needs?.join(', ') || ''}
-              onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
-            />
+            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Salute e Vulnerabilità</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Diagnosi (virgola)</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.diagnoses?.join(', ') || ''}
+                  onChange={e => setNewYouth({ ...newYouth, diagnoses: (e.target.value || '').split(',').map(s => s.trim()).filter(Boolean) })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Allergie</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.allergies || ''}
+                  onChange={e => setNewYouth({ ...newYouth, allergies: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Farmaci / Terapie</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.medications || ''}
+                  onChange={e => setNewYouth({ ...newYouth, medications: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Medico di riferimento</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.doctor || ''}
+                  onChange={e => setNewYouth({ ...newYouth, doctor: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
-            <textarea
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newYouth.notes || ''}
-              onChange={e => setNewYouth({ ...newYouth, notes: e.target.value })}
-            />
+            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Percorso al Centro</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor referente</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.referringTutorId || ''}
+                  onChange={e => setNewYouth({ ...newYouth, referringTutorId: e.target.value || null })}
+                >
+                  <option value="">—</option>
+                  {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
+                <input
+                  type="date"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.entryDate || ''}
+                  onChange={e => setNewYouth({ ...newYouth, entryDate: e.target.value || null })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Stato</label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.status || 'attivo'}
+                  onChange={e => setNewYouth({ ...newYouth, status: e.target.value })}
+                >
+                  <option value="attivo">Attivo</option>
+                  <option value="pausa">In pausa</option>
+                  <option value="archiviato">Archiviato</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Obiettivi educativi</label>
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.goals || ''}
+                  onChange={e => setNewYouth({ ...newYouth, goals: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-teal-600 mb-3">Programma</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
+                <input
+                  type="number"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.requiredHoursPerWeek ?? ''}
+                  onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.needs?.join(', ') || ''}
+                  onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
+                  value={newYouth.notes || ''}
+                  onChange={e => setNewYouth({ ...newYouth, notes: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
           <button onClick={handleSaveYouth} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
             {newYouth.id ? "Salva Modifiche" : "Aggiungi Profilo"}

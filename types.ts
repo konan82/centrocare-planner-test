@@ -19,6 +19,25 @@ export interface Youth {
   needs: string[]; // e.g., "Supporto motorio", "Socializzazione"
   requiredHoursPerWeek: number;
   notes: string;
+  birthDate?: string; // YYYY-MM-DD
+  birthPlace?: string;
+  gender?: string;
+  nationality?: string;
+  fiscalCode?: string;
+  phone?: string;
+  parentName?: string;
+  parentPhone?: string;
+  parentEmail?: string;
+  privacyConsentDate?: string | null;
+  outingsAuthorized?: boolean;
+  diagnoses: string[];
+  allergies?: string;
+  medications?: string;
+  doctor?: string;
+  referringTutorId?: string | null;
+  entryDate?: string | null;
+  status?: string;
+  goals?: string;
 }
 
 export interface Shift {
