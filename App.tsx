@@ -35,7 +35,9 @@ import {
   ArrowDown,
   UserX,
   FilterX,
-  Archive
+  Archive,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
@@ -1398,6 +1400,33 @@ function App() {
               <div>
                 <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Turni settimanali</h2>
                 <p className="text-xs text-slate-400 font-medium">Fascia oraria LUN-SAB · 08:00 – 19:00</p>
+              </div>
+              <div className="flex items-center gap-1 ml-1 lg:ml-3">
+                <button
+                  onClick={() => setCurrentDate(d => addDays(d, -7))}
+                  title="Settimana precedente"
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentDate(new Date())}
+                  title="Torna alla settimana corrente"
+                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isSameDay(weekDays[0], startOfWeek(new Date(), { weekStartsOn: 1 }))
+                      ? 'text-teal-600 bg-teal-50 border border-teal-100'
+                      : 'text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {format(weekDays[0], 'dd MMM')} – {format(weekDays[5], 'dd MMM yyyy')}
+                </button>
+                <button
+                  onClick={() => setCurrentDate(d => addDays(d, 7))}
+                  title="Settimana successiva"
+                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
 
