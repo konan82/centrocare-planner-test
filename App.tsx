@@ -74,6 +74,20 @@ const parseTimeMins = (t: string) => {
   return (h || 0) * 60 + (m || 0);
 };
 
+const getEffectiveTime = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
+  if ((s.status || 'pianificato') === 'cancellato') return null;
+  const start = s.actualStartTime || s.startTime;
+  const end = s.actualEndTime || s.endTime;
+  if (!start || !end) return null;
+  return { start, end };
+};
+
+const getEffectiveHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
+  const t = getEffectiveTime(s);
+  if (!t) return 0;
+  return (parseTimeMins(t.end) - parseTimeMins(t.start)) / 60;
+};
+
 const YOUTH_COLORS = [
   { bg: 'bg-sky-100', border: 'border-sky-300', text: 'text-sky-800', badge: 'bg-sky-500', hover: 'hover:bg-sky-200' },
   { bg: 'bg-fuchsia-100', border: 'border-fuchsia-300', text: 'text-fuchsia-800', badge: 'bg-fuchsia-500', hover: 'hover:bg-fuchsia-200' },
@@ -354,7 +368,11 @@ function App() {
           tutorId: shift.tutor_id,
           youthId: shift.youth_id,
           startTime: shift.start_time,
-          endTime: shift.end_time
+          endTime: shift.end_time,
+          status: shift.status || 'pianificato',
+          actualStartTime: shift.actual_start_time || null,
+          actualEndTime: shift.actual_end_time || null,
+          actualNotes: shift.actual_notes || '',
         }));
 
         setTutors(normalizedTutors);
@@ -558,6 +576,10 @@ function App() {
         start_time: editingShift.startTime,
         end_time: editingShift.endTime,
         activity: editingShift.activity || 'Attività generica',
+        status: editingShift.status || 'pianificato',
+        actual_start_time: editingShift.actualStartTime || null,
+        actual_end_time: editingShift.actualEndTime || null,
+        actual_notes: editingShift.actualNotes || '',
       };
 
       const { error } = await supabase.from('shifts').upsert(shiftData);
@@ -569,6 +591,10 @@ function App() {
         youthId: shiftData.youth_id,
         startTime: shiftData.start_time,
         endTime: shiftData.end_time,
+        status: shiftData.status,
+        actualStartTime: shiftData.actual_start_time,
+        actualEndTime: shiftData.actual_end_time,
+        actualNotes: shiftData.actual_notes,
       };
 
       if (editingShift.id) {
@@ -884,7 +910,7 @@ function App() {
     const weekHoursByTutor: Record<string, number> = {};
     shifts.forEach(s => {
       if (!s.tutorId || !weekDateStrs.has(s.date)) return;
-      weekHoursByTutor[s.tutorId] = (weekHoursByTutor[s.tutorId] || 0) + (parseTimeMins(s.endTime) - parseTimeMins(s.startTime)) / 60;
+      weekHoursByTutor[s.tutorId] = (weekHoursByTutor[s.tutorId] || 0) + getEffectiveHours(s);
     });
 
     const q = tutorSearch.trim().toLowerCase();
@@ -1746,6 +1772,7 @@ function App() {
                                 >
                                   {layout.placed.map((p, idx) => {
                                     const shift = p.shift;
+                                    const shiftStatus = shift.status || 'pianificato';
                                     const tutor = tutors.find(t => t.id === shift.tutorId);
                                     const youth = youths.find(y => y.id === shift.youthId);
                                     const isDragging = draggedShiftId === shift.id;
@@ -1757,12 +1784,13 @@ function App() {
                                     return (
                                       <div
                                         key={shift.id}
-                                        draggable
+                                        draggable={shiftStatus !== 'cancellato'}
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
                                         className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+                                          ${shiftStatus === 'cancellato' ? 'opacity-45 grayscale' : ''}
                                         `}
                                         style={{
                                           top: p.slotIdx * ROW_H + 1,
@@ -1776,9 +1804,15 @@ function App() {
                                             <span className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm`}>
                                               {getInitials(tutor?.name)}
                                             </span>
-                                            <span className="truncate font-bold text-slate-800 pointer-events-none text-[14px] leading-tight">
+                                            <span className={`truncate font-bold text-slate-800 pointer-events-none text-[14px] leading-tight ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                               {tutor?.name || 'Sconosciuto'}
                                             </span>
+                                            {shiftStatus === 'cancellato' && (
+                                              <span className="shrink-0 px-1.5 py-px rounded bg-red-100 text-red-600 text-[10px] font-bold uppercase">Annullato</span>
+                                            )}
+                                            {shiftStatus === 'effettuato' && shift.actualStartTime && (
+                                              <span className="shrink-0 px-1.5 py-px rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Eff.</span>
+                                            )}
                                             <button
                                               onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
                                               className="ml-auto opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
@@ -1792,14 +1826,23 @@ function App() {
                                           <div className="min-w-0 flex flex-col gap-1.5">
                                             <div className="flex items-center gap-1 min-w-0">
                                               <Clock size={12} className="text-slate-400 shrink-0" />
-                                              <span className="rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate">
+                                              <span className={`rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {shift.startTime}–{shift.endTime}
                                               </span>
                                             </div>
 
+                                            {shiftStatus === 'effettuato' && shift.actualStartTime && (
+                                              <div className="flex items-center gap-1 min-w-0">
+                                                <CheckCircle size={12} className="text-emerald-600 shrink-0" />
+                                                <span className="rounded bg-emerald-50 px-1.5 py-px text-[12px] font-bold text-emerald-700 tabular-nums pointer-events-none truncate">
+                                                  Effettivo {shift.actualStartTime}–{shift.actualEndTime}
+                                                </span>
+                                              </div>
+                                            )}
+
                                             <div className="flex items-center gap-1.5 min-w-0">
                                               <span className={`h-2 w-2 rounded-full ${yColor.badge} shrink-0`}></span>
-                                              <span className="truncate font-semibold text-slate-600 pointer-events-none">
+                                              <span className={`truncate font-semibold text-slate-600 pointer-events-none ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {youth?.name || 'Sconosciuto'}
                                               </span>
                                             </div>
@@ -1908,6 +1951,8 @@ function App() {
 
         const monthlyHours: Record<string, number> = {};
         const weeklyHours: Record<string, number> = {};
+        const plannedMonthlyHours: Record<string, number> = {};
+        const plannedWeeklyHours: Record<string, number> = {};
 
         tutorShifts.forEach(shift => {
           if (!shift.date || !shift.startTime || !shift.endTime) return;
@@ -1919,8 +1964,11 @@ function App() {
           const monthKey = format(date, 'MMMM yyyy', { locale: it });
           const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
 
-          const hours = getHours(shift.startTime, shift.endTime);
+          const plannedHours = getHours(shift.startTime, shift.endTime);
+          const hours = getEffectiveHours(shift);
 
+          plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + plannedHours;
+          plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + plannedHours;
           monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
           weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
         });
@@ -1931,6 +1979,8 @@ function App() {
           targetHours: tutor.maxHoursPerWeek,
           monthlyHours,
           weeklyHours,
+          plannedMonthlyHours,
+          plannedWeeklyHours,
           type: 'TUTOR'
         };
       })
@@ -1939,6 +1989,8 @@ function App() {
 
         const monthlyHours: Record<string, number> = {};
         const weeklyHours: Record<string, number> = {};
+        const plannedMonthlyHours: Record<string, number> = {};
+        const plannedWeeklyHours: Record<string, number> = {};
 
         youthShifts.forEach(shift => {
           if (!shift.date || !shift.startTime || !shift.endTime) return;
@@ -1950,8 +2002,11 @@ function App() {
           const monthKey = format(date, 'MMMM yyyy', { locale: it });
           const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
 
-          const hours = getHours(shift.startTime, shift.endTime);
+          const plannedHours = getHours(shift.startTime, shift.endTime);
+          const hours = getEffectiveHours(shift);
 
+          plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + plannedHours;
+          plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + plannedHours;
           monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
           weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
         });
@@ -1962,6 +2017,8 @@ function App() {
           targetHours: youth.requiredHoursPerWeek,
           monthlyHours,
           weeklyHours,
+          plannedMonthlyHours,
+          plannedWeeklyHours,
           type: 'YOUTH'
         };
       });
@@ -2032,12 +2089,24 @@ function App() {
                   </h4>
                   <div className="space-y-2">
                     {Object.entries(data.monthlyHours).length > 0 ? (
-                      Object.entries(data.monthlyHours).map(([month, hours]) => (
-                        <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                          <span className="capitalize text-slate-700">{month}</span>
-                          <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hours.toFixed(1)}h</span>
-                        </div>
-                      ))
+                      Object.entries(data.monthlyHours).map(([month, hours]) => {
+                        const hrs = Number(hours);
+                        const planned = data.plannedMonthlyHours[month] || 0;
+                        const delta = hrs - planned;
+                        return (
+                          <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                            <span className="capitalize text-slate-700">{month}</span>
+                            <span className="flex items-center gap-2">
+                              {Math.abs(delta) > 0.01 && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                                  {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
+                                </span>
+                              )}
+                              <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hrs.toFixed(1)}h</span>
+                            </span>
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="text-sm text-slate-400 italic">Nessun dato mensile</p>
                     )}
@@ -2051,8 +2120,11 @@ function App() {
                   <div className="space-y-2">
                     {Object.entries(data.weeklyHours).length > 0 ? (
                       Object.entries(data.weeklyHours).map(([week, hours]) => {
-                        const isOverLimit = data.type === 'TUTOR' && hours > data.targetHours;
-                        const isUnderTarget = data.type === 'YOUTH' && hours < data.targetHours;
+                        const hrs = Number(hours);
+                        const isOverLimit = data.type === 'TUTOR' && hrs > data.targetHours;
+                        const isUnderTarget = data.type === 'YOUTH' && hrs < data.targetHours;
+                        const planned = data.plannedWeeklyHours[week] || 0;
+                        const delta = hrs - planned;
 
                         let textColor = 'text-teal-600';
                         if (data.type === 'YOUTH') textColor = 'text-amber-600';
@@ -2062,10 +2134,17 @@ function App() {
                         return (
                           <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
                             <span className="text-slate-700">{week}</span>
-                            <span className={`font-bold ${textColor}`}>
-                              {hours.toFixed(1)}h
-                              {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
-                              {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
+                            <span className="flex items-center gap-2">
+                              {Math.abs(delta) > 0.01 && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                                  {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
+                                </span>
+                              )}
+                              <span className={`font-bold ${textColor}`}>
+                                {hrs.toFixed(1)}h
+                                {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
+                                {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
+                              </span>
                             </span>
                           </div>
                         );
@@ -2161,74 +2240,180 @@ function App() {
       </Modal>
 
       {/* Shift Modal */}
-      <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"}>
+      <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"} size="lg">
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor</label>
-            <select
-              className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-              value={editingShift?.tutorId}
-              onChange={e => setEditingShift({ ...editingShift, tutorId: e.target.value })}
-            >
-              <option value="">Seleziona Tutor</option>
-              {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a</label>
-            <select
-              className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-              value={editingShift?.youthId}
-              onChange={e => setEditingShift({ ...editingShift, youthId: e.target.value })}
-            >
-              <option value="">Seleziona Ragazzo/a</option>
-              {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
-              <input
-                type="date"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                value={editingShift?.date}
-                onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
-              <input
-                type="text"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                placeholder="Es. Compiti"
-                value={editingShift?.activity}
-                onChange={e => setEditingShift({ ...editingShift, activity: e.target.value })}
-              />
+          {/* Header */}
+          <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
+            <div className="h-2 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
+            <div className="flex items-center gap-4 px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center text-xl font-bold shadow-md shrink-0">
+                {getInitials(tutors.find(t => t.id === editingShift?.tutorId)?.name)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-800 truncate">
+                  {editingShift?.tutorId ? (tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor') : 'Nuovo Turno'}
+                </h3>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {editingShift?.youthId && (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                      {youths.find(y => y.id === editingShift.youthId)?.name || 'Ragazzo'}
+                    </span>
+                  )}
+                  {editingShift?.startTime && (
+                    <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold tabular-nums">
+                      {editingShift.startTime}–{editingShift.endTime}
+                    </span>
+                  )}
+                  {(editingShift?.status || 'pianificato') === 'cancellato' && (
+                    <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Annullato</span>
+                  )}
+                  {(editingShift?.status || 'pianificato') === 'effettuato' && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Effettuato</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Inizio</label>
-              <input
-                type="time"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                value={editingShift?.startTime}
-                onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
-              />
+
+          <YouthSection icon={<CalendarIcon size={16} />} title="Programmazione" chipBg="bg-teal-500" headerBg="bg-gradient-to-r from-teal-50 to-white border-teal-100" textColor="text-teal-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor <span className="text-red-500">*</span></label>
+                <select
+                  className={fieldCls}
+                  value={editingShift?.tutorId}
+                  onChange={e => setEditingShift({ ...editingShift, tutorId: e.target.value })}
+                >
+                  <option value="">Seleziona Tutor</option>
+                  {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a <span className="text-red-500">*</span></label>
+                <select
+                  className={fieldCls}
+                  value={editingShift?.youthId}
+                  onChange={e => setEditingShift({ ...editingShift, youthId: e.target.value })}
+                >
+                  <option value="">Seleziona Ragazzo/a</option>
+                  {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data <span className="text-red-500">*</span></label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={editingShift?.date}
+                  onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
+                <input
+                  type="text"
+                  className={fieldCls}
+                  placeholder="Es. Compiti"
+                  value={editingShift?.activity}
+                  onChange={e => setEditingShift({ ...editingShift, activity: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Inizio pianificato <span className="text-red-500">*</span></label>
+                <input
+                  type="time"
+                  className={fieldCls}
+                  value={editingShift?.startTime}
+                  onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fine pianificata <span className="text-red-500">*</span></label>
+                <input
+                  type="time"
+                  className={fieldCls}
+                  value={editingShift?.endTime}
+                  onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Fine</label>
-              <input
-                type="time"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white text-slate-900 focus:ring-teal-500 focus:border-teal-500"
-                value={editingShift?.endTime}
-                onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
-              />
-            </div>
+          </YouthSection>
+
+          {editingShift?.id && (
+            <YouthSection icon={<CheckCircle size={16} />} title="Consuntivo" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato del turno</label>
+                  <div className="flex gap-2">
+                    {[
+                      { v: 'pianificato', label: 'Pianificato', on: 'bg-teal-500 text-white border-teal-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-teal-400' },
+                      { v: 'effettuato', label: 'Effettuato', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
+                      { v: 'cancellato', label: 'Cancellato', on: 'bg-red-500 text-white border-red-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-red-400' },
+                    ].map(o => (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => setEditingShift({ ...editingShift, status: o.v })}
+                        className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${(editingShift.status || 'pianificato') === o.v ? o.on : o.off}`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {(editingShift.status || 'pianificato') === 'effettuato' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Inizio effettivo</label>
+                      <input
+                        type="time"
+                        className={fieldCls}
+                        value={editingShift.actualStartTime || ''}
+                        onChange={e => setEditingShift({ ...editingShift, actualStartTime: e.target.value || null })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Fine effettiva</label>
+                      <input
+                        type="time"
+                        className={fieldCls}
+                        value={editingShift.actualEndTime || ''}
+                        onChange={e => setEditingShift({ ...editingShift, actualEndTime: e.target.value || null })}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
+                      <textarea
+                        className={fieldCls + " min-h-[60px]"}
+                        placeholder="Come è andato il turno, variazioni, note..."
+                        value={editingShift.actualNotes || ''}
+                        onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+                {editingShift?.actualNotes && (editingShift.status || 'pianificato') === 'effettuato' && (
+                  <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    <span className="font-semibold text-slate-700">Nota:</span> {editingShift.actualNotes}
+                  </div>
+                )}
+              </div>
+            </YouthSection>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            {editingShift?.id && (
+              <button onClick={() => handleDeleteShift(editingShift.id)} className="px-3 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition" title="Elimina definitivamente il turno">
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
+              Annulla
+            </button>
+            <button onClick={handleSaveShift} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
+              <Save size={16} /> Salva Turno
+            </button>
           </div>
-          <button onClick={handleSaveShift} className="w-full bg-teal-600 text-white py-3 rounded-lg font-medium hover:bg-teal-700 mt-2 shadow-sm">
-            Salva Turno
-          </button>
         </div>
       </Modal>
 

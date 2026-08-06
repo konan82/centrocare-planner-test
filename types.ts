@@ -58,6 +58,10 @@ export interface Shift {
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   activity: string;
+  status?: string; // 'pianificato' | 'effettuato' | 'cancellato'
+  actualStartTime?: string | null; // HH:mm effettivo
+  actualEndTime?: string | null; // HH:mm effettivo
+  actualNotes?: string;
 }
 
 export interface User {
