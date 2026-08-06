@@ -305,6 +305,9 @@ function App() {
   const [resizingShiftId, setResizingShiftId] = useState<string | null>(null);
   const resizeRef = useRef<{ shiftId: string; startEndMin: number; startY: number; endMin: number | null } | null>(null);
 
+  // Tutor Filter State ('all' or a tutor id)
+  const [tutorFilter, setTutorFilter] = useState<string>('all');
+
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -839,6 +842,17 @@ function App() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <select
+                value={tutorFilter}
+                onChange={(e) => setTutorFilter(e.target.value)}
+                title="Filtra per tutor"
+                className="px-3 py-2.5 bg-white text-slate-700 rounded-xl border border-slate-200 shadow-sm hover:shadow transition-all font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer"
+              >
+                <option value="all">Tutti</option>
+                {tutors.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
               <button
                 onClick={async () => {
                   if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
@@ -1044,6 +1058,7 @@ function App() {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayShifts = shifts.filter(s => {
                       if (!s.date) return false;
+                      if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
                       const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
                       return shiftDate === dateStr;
                     });
@@ -1133,7 +1148,7 @@ function App() {
                               key={i}
                               onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
-                              onClick={() => openNewShiftModal('', layout.dateStr, slotLabel)}
+                              onClick={() => openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel)}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
@@ -1143,7 +1158,7 @@ function App() {
                               }`}
                             >
                               <button
-                                onClick={(e) => { e.stopPropagation(); openNewShiftModal('', layout.dateStr, slotLabel); }}
+                                onClick={(e) => { e.stopPropagation(); openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel); }}
                                 className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
                               >
                                 <Plus size={12} />
