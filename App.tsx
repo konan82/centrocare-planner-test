@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Calendar as CalendarIcon,
@@ -300,6 +300,10 @@ function App() {
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
   const [dragOverCoords, setDragOverCoords] = useState<{ dateStr: string, minutes: number } | null>(null);
+
+  // Resize State (Google Calendar style: drag the bottom edge to change duration)
+  const [resizingShiftId, setResizingShiftId] = useState<string | null>(null);
+  const resizeRef = useRef<{ shiftId: string; startEndMin: number; startY: number; endMin: number | null } | null>(null);
 
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1166,7 +1170,8 @@ function App() {
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1 text-[10px] cursor-move shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden group/item
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1 text-[10px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
+                                          ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                         `}
                                         style={{
@@ -1212,6 +1217,61 @@ function App() {
                                             {shift.activity}
                                           </div>
                                         )}
+
+                                        <div
+                                          className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
+                                          onPointerDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.currentTarget.setPointerCapture(e.pointerId);
+                                            const [eh, em] = (shift.endTime || '0:0').split(':').map(Number);
+                                            resizeRef.current = { shiftId: shift.id, startEndMin: eh * 60 + em, startY: e.clientY, endMin: null };
+                                            setResizingShiftId(shift.id);
+                                          }}
+                                          onPointerMove={(e) => {
+                                            const r = resizeRef.current;
+                                            if (!r || r.shiftId !== shift.id) return;
+                                            e.preventDefault();
+                                            const deltaSlots = Math.round((e.clientY - r.startY) / ROW_H);
+                                            const [sh, sm] = (shift.startTime || '0:0').split(':').map(Number);
+                                            const startMin = sh * 60 + sm;
+                                            const newEndMin = Math.max(startMin + SLOT, Math.min(r.startEndMin + deltaSlots * SLOT, DAY_END));
+                                            if (r.endMin !== newEndMin) {
+                                              r.endMin = newEndMin;
+                                              const nEnd = fmt(newEndMin);
+                                              setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
+                                            }
+                                          }}
+                                          onPointerUp={(e) => {
+                                            const r = resizeRef.current;
+                                            if (!r || r.shiftId !== shift.id) return;
+                                            e.preventDefault();
+                                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+                                            const endMin = r.endMin ?? r.startEndMin;
+                                            resizeRef.current = null;
+                                            setResizingShiftId(null);
+                                            const nEnd = fmt(endMin);
+                                            setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
+                                            supabase.from('shifts').update({ end_time: nEnd }).eq('id', shift.id)
+                                              .then(({ error }) => {
+                                                if (error) {
+                                                  console.error('Error resizing shift:', error);
+                                                  alert('Errore ridimensionamento turno');
+                                                }
+                                              });
+                                          }}
+                                          onPointerCancel={(e) => {
+                                            const r = resizeRef.current;
+                                            if (!r || r.shiftId !== shift.id) return;
+                                            try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+                                            resizeRef.current = null;
+                                            setResizingShiftId(null);
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        >
+                                          <div className="w-5 h-1 rounded-full bg-slate-500/80 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none" />
+                                        </div>
                                       </div>
                                     );
                                   })}
