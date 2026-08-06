@@ -9,8 +9,6 @@ import {
   AlertTriangle,
   Menu,
   X,
-  ChevronLeft,
-  ChevronRight,
   Edit,
   Save,
   BarChart3,
@@ -20,7 +18,6 @@ import {
   UserPlus,
   Settings,
   Clock,
-  Timer,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -48,14 +45,14 @@ const TUTOR_COLORS = [
 ];
 
 const YOUTH_COLORS = [
-  { bg: 'bg-sky-100', border: 'border-sky-300', text: 'text-sky-800', badge: 'bg-sky-500' },
-  { bg: 'bg-fuchsia-100', border: 'border-fuchsia-300', text: 'text-fuchsia-800', badge: 'bg-fuchsia-500' },
-  { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-800', badge: 'bg-teal-500' },
-  { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', badge: 'bg-yellow-500' },
-  { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', badge: 'bg-red-500' },
-  { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', badge: 'bg-green-500' },
-  { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-800', badge: 'bg-purple-500' },
-  { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', badge: 'bg-blue-500' },
+  { bg: 'bg-sky-100', border: 'border-sky-300', text: 'text-sky-800', badge: 'bg-sky-500', hover: 'hover:bg-sky-200' },
+  { bg: 'bg-fuchsia-100', border: 'border-fuchsia-300', text: 'text-fuchsia-800', badge: 'bg-fuchsia-500', hover: 'hover:bg-fuchsia-200' },
+  { bg: 'bg-teal-100', border: 'border-teal-300', text: 'text-teal-800', badge: 'bg-teal-500', hover: 'hover:bg-teal-200' },
+  { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', badge: 'bg-yellow-500', hover: 'hover:bg-yellow-200' },
+  { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', badge: 'bg-red-500', hover: 'hover:bg-red-200' },
+  { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', badge: 'bg-green-500', hover: 'hover:bg-green-200' },
+  { bg: 'bg-purple-100', border: 'border-purple-300', text: 'text-purple-800', badge: 'bg-purple-500', hover: 'hover:bg-purple-200' },
+  { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', badge: 'bg-blue-500', hover: 'hover:bg-blue-200' },
 ];
 
 const getTutorColor = (tutorId: string, tutors: Tutor[]) => {
@@ -104,26 +101,6 @@ const Card: React.FC<CardProps> = ({ children, className = "" }) => (
     {children}
   </div>
 );
-
-// --- Helper Functions ---
-const calculateDuration = (startTime: string, endTime: string): string => {
-  if (!startTime || !endTime) return '';
-  const [startH, startM] = (startTime.split(':') || [0, 0]).map(Number);
-  const [endH, endM] = (endTime.split(':') || [0, 0]).map(Number);
-
-  const startMinutes = (startH || 0) * 60 + (startM || 0);
-  const endMinutes = (endH || 0) * 60 + (endM || 0);
-
-  let diff = endMinutes - startMinutes;
-  if (diff < 0) diff += 24 * 60; // Handle midnight crossing if needed
-
-  const hours = Math.floor(diff / 60);
-  const minutes = diff % 60;
-
-  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h`;
-  return `${minutes}m`;
-};
 
 // --- Error Boundary ---
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
@@ -317,7 +294,7 @@ function App() {
 
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
-  const [dragOverCoords, setDragOverCoords] = useState<{ tutorId: string, dateStr: string } | null>(null);
+  const [dragOverCoords, setDragOverCoords] = useState<{ dateStr: string, hour: number } | null>(null);
 
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -327,9 +304,9 @@ function App() {
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
 
-  // Helper: Get start of current week
+  // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(startOfCurrentWeek, i));
+  const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(startOfCurrentWeek, i)); // LUN-SAB
 
   // --- Handlers ---
 
@@ -467,12 +444,12 @@ function App() {
     }
   };
 
-  const openNewShiftModal = (tutorId?: string, dateStr?: string) => {
+  const openNewShiftModal = (tutorId?: string, dateStr?: string, startTime?: string) => {
     setEditingShift({
       tutorId: tutorId || '',
       date: dateStr || format(new Date(), 'yyyy-MM-dd'),
-      startTime: '15:00',
-      endTime: '17:00'
+      startTime: startTime || '15:00',
+      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00'
     });
     setIsShiftModalOpen(true);
   };
@@ -504,9 +481,9 @@ function App() {
       const startDateStr = format(startOfCurrentWeek, 'yyyy-MM-dd');
 
       if (clearWeek) {
-        const weekEnd = format(addDays(startOfCurrentWeek, 6), 'yyyy-MM-dd');
+        const weekEnd = format(addDays(startOfCurrentWeek, 5), 'yyyy-MM-dd');
         const weekDates: string[] = [];
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 6; i++) {
           weekDates.push(format(addDays(startOfCurrentWeek, i), 'yyyy-MM-dd'));
         }
         const { error: delErr } = await supabase
@@ -542,7 +519,7 @@ function App() {
         if (!s.date) return false;
         try {
           const d = parseISO(s.date);
-          return d < startOfCurrentWeek || d > addDays(startOfCurrentWeek, 6);
+          return d < startOfCurrentWeek || d > addDays(startOfCurrentWeek, 5);
         } catch (e) {
           return false;
         }
@@ -570,13 +547,13 @@ function App() {
     setDraggedShiftId(shiftId);
   };
 
-  const handleDragOver = (e: React.DragEvent, tutorId: string, dateStr: string) => {
+  const handleDragOver = (e: React.DragEvent, dateStr: string, hour: number) => {
     e.preventDefault(); // Necessary to allow dropping
     e.dataTransfer.dropEffect = "move";
 
     // Only update state if it changed to prevent excessive re-renders
-    if (dragOverCoords?.tutorId !== tutorId || dragOverCoords?.dateStr !== dateStr) {
-      setDragOverCoords({ tutorId, dateStr });
+    if (dragOverCoords?.dateStr !== dateStr || dragOverCoords?.hour !== hour) {
+      setDragOverCoords({ dateStr, hour });
     }
   };
 
@@ -585,18 +562,28 @@ function App() {
     // but clearing it on Drop is usually sufficient.
   };
 
-  const handleDrop = async (e: React.DragEvent, tutorId: string, dateStr: string) => {
+  const handleDrop = async (e: React.DragEvent, dateStr: string, hour: number) => {
     e.preventDefault();
     const shiftId = e.dataTransfer.getData("text/plain");
 
     if (shiftId) {
       const shiftToUpdate = shifts.find(s => s.id === shiftId);
       if (shiftToUpdate) {
-        const updatedShift = { ...shiftToUpdate, tutorId, date: dateStr };
+        const [sh, sm] = (shiftToUpdate.startTime || '15:00').split(':').map(Number);
+        const [eh, em] = (shiftToUpdate.endTime || '17:00').split(':').map(Number);
+        const durationMin = (eh * 60 + em) - (sh * 60 + sm);
+        const newStartMin = hour * 60;
+        const newEndMin = newStartMin + (durationMin > 0 ? durationMin : 120);
+        const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+        const newStartTime = fmt(newStartMin);
+        const newEndTime = fmt(newEndMin);
+
+        const updatedShift = { ...shiftToUpdate, date: dateStr, startTime: newStartTime, endTime: newEndTime };
         try {
           const { error } = await supabase.from('shifts').update({
-            tutor_id: tutorId,
             date: dateStr,
+            start_time: newStartTime,
+            end_time: newEndTime,
           }).eq('id', shiftId);
           if (error) throw error;
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
@@ -831,11 +818,10 @@ function App() {
         {/* Calendar Header Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
           <div className="flex items-center space-x-4 mb-4 md:mb-0">
-            <button onClick={() => setCurrentDate(addDays(currentDate, -7))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft size={20} /></button>
-            <h2 className="text-lg font-bold text-slate-700 capitalize w-48 text-center">
-              {format(startOfCurrentWeek, 'MMMM yyyy', { locale: it })}
-            </h2>
-            <button onClick={() => setCurrentDate(addDays(currentDate, 7))} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight size={20} /></button>
+            <div>
+              <h2 className="text-lg font-bold text-slate-700">Turni settimanali</h2>
+              <p className="text-xs text-slate-400">Fascia oraria LUN-SAB · 07:00 - 20:00</p>
+            </div>
           </div>
 
           <div className="flex space-x-3">
@@ -996,153 +982,114 @@ function App() {
           </div>
         )}
 
-        {/* Calendar Grid */}
+        {/* Weekly Time Matrix */}
         <div className="flex-1 bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
-          <table className="w-full min-w-[1000px] border-collapse">
+          <table className="w-full min-w-[960px] border-collapse">
             <thead>
               <tr>
-                <th className="p-4 border-b border-r bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-48 sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                  Tutor
+                <th className="p-3 border-b border-r bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-16 sticky left-0 z-30">
+                  Orario
                 </th>
-                {weekDays.map((day, i) => (
-                  <th key={i} className={`p-3 border-b border-r bg-gray-50 text-center min-w-[140px] ${isSameDay(day, new Date()) ? 'bg-teal-50' : ''}`}>
-                    <span className="block text-xs font-bold text-gray-400 uppercase">{format(day, 'EEE', { locale: it })}</span>
-                    <span className={`block text-lg font-bold ${isSameDay(day, new Date()) ? 'text-teal-600' : 'text-slate-700'}`}>
-                      {format(day, 'd')}
+                {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => (
+                  <th key={i} className={`p-3 border-b border-r bg-gray-50 text-center min-w-[130px] ${isSameDay(weekDays[i], new Date()) ? 'bg-teal-50' : ''}`}>
+                    <span className={`text-sm font-bold uppercase ${isSameDay(weekDays[i], new Date()) ? 'text-teal-600' : 'text-slate-700'}`}>
+                      {label}
                     </span>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {tutors.map(tutor => {
-                const weekShiftsForTutor = shifts.filter(s => {
-                  if (s.tutorId !== tutor.id || !s.date) return false;
-                  const d = typeof s.date === 'string' ? parseISO(s.date.split('T')[0]) : new Date(s.date);
-                  return d >= startOfCurrentWeek && d <= addDays(startOfCurrentWeek, 6);
-                });
-                const tutorWeekHours = weekShiftsForTutor.reduce((sum, s) => {
-                  const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
-                  const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
-                  return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-                }, 0);
+              {Array.from({ length: 14 }).map((_, rowIdx) => {
+                const hour = rowIdx + 7; // 07:00 → 20:00
+                const slotLabel = `${String(hour).padStart(2, '0')}:00`;
                 return (
-                <tr key={tutor.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className={`p-4 border-b border-r font-medium text-slate-700 bg-white sticky left-0 z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50 border-l-4 ${getTutorColor(tutor.id, tutors).border} transition-all`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${getTutorColor(tutor.id, tutors).badge} flex-shrink-0`}></div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">{tutor.name}</span>
-                        <span className="text-xs text-slate-400">{tutor.specialties?.[0]}</span>
-                        <span className={`text-xs font-medium mt-0.5 ${tutorWeekHours > 0 ? 'text-teal-600' : 'text-slate-300'}`}>
-                          {tutorWeekHours}h / {tutor.maxHoursPerWeek}h
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  {weekDays.map((day, i) => {
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const dayShifts = shifts.filter(s => {
-                      if (s.tutorId !== tutor.id) return false;
-                      if (!s.date) return false;
-                      // Robust date comparison: compare YYYY-MM-DD strings
-                      // This handles both "2023-11-28" and "2023-11-28T..." formats safely
-                      const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                      const matches = shiftDate === dateStr;
+                  <tr key={rowIdx} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-2 border-b border-r font-medium text-slate-500 sticky left-0 z-20 bg-white text-xs whitespace-nowrap">
+                      {slotLabel}
+                    </td>
+                    {weekDays.map((day, i) => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const cellShifts = shifts.filter(s => {
+                        if (!s.date) return false;
+                        const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+                        if (shiftDate !== dateStr) return false;
+                        const startHour = parseInt((s.startTime || '').split(':')[0]);
+                        if (isNaN(startHour)) return false;
+                        return startHour === hour;
+                      }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-                      // Debug logging (only for first tutor and first day to avoid spam)
-                      if (i === 0 && tutor.id === tutors[0]?.id) {
-                        console.log(`Filtering for ${tutor.name} on ${dateStr}: shift ${s.id} has date "${s.date}" -> normalized to "${shiftDate}" -> matches: ${matches}`);
-                      }
+                      const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.hour === hour;
 
-                      return matches;
-                    }).sort((a, b) => {
-                      // Sort by start time
-                      const timeA = a.startTime || '';
-                      const timeB = b.startTime || '';
-                      return timeA.localeCompare(timeB);
-                    });
+                      return (
+                        <td
+                          key={i}
+                          onDragOver={(e) => handleDragOver(e, dateStr, hour)}
+                          onDrop={(e) => handleDrop(e, dateStr, hour)}
+                          className={`p-1.5 border-b border-r relative align-top min-h-[64px] transition-colors duration-200
+                            ${isDragOver ? 'bg-teal-100 ring-2 ring-inset ring-teal-400' : ''}
+                          `}
+                        >
+                          <div className="flex flex-col gap-1.5 min-h-[52px]">
+                            {cellShifts.map(shift => {
+                              const tutor = tutors.find(t => t.id === shift.tutorId);
+                              const youth = youths.find(y => y.id === shift.youthId);
+                              const isDragging = draggedShiftId === shift.id;
+                              const tColor = getTutorColor(shift.tutorId, tutors);
+                              const yColor = getYouthColor(shift.youthId, youths);
 
-                    // Log results for first day of first tutor
-                    if (i === 0 && tutor.id === tutors[0]?.id) {
-                      console.log(`Found ${dayShifts.length} shifts for ${tutor.name} on ${dateStr}`);
-                    }
-
-                    const isUnavailable = tutor.unavailableDays?.includes(day.getDay());
-                    const isDragOver = dragOverCoords?.tutorId === tutor.id && dragOverCoords?.dateStr === dateStr;
-
-                    return (
-                      <td
-                        key={i}
-                        onDragOver={(e) => handleDragOver(e, tutor.id, dateStr)}
-                        onDrop={(e) => handleDrop(e, tutor.id, dateStr)}
-                        className={`p-2 border-b border-r relative align-top h-32 transition-colors duration-200
-                          ${isUnavailable ? 'bg-gray-100 bg-opacity-50' : ''}
-                          ${isDragOver ? 'bg-teal-100 ring-2 ring-inset ring-teal-400' : ''}
-                        `}
-                      >
-                        {isUnavailable && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-                            <span className="text-4xl font-bold text-gray-500 rotate-45">N/A</span>
-                          </div>
-                        )}
-
-                        <div className="flex flex-col space-y-2 h-full">
-                          {dayShifts.map(shift => {
-                            const youth = youths.find(y => y.id === shift.youthId);
-                            const duration = calculateDuration(shift.startTime, shift.endTime);
-                            const isDragging = draggedShiftId === shift.id;
-
-                            return (
-                              <div
-                                key={shift.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, shift.id)}
-                                onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                className={`${getYouthColor(shift.youthId, youths).bg} ${getYouthColor(shift.youthId, youths).hover} border ${getYouthColor(shift.youthId, youths).border} ${getYouthColor(shift.youthId, youths).text} p-2 rounded text-xs cursor-move shadow-sm transition-all flex flex-col group/item
-                                  ${isDragging ? 'opacity-50 scale-95' : 'opacity-100'}
-                                `}
-                              >
-                                <div className="flex justify-between items-start">
-                                  <span className="font-bold truncate pointer-events-none">{youth?.name || 'Sconosciuto'}</span>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
-                                    className="opacity-0 group-hover/item:opacity-100 text-teal-600 hover:text-red-500"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                                <div className="flex items-center justify-between mt-1 pointer-events-none">
-                                  <div className="flex items-center text-teal-700">
-                                    <Clock size={10} className="mr-1" />
-                                    <span>{shift.startTime} - {shift.endTime}</span>
+                              return (
+                                <div
+                                  key={shift.id}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, shift.id)}
+                                  onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
+                                  className={`${yColor.bg} ${yColor.hover} border ${yColor.border} ${yColor.text} p-2 rounded text-[11px] cursor-move shadow-sm transition-all group/item
+                                    ${isDragging ? 'opacity-50 scale-95' : 'opacity-100'}
+                                  `}
+                                >
+                                  <div className="flex justify-between items-start gap-1">
+                                    <span className="font-bold truncate pointer-events-none flex items-center gap-1">
+                                      <span className={`w-2 h-2 rounded-full ${tColor.badge} flex-shrink-0`}></span>
+                                      {tutor?.name || 'Sconosciuto'}
+                                    </span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
+                                      className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 flex-shrink-0"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
                                   </div>
-                                  <div className="flex items-center text-teal-600 text-[10px] bg-teal-50 px-1 rounded">
-                                    <Timer size={8} className="mr-1" />
-                                    <span>{duration}</span>
+                                  <div className="mt-0.5 flex items-center text-slate-700">
+                                    <Clock size={10} className="mr-1 flex-shrink-0" />
+                                    <span className="font-semibold">{shift.startTime} - {shift.endTime}</span>
                                   </div>
+                                  <div className="mt-0.5 flex items-center font-medium truncate pointer-events-none">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${tColor.badge} mr-1 flex-shrink-0`}></span>
+                                    {youth?.name || 'Sconosciuto'}
+                                  </div>
+                                  {shift.activity && (
+                                    <div className="mt-0.5 text-slate-600 truncate pointer-events-none italic">
+                                      {shift.activity}
+                                    </div>
+                                  )}
                                 </div>
-                                {shift.activity && <span className="text-[10px] text-teal-600 mt-1 truncate pointer-events-none">{shift.activity}</span>}
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
 
-                          {/* Add button placeholder */}
-                          {!isUnavailable && (
                             <button
-                              onClick={() => openNewShiftModal(tutor.id, format(day, 'yyyy-MM-dd'))}
-                              className="w-full py-1 text-center text-xs text-gray-300 hover:text-teal-600 hover:bg-teal-50 rounded border border-dashed border-gray-200 hover:border-teal-300 transition-colors mt-auto opacity-0 group-hover:opacity-100"
+                              onClick={() => openNewShiftModal('', dateStr, slotLabel)}
+                              className="w-full py-1 text-center text-[10px] text-gray-300 hover:text-teal-600 hover:bg-teal-50 rounded border border-dashed border-gray-200 hover:border-teal-300 transition-colors opacity-0 group-hover:opacity-100"
                             >
                               + Aggiungi
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
