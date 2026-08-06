@@ -1044,7 +1044,7 @@ function App() {
                                   draggable
                                   onDragStart={(e) => handleDragStart(e, shift.id)}
                                   onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                  className={`${yColor.bg} ${yColor.hover} border ${yColor.border} ${yColor.text} p-2 rounded text-[11px] cursor-move shadow-sm transition-all group/item
+                                  className={`${yColor.bg} ${yColor.hover} border ${yColor.border} ${yColor.text} p-1.5 rounded text-[11px] cursor-move shadow-sm transition-all group/item
                                     ${isDragging ? 'opacity-50 scale-95' : 'opacity-100'}
                                   `}
                                 >
@@ -1060,17 +1060,26 @@ function App() {
                                       <Trash2 size={11} />
                                     </button>
                                   </div>
-                                  <div className="mt-0.5 flex items-center text-slate-700">
-                                    <Clock size={10} className="mr-1 flex-shrink-0" />
-                                    <span className="font-semibold">{shift.startTime} - {shift.endTime}</span>
+                                  <div className="mt-1 pt-1 border-t border-slate-300/60">
+                                    <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Orario</span>
+                                    <div className="flex items-center text-slate-700 mt-0.5">
+                                      <Clock size={10} className="mr-1 flex-shrink-0" />
+                                      <span className="font-semibold">{shift.startTime} - {shift.endTime}</span>
+                                    </div>
                                   </div>
-                                  <div className="mt-0.5 flex items-center font-medium truncate pointer-events-none">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${tColor.badge} mr-1 flex-shrink-0`}></span>
-                                    {youth?.name || 'Sconosciuto'}
+                                  <div className="mt-1 pt-1 border-t border-slate-300/60">
+                                    <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Studente</span>
+                                    <div className="flex items-center font-medium truncate pointer-events-none mt-0.5">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${tColor.badge} mr-1 flex-shrink-0`}></span>
+                                      {youth?.name || 'Sconosciuto'}
+                                    </div>
                                   </div>
                                   {shift.activity && (
-                                    <div className="mt-0.5 text-slate-600 truncate pointer-events-none italic">
-                                      {shift.activity}
+                                    <div className="mt-1 pt-1 border-t border-slate-300/60">
+                                      <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Attività</span>
+                                      <div className="mt-0.5 text-slate-600 truncate pointer-events-none italic">
+                                        {shift.activity}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
