@@ -65,6 +65,11 @@ const getYouthColor = (youthId: string, youths: Youth[]) => {
   return YOUTH_COLORS[idx % YOUTH_COLORS.length];
 };
 
+const getInitials = (name?: string) => {
+  if (!name) return '?';
+  return name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+};
+
 // --- Components defined within App to share state easily for this demo ---
 
 interface ModalProps {
@@ -816,49 +821,55 @@ function App() {
     return (
       <div className="space-y-6 h-full flex flex-col">
         {/* Calendar Header Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex items-center space-x-4 mb-4 md:mb-0">
-            <div>
-              <h2 className="text-lg font-bold text-slate-700">Turni settimanali</h2>
-              <p className="text-xs text-slate-400">Fascia oraria LUN-SAB · 07:00 - 20:00</p>
+        <div className="relative overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
+          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center px-5 py-4 gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-200">
+                <CalendarIcon size={20} />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Turni settimanali</h2>
+                <p className="text-xs text-slate-400 font-medium">Fascia oraria LUN-SAB · 07:00 – 20:00</p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex space-x-3">
-            <button
-              onClick={async () => {
-                if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
-                try {
-                  const { error, count } = await supabase.from('shifts').delete().neq('id', '');
-                  if (error) throw error;
-                  alert(`Turni cancellati con successo!`);
-                  setShifts([]);
-                } catch (error) {
-                  console.error(error);
-                  alert("Errore durante la cancellazione");
-                }
-              }}
-              className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 flex items-center border border-red-200"
-            >
-              <Trash2 size={18} className="mr-2" />
-              Cancella Tutti
-            </button>
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing}
-              className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center border border-indigo-200"
-            >
-              {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-700 mr-2"></div> : <AlertTriangle size={18} className="mr-2" />}
-              Analizza Conflitti
-            </button>
-            <button
-              onClick={() => setShowConfirmClear(true)}
-              disabled={isGenerating}
-              className="px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg hover:from-teal-600 hover:to-emerald-600 shadow-md flex items-center transition-all"
-            >
-              {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> : <BrainCircuit size={18} className="mr-2" />}
-              AI Auto-Planner
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={async () => {
+                  if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
+                  try {
+                    const { error, count } = await supabase.from('shifts').delete().neq('id', '');
+                    if (error) throw error;
+                    alert(`Turni cancellati con successo!`);
+                    setShifts([]);
+                  } catch (error) {
+                    console.error(error);
+                    alert("Errore durante la cancellazione");
+                  }
+                }}
+                className="px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+              >
+                <Trash2 size={16} />
+                Cancella Tutti
+              </button>
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                className="px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+              >
+                {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
+                Analizza Conflitti
+              </button>
+              <button
+                onClick={() => setShowConfirmClear(true)}
+                disabled={isGenerating}
+                className="px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+              >
+                {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BrainCircuit size={16} />}
+                AI Auto-Planner
+              </button>
+            </div>
           </div>
         </div>
 
@@ -983,124 +994,154 @@ function App() {
         )}
 
         {/* Weekly Time Matrix */}
-        <div className="flex-1 bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
-          <table className="w-full min-w-[960px] border-collapse">
-            <thead>
-              <tr>
-                <th className="p-3 border-b border-r bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-16 sticky left-0 z-30">
-                  Orario
-                </th>
-                {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => (
-                  <th key={i} className={`p-3 border-b border-r bg-gray-50 text-center min-w-[130px] ${isSameDay(weekDays[i], new Date()) ? 'bg-teal-50' : ''}`}>
-                    <span className={`text-sm font-bold uppercase ${isSameDay(weekDays[i], new Date()) ? 'text-teal-600' : 'text-slate-700'}`}>
-                      {label}
-                    </span>
+        <div className="flex-1 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full min-w-[1000px] border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-30 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-3 w-20">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 14 }).map((_, rowIdx) => {
-                const hour = rowIdx + 7; // 07:00 → 20:00
-                const slotLabel = `${String(hour).padStart(2, '0')}:00`;
-                return (
-                  <tr key={rowIdx} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-2 border-b border-r font-medium text-slate-500 sticky left-0 z-20 bg-white text-xs whitespace-nowrap">
-                      {slotLabel}
-                    </td>
-                    {weekDays.map((day, i) => {
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const cellShifts = shifts.filter(s => {
-                        if (!s.date) return false;
-                        const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                        if (shiftDate !== dateStr) return false;
-                        const startHour = parseInt((s.startTime || '').split(':')[0]);
-                        if (isNaN(startHour)) return false;
-                        return startHour === hour;
-                      }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                  {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
+                    const isToday = isSameDay(weekDays[i], new Date());
+                    return (
+                      <th key={i} className={`sticky top-0 z-10 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
+                        isToday ? 'bg-gradient-to-b from-teal-50 to-white' : 'bg-slate-50/80'
+                      }`}>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`text-sm font-extrabold tracking-widest ${
+                            isToday ? 'text-teal-600' : 'text-slate-600'
+                          }`}>
+                            {label}
+                          </span>
+                          {isToday && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-full px-2 py-0.5 shadow-sm shadow-teal-200">
+                              Oggi
+                            </span>
+                          )}
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 14 }).map((_, rowIdx) => {
+                  const hour = rowIdx + 7; // 07:00 → 20:00
+                  const slotLabel = `${String(hour).padStart(2, '0')}:00`;
+                  const isBand = rowIdx % 2 === 0;
+                  return (
+                    <tr key={rowIdx}>
+                      <td className={`sticky left-0 z-20 border-b border-r border-slate-200 w-20 p-2 text-center align-top ${
+                        isBand ? 'bg-slate-100/70' : 'bg-white'
+                      }`}>
+                        <span className="inline-flex items-center rounded-md bg-white/80 border border-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-500 tabular-nums shadow-sm">
+                          {slotLabel}
+                        </span>
+                      </td>
+                      {weekDays.map((day, i) => {
+                        const dateStr = format(day, 'yyyy-MM-dd');
+                        const cellShifts = shifts.filter(s => {
+                          if (!s.date) return false;
+                          const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+                          if (shiftDate !== dateStr) return false;
+                          const startHour = parseInt((s.startTime || '').split(':')[0]);
+                          if (isNaN(startHour)) return false;
+                          return startHour === hour;
+                        }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-                      const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.hour === hour;
+                        const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.hour === hour;
 
-                      return (
-                        <td
-                          key={i}
-                          onDragOver={(e) => handleDragOver(e, dateStr, hour)}
-                          onDrop={(e) => handleDrop(e, dateStr, hour)}
-                          className={`p-1.5 border-b border-r relative align-top min-h-[64px] transition-colors duration-200
-                            ${isDragOver ? 'bg-teal-100 ring-2 ring-inset ring-teal-400' : ''}
-                          `}
-                        >
-                          <div className="flex flex-col gap-1.5 min-h-[52px]">
-                            {cellShifts.map(shift => {
-                              const tutor = tutors.find(t => t.id === shift.tutorId);
-                              const youth = youths.find(y => y.id === shift.youthId);
-                              const isDragging = draggedShiftId === shift.id;
-                              const tColor = getTutorColor(shift.tutorId, tutors);
-                              const yColor = getYouthColor(shift.youthId, youths);
+                        return (
+                          <td
+                            key={i}
+                            onDragOver={(e) => handleDragOver(e, dateStr, hour)}
+                            onDrop={(e) => handleDrop(e, dateStr, hour)}
+                            className={`border-b border-r border-slate-200 p-1 align-top min-h-[60px] transition-all duration-150 group/slot ${
+                              isBand ? 'bg-slate-50/40' : 'bg-white'
+                            } ${
+                              isDragOver
+                                ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
+                                : 'hover:bg-teal-50/30'
+                            }`}
+                          >
+                            <div className="flex flex-col gap-1 min-h-[52px]">
+                              {cellShifts.map(shift => {
+                                const tutor = tutors.find(t => t.id === shift.tutorId);
+                                const youth = youths.find(y => y.id === shift.youthId);
+                                const isDragging = draggedShiftId === shift.id;
+                                const tColor = getTutorColor(shift.tutorId, tutors);
+                                const yColor = getYouthColor(shift.youthId, youths);
 
-                              return (
-                                <div
-                                  key={shift.id}
-                                  draggable
-                                  onDragStart={(e) => handleDragStart(e, shift.id)}
-                                  onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                  className={`${yColor.bg} ${yColor.hover} border ${yColor.border} ${yColor.text} p-1.5 rounded text-[11px] cursor-move shadow-sm transition-all group/item
-                                    ${isDragging ? 'opacity-50 scale-95' : 'opacity-100'}
-                                  `}
-                                >
-                                  <div className="flex justify-between items-start gap-1">
-                                    <span className="font-bold truncate pointer-events-none flex items-center gap-1">
-                                      <span className={`w-2 h-2 rounded-full ${tColor.badge} flex-shrink-0`}></span>
-                                      {tutor?.name || 'Sconosciuto'}
-                                    </span>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
-                                      className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 flex-shrink-0"
-                                    >
-                                      <Trash2 size={11} />
-                                    </button>
-                                  </div>
-                                  <div className="mt-1 pt-1 border-t border-slate-300/60">
-                                    <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Orario</span>
-                                    <div className="flex items-center text-slate-700 mt-0.5">
-                                      <Clock size={10} className="mr-1 flex-shrink-0" />
-                                      <span className="font-semibold">{shift.startTime} - {shift.endTime}</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-1 pt-1 border-t border-slate-300/60">
-                                    <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Studente</span>
-                                    <div className="flex items-center font-medium truncate pointer-events-none mt-0.5">
-                                      <span className={`w-1.5 h-1.5 rounded-full ${tColor.badge} mr-1 flex-shrink-0`}></span>
-                                      {youth?.name || 'Sconosciuto'}
-                                    </div>
-                                  </div>
-                                  {shift.activity && (
-                                    <div className="mt-1 pt-1 border-t border-slate-300/60">
-                                      <span className="block text-[8px] font-bold uppercase tracking-wider text-slate-400 pointer-events-none">Attività</span>
-                                      <div className="mt-0.5 text-slate-600 truncate pointer-events-none italic">
-                                        {shift.activity}
+                                return (
+                                  <div
+                                    key={shift.id}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, shift.id)}
+                                    onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
+                                    className={`relative group/item rounded-xl border border-slate-200/80 border-l-4 ${tColor.border} bg-gradient-to-br from-white to-slate-50 p-1.5 text-[11px] cursor-move shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150
+                                      ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+                                    `}
+                                  >
+                                    <div className="flex items-center justify-between gap-1">
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span className={`h-4 w-4 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[8px] font-bold flex items-center justify-center shadow-sm`}>
+                                          {getInitials(tutor?.name)}
+                                        </span>
+                                        <span className="truncate font-bold text-slate-700 pointer-events-none">
+                                          {tutor?.name || 'Sconosciuto'}
+                                        </span>
                                       </div>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
+                                        className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
 
-                            <button
-                              onClick={() => openNewShiftModal('', dateStr, slotLabel)}
-                              className="w-full py-1 text-center text-[10px] text-gray-300 hover:text-teal-600 hover:bg-teal-50 rounded border border-dashed border-gray-200 hover:border-teal-300 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                              + Aggiungi
-                            </button>
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <Clock size={9} className="text-slate-400 shrink-0" />
+                                      <span className="rounded-md bg-slate-100/90 px-1.5 py-px text-[9px] font-bold text-slate-600 tabular-nums tracking-wide pointer-events-none">
+                                        {shift.startTime} – {shift.endTime}
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-1 flex items-center gap-1 min-w-0">
+                                      <span className={`h-1.5 w-1.5 rounded-full ${yColor.badge} shrink-0`}></span>
+                                      <span className="truncate font-semibold text-slate-500 pointer-events-none">
+                                        {youth?.name || 'Sconosciuto'}
+                                      </span>
+                                    </div>
+
+                                    {shift.activity && (
+                                      <div className="mt-1 flex items-center gap-1 min-w-0">
+                                        <span className="h-px w-1.5 bg-slate-200 shrink-0"></span>
+                                        <span className="truncate italic text-[9px] text-slate-400 pointer-events-none">
+                                          {shift.activity}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              <button
+                                onClick={() => openNewShiftModal('', dateStr, slotLabel)}
+                                className="w-full py-1.5 text-center text-[10px] font-semibold text-slate-300 hover:text-teal-600 hover:bg-white rounded-lg border border-dashed border-slate-200 hover:border-teal-300 transition-all opacity-0 group-hover/slot:opacity-100"
+                              >
+                                + Aggiungi
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
