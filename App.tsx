@@ -1026,119 +1026,155 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {Array.from({ length: 14 }).map((_, rowIdx) => {
-                  const hour = rowIdx + 7; // 07:00 → 20:00
-                  const slotLabel = `${String(hour).padStart(2, '0')}:00`;
-                  const isBand = rowIdx % 2 === 0;
-                  return (
-                    <tr key={rowIdx}>
-                      <td className={`sticky left-0 z-20 border-b border-r border-slate-200 w-20 p-2 text-center align-top ${
-                        isBand ? 'bg-slate-100/70' : 'bg-white'
-                      }`}>
-                        <span className="inline-flex items-center rounded-md bg-white/80 border border-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-500 tabular-nums shadow-sm">
-                          {slotLabel}
-                        </span>
-                      </td>
-                      {weekDays.map((day, i) => {
-                        const dateStr = format(day, 'yyyy-MM-dd');
-                        const cellShifts = shifts.filter(s => {
-                          if (!s.date) return false;
-                          const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                          if (shiftDate !== dateStr) return false;
-                          const startHour = parseInt((s.startTime || '').split(':')[0]);
-                          if (isNaN(startHour)) return false;
-                          return startHour === hour;
-                        }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+                {(() => {
+                  // Precompute per-day: shifts grouped by start hour + which hours are
+                  // "consumed" by multi-hour shifts (for rowSpan spanning).
+                  const dayPlans = weekDays.map(day => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const dayShifts = shifts.filter(s => {
+                      if (!s.date) return false;
+                      const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+                      if (shiftDate !== dateStr) return false;
+                      const sh = parseInt((s.startTime || '').split(':')[0]);
+                      return !isNaN(sh);
+                    }).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
-                        const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.hour === hour;
+                    const startMap: Record<number, Shift[]> = {};
+                    dayShifts.forEach(s => {
+                      const sh = parseInt((s.startTime || '').split(':')[0]);
+                      (startMap[sh] = startMap[sh] || []).push(s);
+                    });
 
-                        return (
-                          <td
-                            key={i}
-                            onDragOver={(e) => handleDragOver(e, dateStr, hour)}
-                            onDrop={(e) => handleDrop(e, dateStr, hour)}
-                            className={`border-b border-r border-slate-200 p-1 align-top min-h-[60px] transition-all duration-150 group/slot ${
-                              isBand ? 'bg-slate-50/40' : 'bg-white'
-                            } ${
-                              isDragOver
-                                ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
-                                : 'hover:bg-teal-50/30'
-                            }`}
-                          >
-                            <div className="flex flex-col gap-1 min-h-[52px]">
-                              {cellShifts.map(shift => {
-                                const tutor = tutors.find(t => t.id === shift.tutorId);
-                                const youth = youths.find(y => y.id === shift.youthId);
-                                const isDragging = draggedShiftId === shift.id;
-                                const tColor = getTutorColor(shift.tutorId, tutors);
-                                const yColor = getYouthColor(shift.youthId, youths);
+                    const spanAt: Record<number, number> = {};
+                    const consumed: Record<number, boolean> = {};
+                    for (let h = 7; h <= 20; h++) {
+                      if (consumed[h]) continue;
+                      const list = startMap[h];
+                      if (list && list.length) {
+                        let maxSpan = 1;
+                        list.forEach(s => {
+                          const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+                          const endMin = (eh || 0) * 60 + (em || 0);
+                          maxSpan = Math.max(maxSpan, Math.max(1, Math.ceil(endMin / 60) - h));
+                        });
+                        maxSpan = Math.min(maxSpan, 20 - h + 1);
+                        spanAt[h] = maxSpan;
+                        for (let c = h + 1; c < h + maxSpan && c <= 20; c++) consumed[c] = true;
+                      }
+                    }
+                    return { dateStr, startMap, spanAt, consumed };
+                  });
 
-                                return (
-                                  <div
-                                    key={shift.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, shift.id)}
-                                    onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                    className={`relative group/item rounded-xl border border-slate-200/80 border-l-4 ${tColor.border} bg-gradient-to-br from-white to-slate-50 p-1.5 text-[11px] cursor-move shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150
-                                      ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
-                                    `}
-                                  >
-                                    <div className="flex items-center justify-between gap-1">
-                                      <div className="flex items-center gap-1 min-w-0">
-                                        <span className={`h-4 w-4 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[8px] font-bold flex items-center justify-center shadow-sm`}>
-                                          {getInitials(tutor?.name)}
-                                        </span>
-                                        <span className="truncate font-bold text-slate-700 pointer-events-none">
-                                          {tutor?.name || 'Sconosciuto'}
+                  return Array.from({ length: 14 }).map((_, rowIdx) => {
+                    const hour = rowIdx + 7; // 07:00 → 20:00
+                    const slotLabel = `${String(hour).padStart(2, '0')}:00`;
+                    const isBand = rowIdx % 2 === 0;
+                    return (
+                      <tr key={rowIdx}>
+                        <td className={`sticky left-0 z-20 border-b border-r border-slate-200 w-20 p-2 text-center align-top ${
+                          isBand ? 'bg-slate-100/70' : 'bg-white'
+                        }`}>
+                          <span className="inline-flex items-center rounded-md bg-white/80 border border-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-500 tabular-nums shadow-sm">
+                            {slotLabel}
+                          </span>
+                        </td>
+                        {dayPlans.map((plan, i) => {
+                          if (plan.consumed[hour]) return null; // covered by a rowSpan above
+
+                          const dateStr = plan.dateStr;
+                          const cellShifts = plan.startMap[hour] || [];
+                          const span = plan.spanAt[hour];
+                          const isDragOver = dragOverCoords?.dateStr === dateStr && dragOverCoords?.hour === hour;
+
+                          return (
+                            <td
+                              key={i}
+                              rowSpan={span || undefined}
+                              onDragOver={(e) => handleDragOver(e, dateStr, hour)}
+                              onDrop={(e) => handleDrop(e, dateStr, hour)}
+                              className={`border-b border-r border-slate-200 p-1 align-top min-h-[60px] transition-all duration-150 group/slot ${
+                                isBand ? 'bg-slate-50/40' : 'bg-white'
+                              } ${
+                                isDragOver
+                                  ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
+                                  : 'hover:bg-teal-50/30'
+                              }`}
+                            >
+                              <div className="flex flex-col gap-1 min-h-[52px]">
+                                {cellShifts.map(shift => {
+                                  const tutor = tutors.find(t => t.id === shift.tutorId);
+                                  const youth = youths.find(y => y.id === shift.youthId);
+                                  const isDragging = draggedShiftId === shift.id;
+                                  const tColor = getTutorColor(shift.tutorId, tutors);
+                                  const yColor = getYouthColor(shift.youthId, youths);
+
+                                  return (
+                                    <div
+                                      key={shift.id}
+                                      draggable
+                                      onDragStart={(e) => handleDragStart(e, shift.id)}
+                                      onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
+                                      className={`relative group/item rounded-xl border border-slate-200/80 border-l-4 ${tColor.border} bg-gradient-to-br from-white to-slate-50 p-1.5 text-[11px] cursor-move shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150
+                                        ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
+                                      `}
+                                    >
+                                      <div className="flex items-center justify-between gap-1">
+                                        <div className="flex items-center gap-1 min-w-0">
+                                          <span className={`h-4 w-4 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[8px] font-bold flex items-center justify-center shadow-sm`}>
+                                            {getInitials(tutor?.name)}
+                                          </span>
+                                          <span className="truncate font-bold text-slate-700 pointer-events-none">
+                                            {tutor?.name || 'Sconosciuto'}
+                                          </span>
+                                        </div>
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
+                                          className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </div>
+
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <Clock size={9} className="text-slate-400 shrink-0" />
+                                        <span className="rounded-md bg-slate-100/90 px-1.5 py-px text-[9px] font-bold text-slate-600 tabular-nums tracking-wide pointer-events-none">
+                                          {shift.startTime} – {shift.endTime}
                                         </span>
                                       </div>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
-                                        className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
-                                      >
-                                        <Trash2 size={11} />
-                                      </button>
-                                    </div>
 
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <Clock size={9} className="text-slate-400 shrink-0" />
-                                      <span className="rounded-md bg-slate-100/90 px-1.5 py-px text-[9px] font-bold text-slate-600 tabular-nums tracking-wide pointer-events-none">
-                                        {shift.startTime} – {shift.endTime}
-                                      </span>
-                                    </div>
-
-                                    <div className="mt-1 flex items-center gap-1 min-w-0">
-                                      <span className={`h-1.5 w-1.5 rounded-full ${yColor.badge} shrink-0`}></span>
-                                      <span className="truncate font-semibold text-slate-500 pointer-events-none">
-                                        {youth?.name || 'Sconosciuto'}
-                                      </span>
-                                    </div>
-
-                                    {shift.activity && (
                                       <div className="mt-1 flex items-center gap-1 min-w-0">
-                                        <span className="h-px w-1.5 bg-slate-200 shrink-0"></span>
-                                        <span className="truncate italic text-[9px] text-slate-400 pointer-events-none">
-                                          {shift.activity}
+                                        <span className={`h-1.5 w-1.5 rounded-full ${yColor.badge} shrink-0`}></span>
+                                        <span className="truncate font-semibold text-slate-500 pointer-events-none">
+                                          {youth?.name || 'Sconosciuto'}
                                         </span>
                                       </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
 
-                              <button
-                                onClick={() => openNewShiftModal('', dateStr, slotLabel)}
-                                className="w-full py-1.5 text-center text-[10px] font-semibold text-slate-300 hover:text-teal-600 hover:bg-white rounded-lg border border-dashed border-slate-200 hover:border-teal-300 transition-all opacity-0 group-hover/slot:opacity-100"
-                              >
-                                + Aggiungi
-                              </button>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+                                      {shift.activity && (
+                                        <div className="mt-1 flex items-center gap-1 min-w-0">
+                                          <span className="h-px w-1.5 bg-slate-200 shrink-0"></span>
+                                          <span className="truncate italic text-[9px] text-slate-400 pointer-events-none">
+                                            {shift.activity}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+
+                                <button
+                                  onClick={() => openNewShiftModal('', dateStr, slotLabel)}
+                                  className="w-full py-1.5 text-center text-[10px] font-semibold text-slate-300 hover:text-teal-600 hover:bg-white rounded-lg border border-dashed border-slate-200 hover:border-teal-300 transition-all opacity-0 group-hover/slot:opacity-100"
+                                >
+                                  + Aggiungi
+                                </button>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
