@@ -823,9 +823,9 @@ function App() {
 
   const renderCalendar = () => {
     return (
-      <div className="space-y-6 h-full flex flex-col">
+      <div className="space-y-4 md:space-y-6 h-[calc(100dvh-7rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
-        <div className="relative overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
+        <div className="relative overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
           <div className="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center px-5 py-4 gap-3">
             <div className="flex items-center gap-3">
@@ -879,7 +879,7 @@ function App() {
 
         {/* AI Analysis Result */}
         {analysisResult && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-auto animate-fadeIn shrink-0 max-h-[40%]">
             {/* Header with score */}
             <div className={`px-6 py-4 flex items-center justify-between ${
               analysisResult.score >= 80 ? 'bg-emerald-50 border-b border-emerald-200' :
@@ -998,12 +998,12 @@ function App() {
         )}
 
         {/* Weekly Time Matrix */}
-        <div className="flex-1 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
-          <div className="overflow-x-auto flex-1">
+        <div className="flex-1 min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-30 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-14">
+                  <th className="sticky left-0 top-0 z-30 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-14">
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
