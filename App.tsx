@@ -1063,7 +1063,7 @@ function App() {
 
         {/* Weekly Time Matrix */}
         <div className="flex-1 min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
-          <div className="overflow-auto flex-1 min-h-0">
+          <div className="overflow-auto flex-1 min-h-0 pb-3">
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
@@ -1181,14 +1181,25 @@ function App() {
 
                     return (
                       <tr key={rowIdx} className="h-7">
-                        <td className={`sticky left-0 z-20 border-r border-slate-200 w-14 text-center align-top ${
+                        <td className={`sticky left-0 z-20 border-r border-slate-200 w-14 text-center align-top relative ${
                           isBand ? 'bg-slate-100/70' : 'bg-white'
                         } ${topBorderCls}`}>
-                          <span className={`inline-flex items-center px-0.5 py-px text-[10px] tabular-nums ${
-                            isHour ? 'font-bold text-slate-600' : 'text-slate-400'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center px-0.5 py-px tabular-nums ${
+                              isHour ? 'text-[11px] font-bold text-slate-600' : 'text-[10px] text-slate-400'
+                            }`}
+                            style={{ marginTop: rowIdx === 0 ? '3px' : '-8px' }}
+                          >
                             {slotLabel}
                           </span>
+                          {rowIdx === ROW_COUNT - 1 && (
+                            <span
+                              className="absolute left-0 right-0 text-center text-[11px] font-bold text-slate-600 tabular-nums"
+                              style={{ bottom: 0, transform: 'translateY(50%)' }}
+                            >
+                              {fmt(DAY_END)}
+                            </span>
+                          )}
                         </td>
                         {dayLayouts.map((layout, i) => {
                           const isDragOver = dragOverCoords?.dateStr === layout.dateStr && dragOverCoords?.minutes === minutes;
