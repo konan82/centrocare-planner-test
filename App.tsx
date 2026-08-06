@@ -1170,7 +1170,7 @@ function App() {
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1 text-[10px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-1.5 text-[10px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                         `}
@@ -1181,42 +1181,46 @@ function App() {
                                           width: `calc(${wPct}% - 2px)`,
                                         }}
                                       >
-                                        <div className="flex items-center justify-between gap-1">
-                                          <div className="flex items-center gap-1 min-w-0">
-                                            <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[7px] font-bold flex items-center justify-center shadow-sm`}>
+                                        <div className="flex h-full flex-col min-w-0">
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <span className={`h-4 w-4 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[8px] font-bold flex items-center justify-center shadow-sm`}>
                                               {getInitials(tutor?.name)}
                                             </span>
-                                            <span className="truncate font-bold text-slate-700 pointer-events-none">
+                                            <span className="truncate font-bold text-slate-800 pointer-events-none text-[11px] leading-tight">
                                               {tutor?.name || 'Sconosciuto'}
                                             </span>
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
+                                              className="ml-auto opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
+                                            >
+                                              <Trash2 size={11} />
+                                            </button>
                                           </div>
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
-                                            className="opacity-0 group-hover/item:opacity-100 text-red-400 hover:text-red-600 shrink-0"
-                                          >
-                                            <Trash2 size={10} />
-                                          </button>
-                                        </div>
 
-                                        <div className="mt-0.5 flex items-center gap-1">
-                                          <Clock size={9} className="text-slate-400 shrink-0" />
-                                          <span className="rounded bg-white/70 px-1 py-px text-[9px] font-bold text-slate-600 tabular-nums pointer-events-none">
-                                            {shift.startTime}–{shift.endTime}
-                                          </span>
-                                        </div>
+                                          <div className="my-1 h-px bg-white/70 shrink-0" />
 
-                                        <div className="mt-0.5 flex items-center gap-1 min-w-0">
-                                          <span className={`h-1 w-1 rounded-full ${yColor.badge} shrink-0`}></span>
-                                          <span className="truncate font-semibold text-slate-600 pointer-events-none">
-                                            {youth?.name || 'Sconosciuto'}
-                                          </span>
-                                        </div>
+                                          <div className="min-w-0 flex flex-col gap-1">
+                                            <div className="flex items-center gap-1 min-w-0">
+                                              <Clock size={9} className="text-slate-400 shrink-0" />
+                                              <span className="rounded bg-white/80 px-1 py-px text-[9.5px] font-bold text-slate-700 tabular-nums pointer-events-none truncate">
+                                                {shift.startTime}–{shift.endTime}
+                                              </span>
+                                            </div>
 
-                                        {shift.activity && (
-                                          <div className="mt-0.5 truncate italic text-slate-500 pointer-events-none">
-                                            {shift.activity}
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                              <span className={`h-1.5 w-1.5 rounded-full ${yColor.badge} shrink-0`}></span>
+                                              <span className="truncate font-semibold text-slate-600 pointer-events-none">
+                                                {youth?.name || 'Sconosciuto'}
+                                              </span>
+                                            </div>
+
+                                            {shift.activity && (
+                                              <div className="truncate italic text-slate-500 pointer-events-none">
+                                                {shift.activity}
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
+                                        </div>
 
                                         <div
                                           className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
