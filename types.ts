@@ -11,6 +11,16 @@ export interface Tutor {
   maxHoursPerWeek: number;
   unavailableDays: number[]; // 0 = Sunday, 1 = Monday, etc.
   notes: string;
+  phone?: string;
+  email?: string;
+  birthDate?: string;
+  city?: string;
+  role?: string;
+  qualifications?: string;
+  yearsExperience?: number;
+  criminalRecordExpiry?: string | null;
+  status?: string;
+  entryDate?: string | null;
 }
 
 export interface Youth {

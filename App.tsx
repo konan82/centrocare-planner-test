@@ -57,6 +57,23 @@ const TUTOR_COLORS = [
   { bg: 'bg-lime-100', border: 'border-l-lime-500', text: 'text-lime-800', hover: 'hover:bg-lime-200', badge: 'bg-lime-500' },
 ];
 
+const ROLE_STYLES: Record<string, { badge: string; dot: string }> = {
+  Educatore: { badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  Psicologo: { badge: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-500' },
+  'Tutor DSA': { badge: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
+  Operatore: { badge: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  Volontario: { badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-500' },
+  Coordinatore: { badge: 'bg-rose-100 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
+};
+const ROLE_DEFAULT = { badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
+
+const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore'];
+
+const parseTimeMins = (t: string) => {
+  const [h, m] = (t || '0:00').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
 const YOUTH_COLORS = [
   { bg: 'bg-sky-100', border: 'border-sky-300', text: 'text-sky-800', badge: 'bg-sky-500', hover: 'hover:bg-sky-200' },
   { bg: 'bg-fuchsia-100', border: 'border-fuchsia-300', text: 'text-fuchsia-800', badge: 'bg-fuchsia-500', hover: 'hover:bg-fuchsia-200' },
@@ -294,7 +311,17 @@ function App() {
           ...tutor,
           specialties: tutor.specialties || [],
           unavailableDays: tutor.unavailable_days || [],
-          maxHoursPerWeek: tutor.max_hours_per_week
+          maxHoursPerWeek: tutor.max_hours_per_week,
+          phone: tutor.phone || '',
+          email: tutor.email || '',
+          birthDate: tutor.birth_date || undefined,
+          city: tutor.city || '',
+          role: tutor.role || '',
+          qualifications: tutor.qualifications || '',
+          yearsExperience: tutor.years_experience || undefined,
+          criminalRecordExpiry: tutor.criminal_record_expiry || null,
+          status: tutor.status || 'attivo',
+          entryDate: tutor.entry_date || null,
         }));
 
         const normalizedYouths = (y.data || []).map((youth: any) => ({
@@ -377,6 +404,10 @@ function App() {
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
   const [isTutorFilterOpen, setIsTutorFilterOpen] = useState(false);
+  const [tutorSearch, setTutorSearch] = useState('');
+  const [tutorSort, setTutorSort] = useState<'asc' | 'desc'>('asc');
+  const [tutorStatusFilter, setTutorStatusFilter] = useState<'tutti' | 'attivo' | 'pausa' | 'archiviato'>('tutti');
+  const [tutorRoleFilter, setTutorRoleFilter] = useState('tutti');
   const tutorFilterRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -414,15 +445,25 @@ function App() {
         max_hours_per_week: newTutor.maxHoursPerWeek ?? 20,
         unavailable_days: newTutor.unavailableDays || [],
         notes: newTutor.notes || '',
+        phone: newTutor.phone || '',
+        email: newTutor.email || '',
+        birth_date: newTutor.birthDate || null,
+        city: newTutor.city || '',
+        role: newTutor.role || '',
+        qualifications: newTutor.qualifications || '',
+        years_experience: newTutor.yearsExperience || null,
+        criminal_record_expiry: newTutor.criminalRecordExpiry || null,
+        status: newTutor.status || 'attivo',
+        entry_date: newTutor.entryDate || null,
       };
 
       const { error } = await supabase.from('tutors').upsert(tutorData);
       if (error) throw error;
 
       if (newTutor.id) {
-        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days } : t));
+        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, criminalRecordExpiry: tutorData.criminal_record_expiry, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
       } else {
-        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days }]);
+        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, criminalRecordExpiry: tutorData.criminal_record_expiry, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience }]);
       }
       setIsTutorModalOpen(false);
       setNewTutor({});
@@ -830,56 +871,265 @@ function App() {
     </div>
   );
 
-  const renderTutorsList = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Elenco Tutor</h2>
-        <button onClick={openNewTutorModal} className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm">
-          <Plus size={18} className="mr-2" /> Nuovo Tutor
-        </button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.isArray(tutors) && tutors.map(tutor => (
-          <Card key={tutor.id} className="p-6 relative hover:shadow-lg transition-shadow">
-            <div className="absolute top-4 right-4 flex space-x-2">
-              <button onClick={() => openEditTutorModal(tutor)} className="text-gray-300 hover:text-blue-500 transition-colors">
-                <Edit size={18} />
+  const renderTutorsList = () => {
+    const allTutors = Array.isArray(tutors) ? tutors : [];
+    const counts = {
+      tutti: allTutors.length,
+      attivo: allTutors.filter(t => t.status === 'attivo').length,
+      pausa: allTutors.filter(t => t.status === 'pausa').length,
+      archiviato: allTutors.filter(t => t.status === 'archiviato').length,
+    };
+
+    const weekDateStrs = new Set(weekDays.map(d => format(d, 'yyyy-MM-dd')));
+    const weekHoursByTutor: Record<string, number> = {};
+    shifts.forEach(s => {
+      if (!s.tutorId || !weekDateStrs.has(s.date)) return;
+      weekHoursByTutor[s.tutorId] = (weekHoursByTutor[s.tutorId] || 0) + (parseTimeMins(s.endTime) - parseTimeMins(s.startTime)) / 60;
+    });
+
+    const q = tutorSearch.trim().toLowerCase();
+    const filtered = allTutors.filter(t => {
+      const matchQ = !q || (t.name || '').toLowerCase().includes(q);
+      const matchStatus = tutorStatusFilter === 'tutti' || t.status === tutorStatusFilter;
+      const matchRole = tutorRoleFilter === 'tutti' || t.role === tutorRoleFilter;
+      return matchQ && matchStatus && matchRole;
+    });
+    const sorted = [...filtered].sort((a, b) =>
+      tutorSort === 'asc'
+        ? (a.name || '').localeCompare(b.name || '', 'it')
+        : (b.name || '').localeCompare(a.name || '', 'it')
+    );
+
+    const hasActiveFilters = q !== '' || tutorStatusFilter !== 'tutti' || tutorRoleFilter !== 'tutti';
+    const resetFilters = () => {
+      setTutorSearch('');
+      setTutorStatusFilter('tutti');
+      setTutorRoleFilter('tutti');
+    };
+
+    const statusCounters = [
+      { key: 'tutti' as const, label: 'Totali', count: counts.tutti, icon: Users, active: 'border-teal-500 bg-teal-50 ring-teal-200', idle: 'border-slate-200 hover:border-teal-300', iconCls: 'bg-gradient-to-br from-teal-500 to-emerald-600' },
+      { key: 'attivo' as const, label: 'Attivi', count: counts.attivo, icon: CheckCircle, active: 'border-emerald-500 bg-emerald-50 ring-emerald-200', idle: 'border-slate-200 hover:border-emerald-300', iconCls: 'bg-emerald-500' },
+      { key: 'pausa' as const, label: 'In pausa', count: counts.pausa, icon: Clock, active: 'border-amber-500 bg-amber-50 ring-amber-200', idle: 'border-slate-200 hover:border-amber-300', iconCls: 'bg-amber-500' },
+      { key: 'archiviato' as const, label: 'Archiviati', count: counts.archiviato, icon: Archive, active: 'border-slate-400 bg-slate-100 ring-slate-200', idle: 'border-slate-200 hover:border-slate-400', iconCls: 'bg-slate-500' },
+    ];
+
+    const renderCrimBadge = (tutor: Tutor) => {
+      const expiry = tutor.criminalRecordExpiry;
+      if (!expiry) {
+        return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario mancante</span>;
+      }
+      const daysLeft = Math.floor((parseISO(expiry).getTime() - Date.now()) / 86400000);
+      if (daysLeft < 0) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario scaduto</span>;
+      if (daysLeft <= 30) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Casellario: scade tra {daysLeft}g</span>;
+      return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Casellario ok</span>;
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Elenco Tutor</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Educatori e operatori del centro</p>
+          </div>
+          <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+            <Plus size={18} className="mr-2" /> Nuovo Tutor
+          </button>
+        </div>
+
+        {/* Contatori stato */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {statusCounters.map(c => (
+            <button
+              key={c.key}
+              onClick={() => setTutorStatusFilter(c.key)}
+              className={`flex items-center gap-3 rounded-xl border bg-white p-4 text-left transition-all ring-2 ring-transparent ${tutorStatusFilter === c.key ? c.active : c.idle}`}
+            >
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${c.iconCls}`}>
+                <c.icon size={18} />
+              </span>
+              <span>
+                <span className="block text-2xl font-extrabold text-slate-800 leading-none">{c.count}</span>
+                <span className="block text-xs font-medium text-slate-500 mt-1">{c.label}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition placeholder:text-slate-400"
+              placeholder="Cerca per nome..."
+              value={tutorSearch}
+              onChange={e => setTutorSearch(e.target.value)}
+            />
+            {tutorSearch && (
+              <button onClick={() => setTutorSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={16} />
               </button>
-              <button onClick={() => handleDeleteTutor(tutor.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                <Trash2 size={18} />
-              </button>
-            </div>
-            <div className="flex items-center mb-4">
-              <div className={`w-12 h-12 ${getTutorColor(tutor.id, tutors).bg} ${getTutorColor(tutor.id, tutors).text} rounded-full flex items-center justify-center font-bold text-lg`}>
-                {tutor.name?.charAt(0) || '?'}
-              </div>
-              <div className="ml-4">
-                <h3 className="font-bold text-lg text-slate-800">{tutor.name}</h3>
-                <p className="text-sm text-slate-500">Max {tutor.maxHoursPerWeek}h / settimana</p>
-              </div>
-            </div>
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Specialità</p>
-              <div className="flex flex-wrap gap-2">
-                {tutor.specialties?.map(s => (
-                  <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">{s}</span>
-                ))}
-              </div>
-            </div>
-            {tutor.unavailableDays?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Non disponibile</p>
-                <p className="text-sm text-slate-600">
-                  {tutor.unavailableDays?.map(d => DAYS_OF_WEEK[d === 0 ? 6 : d - 1]).join(', ')}
-                </p>
-              </div>
             )}
-            {tutor.notes && <p className="text-sm text-slate-500 italic mt-4 border-t pt-3">"{tutor.notes}"</p>}
-          </Card>
-        ))}
+          </div>
+          <button
+            onClick={() => setTutorSort(s => s === 'asc' ? 'desc' : 'asc')}
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:border-teal-300 hover:text-teal-700 transition-all flex items-center gap-1.5"
+            title={tutorSort === 'asc' ? 'Ordinamento crescente (A-Z)' : 'Ordinamento decrescente (Z-A)'}
+          >
+            {tutorSort === 'asc' ? <ArrowUp size={15} /> : <ArrowDown size={15} />}
+            Nome {tutorSort === 'asc' ? 'A-Z' : 'Z-A'}
+          </button>
+          <div className="flex gap-1.5">
+            {(['attivo', 'pausa', 'archiviato'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setTutorStatusFilter(cur => cur === s ? 'tutti' : s)}
+                className={`px-3 py-2 rounded-full border text-xs font-semibold transition-all ${
+                  tutorStatusFilter === s
+                    ? s === 'pausa' ? 'bg-amber-500 text-white border-amber-600' : s === 'archiviato' ? 'bg-slate-500 text-white border-slate-600' : 'bg-emerald-500 text-white border-emerald-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400'
+                }`}
+              >
+                {s === 'attivo' ? 'Attivi' : s === 'pausa' ? 'In pausa' : 'Archiviati'}
+              </button>
+            ))}
+          </div>
+          <select
+            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+            value={tutorRoleFilter}
+            onChange={e => setTutorRoleFilter(e.target.value)}
+          >
+            <option value="tutti">Tutti i ruoli</option>
+            {TUTOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
+            {filtered.length} su {allTutors.length} profili
+          </span>
+        </div>
+
+        {/* Griglia card */}
+        {sorted.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sorted.map(tutor => {
+              const color = getTutorColor(tutor.id, allTutors);
+              const roleStyle = (tutor.role && ROLE_STYLES[tutor.role]) || ROLE_DEFAULT;
+              const assignedHours = weekHoursByTutor[tutor.id] || 0;
+              const maxHours = tutor.maxHoursPerWeek || 0;
+              const pct = maxHours > 0 ? Math.round((assignedHours / maxHours) * 100) : 0;
+              const barColor = pct > 100 ? 'bg-red-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
+              const unavailableText = tutor.unavailableDays?.map(d => DAYS_OF_WEEK[d === 0 ? 6 : d - 1]).join(', ');
+              return (
+                <Card key={tutor.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
+                  <div className={`h-1.5 bg-gradient-to-r ${
+                    tutor.status === 'pausa' ? 'from-amber-400 to-orange-500'
+                    : tutor.status === 'archiviato' ? 'from-slate-300 to-slate-400'
+                    : 'from-blue-400 to-cyan-500'
+                  }`}></div>
+                  <div className="p-5 relative">
+                    <div className="absolute top-4 right-4 flex space-x-2 items-center">
+                      {tutor.status === 'pausa' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pausa</span>}
+                      {tutor.status === 'archiviato' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-200 text-slate-600 border border-slate-300">Archiviato</span>}
+                      <button onClick={() => openEditTutorModal(tutor)} className="text-gray-300 hover:text-blue-500 transition-colors" title="Modifica">
+                        <Edit size={18} />
+                      </button>
+                      <button onClick={() => handleDeleteTutor(tutor.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Elimina">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                    <div className="flex items-center mb-4">
+                      <div className={`w-12 h-12 ${color.bg} ${color.text} rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm`}>
+                        {tutor.name?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div className="ml-4 min-w-0">
+                        <h3 className="font-bold text-lg text-slate-800 truncate">{tutor.name}</h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {tutor.role && (
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border inline-flex items-center gap-1 ${roleStyle.badge}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${roleStyle.dot}`}></span>
+                              {tutor.role}
+                            </span>
+                          )}
+                          {tutor.city && <span className="text-xs text-slate-400">{tutor.city}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ore settimanali */}
+                    <div className="mb-3">
+                      <div className="flex justify-between items-center text-xs mb-1">
+                        <span className="font-semibold text-slate-400 uppercase">Ore settimana</span>
+                        <span className={`font-bold ${pct > 100 ? 'text-red-600' : 'text-slate-600'}`}>
+                          {assignedHours.toFixed(1)} / {maxHours}h {pct > 100 && <span className="text-red-500">· oltre limite</span>}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }}></div>
+                      </div>
+                    </div>
+
+                    {/* Contatti */}
+                    {(tutor.phone || tutor.email) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-sm text-slate-600">
+                        {tutor.phone && (
+                          <a href={`tel:${tutor.phone.replace(/\s+/g, '')}`} className="inline-flex items-center gap-1 text-teal-700 hover:underline font-medium">
+                            <Phone size={13} /> {tutor.phone}
+                          </a>
+                        )}
+                        {tutor.email && (
+                          <a href={`mailto:${tutor.email}`} className="inline-flex items-center gap-1 text-teal-700 hover:underline font-medium truncate max-w-[180px]">
+                            <span className="text-slate-500"><UserCheck size={13} /></span> {tutor.email}
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Specialità</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tutor.specialties?.length ? tutor.specialties.map(s => (
+                          <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">{s}</span>
+                        )) : <span className="text-xs text-slate-400 italic">Nessuna specialità</span>}
+                      </div>
+                    </div>
+
+                    {unavailableText && (
+                      <div className="mb-3 flex items-center gap-1.5 text-sm text-slate-600">
+                        <Clock size={13} className="text-slate-400 shrink-0" />
+                        <span>Non disponibile: <span className="font-medium text-slate-700">{unavailableText}</span></span>
+                      </div>
+                    )}
+
+                    <div className="mb-1">{renderCrimBadge(tutor)}</div>
+
+                    {tutor.notes && <p className="text-sm text-slate-500 italic mt-3 border-t pt-3">"{tutor.notes}"</p>}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
+              <UserX size={28} className="text-slate-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-700">Nessun tutor trovato</h3>
+            <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+              {hasActiveFilters
+                ? "Nessun tutor corrisponde ai filtri attuali. Prova a modificare ricerca o filtri."
+                : "Non ci sono ancora tutor. Crea il primo tutor per iniziare."}
+            </p>
+            {hasActiveFilters && (
+              <button onClick={resetFilters} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition shadow-sm">
+                <FilterX size={15} /> Azzera filtri
+              </button>
+            )}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderYouthsList = () => {
     const allYouths = Array.isArray(youths) ? youths : [];
@@ -1983,69 +2233,243 @@ function App() {
       </Modal>
 
       {/* Tutor Modal */}
-      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"}>
+      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"} size="lg">
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-            <input
-              type="text"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newTutor.name || ''}
-              onChange={e => setNewTutor({ ...newTutor, name: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Ore Max / Settimana</label>
-            <input
-              type="number"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newTutor.maxHoursPerWeek ?? ''}
-              onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
-            <input
-              type="text"
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newTutor.specialties?.join(', ') || ''}
-              onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
-            <textarea
-              className="w-full p-2 border border-gray-300 rounded bg-white text-slate-900"
-              value={newTutor.notes || ''}
-              onChange={e => setNewTutor({ ...newTutor, notes: e.target.value })}
-            />
-          </div>
-          <div className="bg-gray-50 p-3 rounded border border-gray-200">
-            <span className="text-sm font-medium text-gray-700 block mb-2">Giorni NON disponibili:</span>
-            <div className="flex flex-wrap gap-2">
-              {DAYS_OF_WEEK.map((day, idx) => {
-                const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // Map UI (Mon-Sun) to JS Date (Sun=0)
-                return (
-                  <button
-                    key={day}
-                    onClick={() => {
-                      const current = newTutor.unavailableDays || [];
-                      const updated = current.includes(dayIndex)
-                        ? current.filter(d => d !== dayIndex)
-                        : [...current, dayIndex];
-                      setNewTutor({ ...newTutor, unavailableDays: updated });
-                    }}
-                    className={`text-xs px-2 py-1 rounded border ${newTutor.unavailableDays?.includes(dayIndex) ? 'bg-red-100 border-red-300 text-red-700' : 'bg-white border-gray-200 text-slate-700'}`}
-                  >
-                    {day}
-                  </button>
-                );
-              })}
+          {/* Header scheda */}
+          <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
+            <div className="h-2 bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400"></div>
+            <div className="flex items-center gap-4 px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-md shrink-0 ${newTutor.id ? getTutorColor(newTutor.id, tutors).bg + ' ' + getTutorColor(newTutor.id, tutors).text : 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white'}`}>
+                {newTutor.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-bold text-slate-800 truncate">{newTutor.name || 'Nuovo Tutor'}</h3>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {newTutor.role && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1 ${((ROLE_STYLES[newTutor.role]) || ROLE_DEFAULT).badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${((ROLE_STYLES[newTutor.role]) || ROLE_DEFAULT).dot}`}></span>
+                      {newTutor.role}
+                    </span>
+                  )}
+                  {newTutor.city && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{newTutor.city}</span>}
+                  {newTutor.birthDate && getAge(newTutor.birthDate) !== null && (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">{getAge(newTutor.birthDate)} anni</span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    newTutor.status === 'pausa' ? 'bg-amber-100 text-amber-700'
+                    : newTutor.status === 'archiviato' ? 'bg-slate-200 text-slate-600'
+                    : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {newTutor.status === 'pausa' ? 'In pausa' : newTutor.status === 'archiviato' ? 'Archiviato' : 'Attivo'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <button onClick={handleSaveTutor} className="w-full bg-teal-600 text-white py-2 rounded font-medium hover:bg-teal-700 shadow-sm">
-            {newTutor.id ? "Salva Modifiche" : "Aggiungi Tutor"}
-          </button>
+
+          <YouthSection icon={<IdCard size={16} />} title="Dati Personali" chipBg="bg-blue-500" headerBg="bg-gradient-to-r from-blue-50 to-white border-blue-100" textColor="text-blue-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  className={fieldCls}
+                  placeholder="Nome e cognome"
+                  value={newTutor.name || ''}
+                  onChange={e => setNewTutor({ ...newTutor, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data di nascita</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={newTutor.birthDate || ''}
+                  onChange={e => setNewTutor({ ...newTutor, birthDate: e.target.value || undefined })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Città</label>
+                <input
+                  type="text"
+                  className={fieldCls}
+                  placeholder="Comune di residenza"
+                  value={newTutor.city || ''}
+                  onChange={e => setNewTutor({ ...newTutor, city: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                <input
+                  type="tel"
+                  className={fieldCls}
+                  placeholder="3XX XXX XXXX"
+                  value={newTutor.phone || ''}
+                  onChange={e => setNewTutor({ ...newTutor, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  className={fieldCls}
+                  placeholder="nome@email.it"
+                  value={newTutor.email || ''}
+                  onChange={e => setNewTutor({ ...newTutor, email: e.target.value })}
+                />
+              </div>
+            </div>
+          </YouthSection>
+
+          <YouthSection icon={<UserCheck size={16} />} title="Profilo Professionale" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ruolo</label>
+                <select
+                  className={fieldCls}
+                  value={newTutor.role || ''}
+                  onChange={e => setNewTutor({ ...newTutor, role: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {TUTOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Anni di esperienza</label>
+                <input
+                  type="number"
+                  className={fieldCls}
+                  min={0}
+                  value={newTutor.yearsExperience ?? ''}
+                  onChange={e => setNewTutor({ ...newTutor, yearsExperience: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Qualifiche / Titoli</label>
+                <input
+                  type="text"
+                  className={fieldCls}
+                  placeholder="Laurea, corsi, abilitazioni..."
+                  value={newTutor.qualifications || ''}
+                  onChange={e => setNewTutor({ ...newTutor, qualifications: e.target.value })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
+                <input
+                  type="text"
+                  className={fieldCls}
+                  placeholder="Autismo, Logopedia, DSA..."
+                  value={newTutor.specialties?.join(', ') || ''}
+                  onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Max / Settimana</label>
+                <input
+                  type="number"
+                  className={fieldCls}
+                  min={0}
+                  value={newTutor.maxHoursPerWeek ?? ''}
+                  onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                />
+              </div>
+            </div>
+          </YouthSection>
+
+          <YouthSection icon={<Shield size={16} />} title="Lavoro con Minori" chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
+            <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-rose-800 flex items-center gap-1.5">
+                    <CheckCircle size={15} /> Certificato casellario giudiziale
+                  </p>
+                  <p className="text-xs text-rose-700/70 mt-0.5">Requisito obbligatorio per il lavoro con minori</p>
+                </div>
+                <input
+                  type="date"
+                  className={fieldCls + " sm:w-44"}
+                  value={newTutor.criminalRecordExpiry || ''}
+                  onChange={e => setNewTutor({ ...newTutor, criminalRecordExpiry: e.target.value || null })}
+                />
+              </div>
+            </div>
+          </YouthSection>
+
+          <YouthSection icon={<Target size={16} />} title="Organizzazione" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato</label>
+                <div className="flex gap-2">
+                  {[
+                    { v: 'attivo', label: 'Attivo', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
+                    { v: 'pausa', label: 'In pausa', on: 'bg-amber-500 text-white border-amber-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-amber-400' },
+                    { v: 'archiviato', label: 'Archiviato', on: 'bg-slate-500 text-white border-slate-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-slate-400' },
+                  ].map(o => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setNewTutor({ ...newTutor, status: o.v })}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${(newTutor.status || 'attivo') === o.v ? o.on : o.off}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={newTutor.entryDate || ''}
+                  onChange={e => setNewTutor({ ...newTutor, entryDate: e.target.value || null })}
+                />
+              </div>
+              <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
+                <span className="text-sm font-medium text-slate-700 block mb-2">Giorni NON disponibili</span>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.map((day, idx) => {
+                    const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // Map UI (Mon-Sun) to JS Date (Sun=0)
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const current = newTutor.unavailableDays || [];
+                          const updated = current.includes(dayIndex)
+                            ? current.filter(d => d !== dayIndex)
+                            : [...current, dayIndex];
+                          setNewTutor({ ...newTutor, unavailableDays: updated });
+                        }}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${newTutor.unavailableDays?.includes(dayIndex) ? 'bg-red-100 border-red-300 text-red-700 font-semibold' : 'bg-white border-slate-200 text-slate-700 hover:border-red-300'}`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+                <textarea
+                  className={fieldCls + " min-h-[70px]"}
+                  placeholder="Annotazioni libere"
+                  value={newTutor.notes || ''}
+                  onChange={e => setNewTutor({ ...newTutor, notes: e.target.value })}
+                />
+              </div>
+            </div>
+          </YouthSection>
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={() => setIsTutorModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
+              Annulla
+            </button>
+            <button onClick={handleSaveTutor} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
+              <Save size={16} /> {newTutor.id ? "Salva Modifiche" : "Aggiungi Tutor"}
+            </button>
+          </div>
         </div>
       </Modal>
 
