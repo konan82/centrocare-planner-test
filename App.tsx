@@ -1003,13 +1003,13 @@ function App() {
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky left-0 top-0 z-30 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-14">
+                  <th className="sticky left-0 top-0 z-40 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-14">
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
                     const isToday = isSameDay(weekDays[i], new Date());
                     return (
-                      <th key={i} className={`sticky top-0 z-10 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
+                      <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
                         isToday ? 'bg-gradient-to-b from-teal-50 to-white' : 'bg-slate-50/80'
                       }`}>
                         <div className="flex flex-col items-center gap-1">
