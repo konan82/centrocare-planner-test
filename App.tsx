@@ -1207,12 +1207,14 @@ function App() {
                                   : 'hover:bg-teal-50/30'
                               }`}
                             >
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel); }}
-                                className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
-                              >
-                                <Plus size={12} />
-                              </button>
+                              {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel); }}
+                                  className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
+                                >
+                                  <Plus size={12} />
+                                </button>
+                              )}
 
                               {rowIdx === 0 && (
                                 <div
