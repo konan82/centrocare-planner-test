@@ -1067,7 +1067,7 @@ function App() {
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky left-0 top-0 z-40 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-14">
+                  <th className="sticky left-0 top-0 z-40 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-16">
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
@@ -1099,7 +1099,7 @@ function App() {
                   const DAY_END = 19 * 60; // 19:00
                   const SLOT = 15; // granularità 15 min
                   const ROW_COUNT = (DAY_END - DAY_START) / SLOT + 1; // 45: 44 slot + riga finale di bordo (19:00)
-                  const ROW_H = 28; // altezza riga (h-7) in px
+                  const ROW_H = 36; // altezza riga (h-9) in px
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
                   // Per-day layout: card positions (slot index, span, column) per shift.
@@ -1180,13 +1180,13 @@ function App() {
                       : 'border-t border-dashed border-slate-200';
 
                     return (
-                      <tr key={rowIdx} className="h-7">
-                        <td className={`sticky left-0 z-20 border-r border-slate-200 w-14 text-center align-top relative ${
+                      <tr key={rowIdx} className="h-9">
+                        <td className={`sticky left-0 z-20 border-r border-slate-200 w-16 text-center align-top relative ${
                           isBand ? 'bg-slate-100/70' : 'bg-white'
                         } ${topBorderCls}`}>
                           <span
                             className={`absolute left-0 right-0 block text-center leading-none tabular-nums ${
-                              isHour ? 'text-[11px] font-bold text-slate-600' : 'text-[10px] text-slate-400'
+                              isHour ? 'text-[13px] font-bold text-slate-600' : 'text-[11px] text-slate-400'
                             }`}
                             style={{ top: rowIdx === 0 ? 4 : (isHour ? -2 : -1), transform: rowIdx === 0 ? 'none' : 'translateY(-50%)' }}
                           >
