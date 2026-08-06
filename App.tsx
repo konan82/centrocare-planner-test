@@ -12,6 +12,8 @@ import {
   Edit,
   Save,
   BarChart3,
+  Check,
+  ChevronDown,
   Lock,
   LogOut,
   Shield,
@@ -307,6 +309,18 @@ function App() {
 
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
+  const [isTutorFilterOpen, setIsTutorFilterOpen] = useState(false);
+  const tutorFilterRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (tutorFilterRef.current && !tutorFilterRef.current.contains(e.target as Node)) {
+        setIsTutorFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -828,8 +842,8 @@ function App() {
     return (
       <div className="space-y-4 md:space-y-6 h-[calc(100dvh-7rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
-        <div className="relative overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
-          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
+        <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
+          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400 rounded-t-2xl"></div>
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center px-5 py-4 gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-200">
@@ -842,17 +856,53 @@ function App() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <select
-                value={tutorFilter}
-                onChange={(e) => setTutorFilter(e.target.value)}
-                title="Filtra per tutor"
-                className="px-3 py-2.5 bg-white text-slate-700 rounded-xl border border-slate-200 shadow-sm hover:shadow transition-all font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 cursor-pointer"
-              >
-                <option value="all">Tutti</option>
-                {tutors.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              <div className="relative" ref={tutorFilterRef}>
+                <button
+                  onClick={() => setIsTutorFilterOpen(o => !o)}
+                  title="Filtra per tutor"
+                  className={`px-4 py-2.5 bg-white rounded-xl flex items-center gap-2 border shadow-sm hover:shadow transition-all font-semibold text-sm ${
+                    tutorFilter === 'all'
+                      ? 'text-slate-600 border-slate-200 hover:bg-slate-50'
+                      : 'text-teal-600 border-teal-200 hover:bg-teal-50'
+                  }`}
+                >
+                  <Users size={16} className="shrink-0" />
+                  <span className="max-w-[140px] truncate">
+                    {tutorFilter === 'all' ? 'Tutti' : (tutors.find(t => t.id === tutorFilter)?.name || 'Tutti')}
+                  </span>
+                  <ChevronDown size={14} className={`shrink-0 transition-transform ${isTutorFilterOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isTutorFilterOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
+                    <button
+                      onClick={() => { setTutorFilter('all'); setIsTutorFilterOpen(false); }}
+                      className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                        tutorFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                      }`}
+                    >
+                      Tutti
+                      {tutorFilter === 'all' && <Check size={14} className="text-teal-600" />}
+                    </button>
+                    <div className="my-1 h-px bg-slate-100" />
+                    {tutors.map(t => {
+                      const active = tutorFilter === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => { setTutorFilter(t.id); setIsTutorFilterOpen(false); }}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                            active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                          }`}
+                        >
+                          {t.name}
+                          {active && <Check size={14} className="text-teal-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={async () => {
                   if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
