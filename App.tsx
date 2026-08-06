@@ -1118,7 +1118,7 @@ function App() {
                                 <Plus size={12} />
                               </button>
 
-                              <div className="flex flex-col h-full">
+                              <div className="absolute inset-0 flex flex-col gap-0.5 p-0.5 overflow-hidden">
                                 {cellShifts.map(shift => {
                                   const tutor = tutors.find(t => t.id === shift.tutorId);
                                   const youth = youths.find(y => y.id === shift.youthId);
