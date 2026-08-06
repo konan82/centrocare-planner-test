@@ -1063,7 +1063,7 @@ function App() {
 
         {/* Weekly Time Matrix */}
         <div className="flex-1 min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
-          <div className="overflow-auto flex-1 min-h-0 pb-3">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
@@ -1098,7 +1098,7 @@ function App() {
                   const DAY_START = 8 * 60; // 08:00
                   const DAY_END = 19 * 60; // 19:00
                   const SLOT = 15; // granularità 15 min
-                  const ROW_COUNT = (DAY_END - DAY_START) / SLOT; // 52
+                  const ROW_COUNT = (DAY_END - DAY_START) / SLOT + 1; // 45: 44 slot + riga finale di bordo (19:00)
                   const ROW_H = 28; // altezza riga (h-7) in px
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
@@ -1185,21 +1185,13 @@ function App() {
                           isBand ? 'bg-slate-100/70' : 'bg-white'
                         } ${topBorderCls}`}>
                           <span
-                            className={`inline-flex items-center px-0.5 py-px tabular-nums ${
+                            className={`absolute left-0 right-0 block text-center leading-none tabular-nums ${
                               isHour ? 'text-[11px] font-bold text-slate-600' : 'text-[10px] text-slate-400'
                             }`}
-                            style={{ marginTop: rowIdx === 0 ? '3px' : '-8px' }}
+                            style={{ top: rowIdx === 0 ? 4 : (isHour ? -2 : -1), transform: rowIdx === 0 ? 'none' : 'translateY(-50%)' }}
                           >
                             {slotLabel}
                           </span>
-                          {rowIdx === ROW_COUNT - 1 && (
-                            <span
-                              className="absolute left-0 right-0 text-center text-[11px] font-bold text-slate-600 tabular-nums"
-                              style={{ bottom: 0, transform: 'translateY(50%)' }}
-                            >
-                              {fmt(DAY_END)}
-                            </span>
-                          )}
                         </td>
                         {dayLayouts.map((layout, i) => {
                           const isDragOver = dragOverCoords?.dateStr === layout.dateStr && dragOverCoords?.minutes === minutes;
