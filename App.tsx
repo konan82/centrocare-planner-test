@@ -640,6 +640,14 @@ function App() {
       }
       setIsShiftModalOpen(false);
       setEditingShift(null);
+
+      if (isPlan) {
+        if (editingShift.id) {
+          await syncTemplateOccurrences(normalizedShift as Shift);
+        } else {
+          await propagateTemplateCreate(normalizedShift as Shift);
+        }
+      }
     } catch (error) {
       console.error("Error saving shift:", error);
       alert("Errore nel salvataggio del turno");
@@ -649,10 +657,14 @@ function App() {
   const handleDeleteShift = async (id: string) => {
     if (!confirm("Eliminare questo turno?")) return;
     try {
+      const shiftToDelete = shifts.find(s => s.id === id);
       const { error } = await supabase.from('shifts').delete().eq('id', id);
       if (error) throw error;
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
+      if (shiftToDelete?.isTemplate) {
+        await deleteTemplateOccurrences(id);
+      }
     } catch (error) {
       console.error("Error deleting shift:", error);
       alert("Errore nell'eliminazione del turno");
@@ -829,6 +841,135 @@ function App() {
     materializeWeek(startOfWeek(currentDate, { weekStartsOn: 1 }));
   }, [view, currentDate]);
 
+  // Sincronizza i turni già copiati in validazione con un template modificato,
+  // ma SOLO per i giorni da oggi in poi e solo se non ancora validati/cancellati.
+  const syncTemplateOccurrences = async (template: Shift) => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const occurrences = shifts.filter(s =>
+      !s.isTemplate &&
+      s.templateShiftId === template.id &&
+      s.date >= todayStr &&
+      (s.status || 'pianificato') === 'pianificato'
+    );
+    if (occurrences.length === 0) return;
+
+    const wd = Math.min(Math.max((template.templateWeekday || weekdayOf(template.date)) - 1, 0), 5);
+    const byId: Record<string, { date: string; start_time: string; end_time: string; activity: string; tutor_id: string; youth_id: string }> = {};
+    for (const s of occurrences) {
+      const weekStart = startOfWeek(parseISO(s.date), { weekStartsOn: 1 });
+      byId[s.id] = {
+        date: format(addDays(weekStart, wd), 'yyyy-MM-dd'),
+        start_time: template.startTime,
+        end_time: template.endTime,
+        activity: template.activity || '',
+        tutor_id: template.tutorId,
+        youth_id: template.youthId,
+      };
+    }
+
+    try {
+      for (const [id, u] of Object.entries(byId)) {
+        const { error } = await supabase.from('shifts').update({
+          date: u.date,
+          start_time: u.start_time,
+          end_time: u.end_time,
+          activity: u.activity,
+          tutor_id: u.tutor_id,
+          youth_id: u.youth_id,
+        }).eq('id', id);
+        if (error) throw error;
+      }
+      setShifts(prev => prev.map(s => {
+        const u = byId[s.id];
+        if (!u) return s;
+        return {
+          ...s,
+          date: u.date,
+          startTime: u.start_time,
+          endTime: u.end_time,
+          activity: u.activity,
+          tutorId: u.tutor_id,
+          youthId: u.youth_id,
+        };
+      }));
+    } catch (error) {
+      console.error("Error syncing template occurrences:", error);
+      alert("Errore nell'aggiornamento dei turni futuri in validazione");
+    }
+  };
+
+  // Rimuove da validazione i turni futuri (non ancora validati) quando un template viene eliminato
+  const deleteTemplateOccurrences = async (templateId: string) => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const toDelete = shifts.filter(s =>
+      !s.isTemplate &&
+      s.templateShiftId === templateId &&
+      s.date >= todayStr &&
+      (s.status || 'pianificato') === 'pianificato'
+    );
+    if (toDelete.length === 0) return;
+    const ids = toDelete.map(s => s.id);
+    try {
+      const { error } = await supabase.from('shifts').delete().in('id', ids);
+      if (error) throw error;
+      const idSet = new Set(ids);
+      setShifts(prev => prev.filter(s => !idSet.has(s.id)));
+    } catch (error) {
+      console.error("Error deleting template occurrences:", error);
+      alert("Errore nella rimozione dei turni futuri in validazione");
+    }
+  };
+
+  // Aggiunge un nuovo template anche alle settimane future già materializzate in validazione
+  const propagateTemplateCreate = async (template: Shift) => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const weekStarts = new Set<string>();
+    shifts.forEach(s => {
+      if (s.isTemplate || !s.date || s.date < todayStr) return;
+      weekStarts.add(format(startOfWeek(parseISO(s.date), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+    });
+
+    const wd = Math.min(Math.max((template.templateWeekday || weekdayOf(template.date)) - 1, 0), 5);
+    for (const ws of weekStarts) {
+      const date = format(addDays(parseISO(ws), wd), 'yyyy-MM-dd');
+      const exists = shifts.some(s => !s.isTemplate && s.templateShiftId === template.id && s.date === date);
+      if (exists) continue;
+      const row = {
+        id: Math.random().toString(36).slice(2, 11),
+        tutor_id: template.tutorId,
+        youth_id: template.youthId,
+        date,
+        start_time: template.startTime,
+        end_time: template.endTime,
+        activity: template.activity || '',
+        status: 'pianificato',
+        is_template: false,
+        template_weekday: null,
+        template_shift_id: template.id,
+      };
+      try {
+        const { error } = await supabase.from('shifts').insert(row);
+        if (error) throw error;
+        setShifts(prev => [...prev, {
+          id: row.id,
+          tutorId: row.tutor_id,
+          youthId: row.youth_id,
+          date: row.date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          activity: row.activity,
+          status: row.status,
+          isTemplate: false,
+          templateWeekday: null,
+          templateShiftId: row.template_shift_id,
+        }]);
+      } catch (error) {
+        console.error("Error propagating template create:", error);
+        alert("Errore nell'aggiunta del turno alle settimane future");
+      }
+    }
+  };
+
   // --- Drag and Drop Handlers ---
   const handleDragStart = (e: React.DragEvent, shiftId: string) => {
     e.dataTransfer.setData("text/plain", shiftId);
@@ -883,6 +1024,9 @@ function App() {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
           if (error) throw error;
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
+          if (shiftToUpdate.isTemplate) {
+            await syncTemplateOccurrences(updatedShift as Shift);
+          }
         } catch (error) {
           console.error("Error updating shift drop:", error);
           alert("Errore spostamento turno");
@@ -2076,10 +2220,14 @@ function App() {
                                             const nEnd = fmt(endMin);
                                             setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
                                             supabase.from('shifts').update({ end_time: nEnd }).eq('id', shift.id)
-                                              .then(({ error }) => {
+                                              .then(async ({ error }) => {
                                                 if (error) {
                                                   console.error('Error resizing shift:', error);
                                                   alert('Errore ridimensionamento turno');
+                                                  return;
+                                                }
+                                                if (shift.isTemplate) {
+                                                  await syncTemplateOccurrences({ ...shift, endTime: nEnd } as Shift);
                                                 }
                                               });
                                           }}
