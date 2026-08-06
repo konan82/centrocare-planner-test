@@ -1057,7 +1057,8 @@ function App() {
                       .filter(p => p.slotIdx >= 0 && p.slotIdx < ROW_COUNT)
                       .sort((a, b) => a.slotIdx - b.slotIdx);
 
-                    // Greedy interval coloring: overlapping shifts get distinct columns.
+                    // Greedy interval coloring: overlapping shifts get distinct columns,
+                    // non-overlapping ones can reuse the first free column.
                     const colEnds: number[] = [];
                     const colOf: number[] = [];
                     placed.forEach(p => {
@@ -1072,11 +1073,31 @@ function App() {
                       colOf.push(col);
                     });
 
+                    // Split into overlap clusters so each cluster rescales its own width:
+                    // a lone shift keeps full width even if elsewhere events overlap.
+                    const clusterOf: number[] = [];
+                    const clusterMaxCol: number[] = [];
+                    let clusterIdx = -1;
+                    let clusterEnd = -1;
+                    placed.forEach((p, idx) => {
+                      const startAbs = p.slotIdx * SLOT + DAY_START;
+                      const endAbs = (p.slotIdx + p.span) * SLOT + DAY_START;
+                      if (startAbs >= clusterEnd) {
+                        clusterIdx += 1;
+                        clusterEnd = -1;
+                        clusterMaxCol.push(0);
+                      }
+                      clusterEnd = Math.max(clusterEnd, endAbs);
+                      clusterOf.push(clusterIdx);
+                      clusterMaxCol[clusterIdx] = Math.max(clusterMaxCol[clusterIdx], colOf[idx]);
+                    });
+
                     return {
                       dateStr,
                       placed,
                       colOf,
-                      colCount: Math.max(1, colOf.length ? Math.max(...colOf) + 1 : 1),
+                      clusterOf,
+                      clusterMaxCol,
                     };
                   });
 
@@ -1126,7 +1147,7 @@ function App() {
 
                               {rowIdx === 0 && (
                                 <div
-                                  className="absolute z-0 pointer-events-none"
+                                  className="absolute z-10 pointer-events-none"
                                   style={{ top: -2, right: -1, left: 0, height: ROW_COUNT * ROW_H }}
                                 >
                                   {layout.placed.map((p, idx) => {
@@ -1137,7 +1158,7 @@ function App() {
                                     const tColor = getTutorColor(shift.tutorId, tutors);
                                     const yColor = getYouthColor(shift.youthId, youths);
                                     const col = layout.colOf[idx];
-                                    const wPct = 100 / layout.colCount;
+                                    const wPct = 100 / (layout.clusterMaxCol[layout.clusterOf[idx]] + 1);
 
                                     return (
                                       <div
