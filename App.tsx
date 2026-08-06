@@ -37,7 +37,8 @@ import {
   FilterX,
   Archive,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ClipboardCheck
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
@@ -70,6 +71,23 @@ const ROLE_STYLES: Record<string, { badge: string; dot: string }> = {
 const ROLE_DEFAULT = { badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
 
 const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore'];
+
+// Settimana tipo: date di riferimento LUN-SAB (2026-08-03 era un Lunedì)
+const TEMPLATE_ANCHOR = parseISO('2026-08-03');
+
+// Giorno della settimana 1=LUN..6=SAB da una data ISO
+const weekdayOf = (dateStr?: string | null) => {
+  if (!dateStr) return 1;
+  const d = parseISO(dateStr.split('T')[0]);
+  if (isNaN(d.getTime())) return 1;
+  return ((d.getDay() + 6) % 7) + 1;
+};
+
+// Ore consuntivo (validato): solo i turni effettuati contano; cancellati = 0; pianificati (non ancora validati) = 0
+const getValidatedHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
+  if ((s.status || 'pianificato') !== 'effettuato') return 0;
+  return getEffectiveHours(s);
+};
 
 const parseTimeMins = (t: string) => {
   const [h, m] = (t || '0:00').split(':').map(Number);
@@ -375,6 +393,9 @@ function App() {
           actualStartTime: shift.actual_start_time || null,
           actualEndTime: shift.actual_end_time || null,
           actualNotes: shift.actual_notes || '',
+          isTemplate: shift.is_template || false,
+          templateWeekday: shift.template_weekday || null,
+          templateShiftId: shift.template_shift_id || null,
         }));
 
         setTutors(normalizedTutors);
@@ -396,6 +417,7 @@ function App() {
   // Modal States
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Partial<Shift> | null>(null);
+  const [shiftModalMode, setShiftModalMode] = useState<'plan' | 'validate'>('validate');
 
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
@@ -451,6 +473,7 @@ function App() {
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(startOfCurrentWeek, i)); // LUN-SAB
+  const templateWeekDays = Array.from({ length: 6 }).map((_, i) => addDays(TEMPLATE_ANCHOR, i)); // settimana tipo LUN-SAB
 
   // --- Handlers ---
 
@@ -569,6 +592,11 @@ function App() {
   const handleSaveShift = async () => {
     if (!editingShift?.tutorId || !editingShift?.youthId || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
+    const isPlan = shiftModalMode === 'plan';
+    const templateWeekday = isPlan
+      ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
+      : null;
+
     try {
       const shiftData = {
         id: editingShift.id || Math.random().toString(36).slice(2, 11),
@@ -578,10 +606,13 @@ function App() {
         start_time: editingShift.startTime,
         end_time: editingShift.endTime,
         activity: editingShift.activity || 'Attività generica',
-        status: editingShift.status || 'pianificato',
-        actual_start_time: editingShift.actualStartTime || null,
-        actual_end_time: editingShift.actualEndTime || null,
-        actual_notes: editingShift.actualNotes || '',
+        status: isPlan ? 'pianificato' : (editingShift.status || 'pianificato'),
+        actual_start_time: isPlan ? null : (editingShift.actualStartTime || null),
+        actual_end_time: isPlan ? null : (editingShift.actualEndTime || null),
+        actual_notes: isPlan ? '' : (editingShift.actualNotes || ''),
+        is_template: isPlan,
+        template_weekday: templateWeekday,
+        template_shift_id: isPlan ? null : (editingShift.templateShiftId || null),
       };
 
       const { error } = await supabase.from('shifts').upsert(shiftData);
@@ -597,6 +628,9 @@ function App() {
         actualStartTime: shiftData.actual_start_time,
         actualEndTime: shiftData.actual_end_time,
         actualNotes: shiftData.actual_notes,
+        isTemplate: shiftData.is_template,
+        templateWeekday: shiftData.template_weekday,
+        templateShiftId: shiftData.template_shift_id,
       };
 
       if (editingShift.id) {
@@ -630,8 +664,30 @@ function App() {
       tutorId: tutorId || '',
       date: dateStr || format(new Date(), 'yyyy-MM-dd'),
       startTime: startTime || '15:00',
-      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00'
+      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
+      isTemplate: false,
+      templateShiftId: null,
     });
+    setShiftModalMode('validate');
+    setIsShiftModalOpen(true);
+  };
+
+  const openNewTemplateShiftModal = (weekday: number, startTime?: string) => {
+    setEditingShift({
+      tutorId: '',
+      date: format(addDays(TEMPLATE_ANCHOR, weekday - 1), 'yyyy-MM-dd'),
+      templateWeekday: weekday,
+      isTemplate: true,
+      startTime: startTime || '15:00',
+      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
+    });
+    setShiftModalMode('plan');
+    setIsShiftModalOpen(true);
+  };
+
+  const openShiftModal = (shift: Shift, mode: 'plan' | 'validate') => {
+    setEditingShift(shift);
+    setShiftModalMode(mode);
     setIsShiftModalOpen(true);
   };
 
@@ -659,26 +715,15 @@ function App() {
     setShowConfirmClear(false);
     setIsGenerating(true);
     try {
-      const startDateStr = format(startOfCurrentWeek, 'yyyy-MM-dd');
+      const startDateStr = format(TEMPLATE_ANCHOR, 'yyyy-MM-dd');
 
       if (clearWeek) {
-        const weekEnd = format(addDays(startOfCurrentWeek, 5), 'yyyy-MM-dd');
-        const weekDates: string[] = [];
-        for (let i = 0; i < 6; i++) {
-          weekDates.push(format(addDays(startOfCurrentWeek, i), 'yyyy-MM-dd'));
-        }
         const { error: delErr } = await supabase
           .from('shifts')
           .delete()
-          .in('date', weekDates);
+          .eq('is_template', true);
         if (delErr) throw delErr;
-        setShifts(prev => prev.filter(s => {
-          if (!s.date) return false;
-          try {
-            const d = s.date;
-            return d < startDateStr || d > weekEnd;
-          } catch { return true; }
-        }));
+        setShifts(prev => prev.filter(s => !s.isTemplate));
       }
 
       const newShifts = await generateSmartSchedule(tutors, youths, startDateStr);
@@ -691,21 +736,29 @@ function App() {
         start_time: s.startTime,
         end_time: s.endTime,
         activity: s.activity || '',
+        is_template: true,
+        template_weekday: weekdayOf(s.date),
       }));
 
-      const { error } = await supabase.from('shifts').upsert(shiftsToSave);
-      if (error) throw error;
+      if (shiftsToSave.length > 0) {
+        const { error } = await supabase.from('shifts').upsert(shiftsToSave);
+        if (error) throw error;
+      }
 
-      const otherWeekShifts = shifts.filter(s => {
-        if (!s.date) return false;
-        try {
-          const d = parseISO(s.date);
-          return d < startOfCurrentWeek || d > addDays(startOfCurrentWeek, 5);
-        } catch (e) {
-          return false;
-        }
-      });
-      setShifts([...otherWeekShifts, ...newShifts]);
+      const templateShifts = shiftsToSave.map(s => ({
+        id: s.id,
+        tutorId: s.tutor_id,
+        youthId: s.youth_id,
+        date: s.date,
+        startTime: s.start_time,
+        endTime: s.end_time,
+        activity: s.activity,
+        status: 'pianificato',
+        isTemplate: true,
+        templateWeekday: s.template_weekday,
+        templateShiftId: null,
+      }));
+      setShifts(prev => [...prev.filter(s => !s.isTemplate), ...templateShifts]);
     } catch (error) {
       console.error(error);
       alert("Errore durante la generazione dei turni. Verifica la chiave API.");
@@ -716,10 +769,65 @@ function App() {
 
   const handleAnalyze = () => {
     setIsAnalyzing(true);
-    const report = analyzeConflicts(tutors, shifts);
+    const report = analyzeConflicts(tutors, shifts.filter(s => s.isTemplate));
     setAnalysisResult(report);
     setIsAnalyzing(false);
   };
+
+  // Copia i turni della pianificazione (template) nella settimana reale indicata (idempotente)
+  const materializeWeek = async (weekStart: Date) => {
+    const templateShifts = shifts.filter(s => s.isTemplate);
+    if (templateShifts.length === 0) return;
+
+    const weekDateStrs = Array.from({ length: 6 }).map((_, i) => format(addDays(weekStart, i), 'yyyy-MM-dd'));
+    const existing = shifts.filter(s => !s.isTemplate && weekDateStrs.includes(s.date));
+    const existingTemplateIds = new Set(existing.map(s => s.templateShiftId).filter(Boolean) as string[]);
+
+    const toCreate = templateShifts.filter(t => !existingTemplateIds.has(t.id));
+    if (toCreate.length === 0) return;
+
+    const rows = toCreate.map(t => ({
+      id: Math.random().toString(36).slice(2, 11),
+      tutor_id: t.tutorId,
+      youth_id: t.youthId,
+      date: weekDateStrs[Math.min(Math.max(((t.templateWeekday || 1) - 1), 0), 5)],
+      start_time: t.startTime,
+      end_time: t.endTime,
+      activity: t.activity || '',
+      status: 'pianificato',
+      is_template: false,
+      template_weekday: null,
+      template_shift_id: t.id,
+    }));
+
+    try {
+      const { error } = await supabase.from('shifts').insert(rows);
+      if (error) throw error;
+      const normalized = rows.map(r => ({
+        id: r.id,
+        tutorId: r.tutor_id,
+        youthId: r.youth_id,
+        date: r.date,
+        startTime: r.start_time,
+        endTime: r.end_time,
+        activity: r.activity,
+        status: r.status,
+        isTemplate: r.is_template,
+        templateWeekday: r.template_weekday,
+        templateShiftId: r.template_shift_id,
+      }));
+      setShifts(prev => [...prev, ...normalized]);
+    } catch (error) {
+      console.error("Error materializing week:", error);
+      alert("Errore nella copia della pianificazione nella settimana");
+    }
+  };
+
+  // Materializza la settimana visibile quando si entra in Validazione Turni o si cambia settimana
+  useEffect(() => {
+    if (view !== 'VALIDATION') return;
+    materializeWeek(startOfWeek(currentDate, { weekStartsOn: 1 }));
+  }, [view, currentDate]);
 
   // --- Drag and Drop Handlers ---
   const handleDragStart = (e: React.DragEvent, shiftId: string) => {
@@ -817,7 +925,13 @@ function App() {
           {hasPermission('DASHBOARD') && (
             <button onClick={() => setView('DASHBOARD')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
               <CalendarIcon size={20} />
-              <span>Dashboard & Turni</span>
+              <span>Pianificazione Turni</span>
+            </button>
+          )}
+          {hasPermission('DASHBOARD') && (
+            <button onClick={() => setView('VALIDATION')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+              <ClipboardCheck size={20} />
+              <span>Validazione Turni</span>
             </button>
           )}
           {hasPermission('TUTORS') && (
@@ -876,7 +990,13 @@ function App() {
               {hasPermission('DASHBOARD') && (
                 <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
                   <CalendarIcon size={20} />
-                  <span>Dashboard & Turni</span>
+                  <span>Pianificazione Turni</span>
+                </button>
+              )}
+              {hasPermission('DASHBOARD') && (
+                <button onClick={() => { setView('VALIDATION'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                  <ClipboardCheck size={20} />
+                  <span>Validazione Turni</span>
                 </button>
               )}
               {/* ... other mobile items ... */}
@@ -1386,48 +1506,58 @@ function App() {
     );
   };
 
-  const renderCalendar = () => {
+  const renderCalendar = (mode: 'plan' | 'validate') => {
+    const isPlan = mode === 'plan';
+    const calendarDays = isPlan ? templateWeekDays : weekDays;
     return (
       <div className="space-y-4 md:space-y-6 h-[calc(100dvh-7rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
         <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
-          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400 rounded-t-2xl"></div>
+          <div className={`h-1.5 rounded-t-2xl ${isPlan ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400'}`}></div>
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center px-5 py-4 gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-200">
-                <CalendarIcon size={20} />
+              <div className={`p-2.5 rounded-xl text-white shadow-md ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
+                {isPlan ? <CalendarIcon size={20} /> : <ClipboardCheck size={20} />}
               </div>
               <div>
-                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Turni settimanali</h2>
-                <p className="text-xs text-slate-400 font-medium">Fascia oraria LUN-SAB · 08:00 – 19:00</p>
+                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">
+                  {isPlan ? 'Pianificazione Turni' : 'Validazione Turni'}
+                </h2>
+                <p className="text-xs text-slate-400 font-medium">
+                  {isPlan
+                    ? 'Settimana tipo LUN-SAB · 08:00 – 19:00 · ripetuta ogni settimana'
+                    : `Fascia oraria LUN-SAB · 08:00 – 19:00 · copia della pianificazione`}
+                </p>
               </div>
-              <div className="flex items-center gap-1 ml-1 lg:ml-3">
-                <button
-                  onClick={() => setCurrentDate(d => addDays(d, -7))}
-                  title="Settimana precedente"
-                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={() => setCurrentDate(new Date())}
-                  title="Torna alla settimana corrente"
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                    isSameDay(weekDays[0], startOfWeek(new Date(), { weekStartsOn: 1 }))
-                      ? 'text-teal-600 bg-teal-50 border border-teal-100'
-                      : 'text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {format(weekDays[0], 'dd MMM')} – {format(weekDays[5], 'dd MMM yyyy')}
-                </button>
-                <button
-                  onClick={() => setCurrentDate(d => addDays(d, 7))}
-                  title="Settimana successiva"
-                  className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+              {!isPlan && (
+                <div className="flex items-center gap-1 ml-1 lg:ml-3">
+                  <button
+                    onClick={() => setCurrentDate(d => addDays(d, -7))}
+                    title="Settimana precedente"
+                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentDate(new Date())}
+                    title="Torna alla settimana corrente"
+                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      isSameDay(calendarDays[0], startOfWeek(new Date(), { weekStartsOn: 1 }))
+                        ? 'text-teal-600 bg-teal-50 border border-teal-100'
+                        : 'text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}
+                  </button>
+                  <button
+                    onClick={() => setCurrentDate(d => addDays(d, 7))}
+                    title="Settimana successiva"
+                    className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all text-slate-600"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -1478,40 +1608,46 @@ function App() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={async () => {
-                  if (!confirm("Sei sicuro di voler cancellare TUTTI i turni? Questa azione non può essere annullata!")) return;
-                  try {
-                    const { error, count } = await supabase.from('shifts').delete().neq('id', '');
-                    if (error) throw error;
-                    alert(`Turni cancellati con successo!`);
-                    setShifts([]);
-                  } catch (error) {
-                    console.error(error);
-                    alert("Errore durante la cancellazione");
-                  }
-                }}
-                className="px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
-              >
-                <Trash2 size={16} />
-                Cancella Tutti
-              </button>
-              <button
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className="px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
-              >
-                {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
-                Analizza Conflitti
-              </button>
-              <button
-                onClick={() => setShowConfirmClear(true)}
-                disabled={isGenerating}
-                className="px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
-              >
-                {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BrainCircuit size={16} />}
-                AI Auto-Planner
-              </button>
+              {isPlan && (
+                <button
+                  onClick={async () => {
+                    if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                    try {
+                      const { error } = await supabase.from('shifts').delete().eq('is_template', true);
+                      if (error) throw error;
+                      alert(`Turni pianificati cancellati con successo!`);
+                      setShifts(prev => prev.filter(s => !s.isTemplate));
+                    } catch (error) {
+                      console.error(error);
+                      alert("Errore durante la cancellazione");
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+                >
+                  <Trash2 size={16} />
+                  Cancella Tutti
+                </button>
+              )}
+              {isPlan && (
+                <button
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                  className="px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+                >
+                  {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
+                  Analizza Conflitti
+                </button>
+              )}
+              {isPlan && (
+                <button
+                  onClick={() => setShowConfirmClear(true)}
+                  disabled={isGenerating}
+                  className="px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+                >
+                  {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BrainCircuit size={16} />}
+                  AI Auto-Planner
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1646,7 +1782,7 @@ function App() {
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
-                    const isToday = isSameDay(weekDays[i], new Date());
+                    const isToday = !isPlan && isSameDay(calendarDays[i], new Date());
                     return (
                       <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
                         isToday ? 'bg-gradient-to-b from-teal-50 to-white' : 'bg-slate-50/80'
@@ -1657,6 +1793,13 @@ function App() {
                           }`}>
                             {label}
                           </span>
+                          {!isPlan && (
+                            <span className={`text-[10px] font-semibold tabular-nums ${
+                              isToday ? 'text-teal-600' : 'text-slate-400'
+                            }`}>
+                              {format(calendarDays[i], 'dd/MM')}
+                            </span>
+                          )}
                           {isToday && (
                             <span className="text-[9px] font-bold uppercase tracking-wide bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-full px-2 py-0.5 shadow-sm shadow-teal-200">
                               Oggi
@@ -1679,11 +1822,14 @@ function App() {
 
                   // Per-day layout: card positions (slot index, span, column) per shift.
                   // Overlapping shifts are placed side by side via greedy interval coloring.
-                  const dayLayouts = weekDays.map(day => {
+                  const dayLayouts = calendarDays.map((day, dayIdx) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayShifts = shifts.filter(s => {
-                      if (!s.date) return false;
                       if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+                      if (isPlan) {
+                        return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
+                      }
+                      if (!s.date || s.isTemplate) return false;
                       const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
                       return shiftDate === dateStr;
                     });
@@ -1774,9 +1920,11 @@ function App() {
                           return (
                             <td
                               key={i}
-                              onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
-                              onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
-                              onClick={() => openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel)}
+                              onDragOver={(e) => { if (!isPlan) handleDragOver(e, layout.dateStr, minutes); }}
+                              onDrop={(e) => { if (!isPlan) handleDrop(e, layout.dateStr, minutes); }}
+                              onClick={() => isPlan
+                                ? openNewTemplateShiftModal(i + 1, slotLabel)
+                                : openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel)}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
@@ -1787,7 +1935,9 @@ function App() {
                             >
                               {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel); }}
+                                  onClick={(e) => { e.stopPropagation(); isPlan
+                                    ? openNewTemplateShiftModal(i + 1, slotLabel)
+                                    : openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel); }}
                                   className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
                                 >
                                   <Plus size={12} />
@@ -1813,10 +1963,11 @@ function App() {
                                     return (
                                       <div
                                         key={shift.id}
-                                        draggable={shiftStatus !== 'cancellato'}
-                                        onDragStart={(e) => handleDragStart(e, shift.id)}
-                                        onClick={(e) => { e.stopPropagation(); setEditingShift(shift); setIsShiftModalOpen(true); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
+                                        draggable={!isPlan && shiftStatus !== 'cancellato'}
+                                        onDragStart={(e) => { if (!isPlan) handleDragStart(e, shift.id); }}
+                                        onClick={(e) => { e.stopPropagation(); openShiftModal(shift, isPlan ? 'plan' : 'validate'); }}
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] shadow-sm hover:shadow-md overflow-hidden group/item
+                                          ${isPlan ? 'cursor-pointer' : 'cursor-move'}
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                           ${shiftStatus === 'cancellato' ? 'opacity-45 grayscale' : ''}
@@ -1884,6 +2035,7 @@ function App() {
                                           </div>
                                         </div>
 
+                                        {!isPlan && (
                                         <div
                                           className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
                                           onPointerDown={(e) => {
@@ -1938,6 +2090,7 @@ function App() {
                                         >
                                           <div className="w-5 h-1 rounded-full bg-slate-500/80 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none" />
                                         </div>
+                                        )}
                                       </div>
                                     );
                                   })}
@@ -1966,91 +2119,71 @@ function App() {
       return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
     };
 
-    // Filter shifts based on selected date range
+    // Filter shifts based on selected date range (solo turni reali validabili, niente template)
     const filteredShifts = shifts.filter(s => {
-      if (!s.date) return false;
+      if (s.isTemplate || !s.date) return false;
       const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
       return d >= summaryStartDate && d <= summaryEndDate;
     });
+    const templateShifts = shifts.filter(s => s.isTemplate && s.startTime && s.endTime);
 
-    // Group shifts by month and week based on view mode
+    // Pianificato = ore del template (settimana tipo) per ogni giorno nel periodo.
+    // Validato (consuntivo) = solo turni effettuati (effettivi), cancellati = 0, non ancora validati = 0.
+    const buildSummary = (person: { id: string; name?: string; maxHoursPerWeek?: number; requiredHoursPerWeek?: number }, type: 'TUTOR' | 'YOUTH') => {
+      const targetHours = type === 'TUTOR' ? person.maxHoursPerWeek || 0 : person.requiredHoursPerWeek || 0;
+      const personShifts = filteredShifts.filter(s => s.tutorId === person.id || s.youthId === person.id);
+      const personTpl = templateShifts.filter(s => s.tutorId === person.id || s.youthId === person.id);
+
+      const monthlyHours: Record<string, number> = {};
+      const weeklyHours: Record<string, number> = {};
+      const plannedMonthlyHours: Record<string, number> = {};
+      const plannedWeeklyHours: Record<string, number> = {};
+
+      const startD = parseISO(summaryStartDate);
+      const endD = parseISO(summaryEndDate);
+      if (!isNaN(startD.getTime()) && !isNaN(endD.getTime())) {
+        for (let cursor = new Date(startD); cursor <= endD; cursor = addDays(cursor, 1)) {
+          const dateStr = format(cursor, 'yyyy-MM-dd');
+          const monthKey = format(cursor, 'MMMM yyyy', { locale: it });
+          const weekKey = `Settimana ${getISOWeek(cursor)} (${getYear(cursor)})`;
+          const dow = (cursor.getDay() + 6) % 7; // 0=LUN..6=SAB
+
+          if (dow < 6) {
+            const wd = dow + 1;
+            const planned = personTpl
+              .filter(s => (s.templateWeekday || weekdayOf(s.date)) === wd)
+              .reduce((acc, s) => acc + getHours(s.startTime, s.endTime), 0);
+            if (planned > 0) {
+              plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + planned;
+              plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + planned;
+            }
+          }
+
+          const validated = personShifts
+            .filter(s => s.date === dateStr && s.startTime && s.endTime)
+            .reduce((acc, s) => acc + getValidatedHours(s), 0);
+          if (validated > 0) {
+            monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + validated;
+            weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + validated;
+          }
+        }
+      }
+
+      return {
+        id: person.id,
+        name: person.name || '?',
+        targetHours,
+        monthlyHours,
+        weeklyHours,
+        plannedMonthlyHours,
+        plannedWeeklyHours,
+        type
+      };
+    };
+
     const summaryData = summaryViewMode === 'TUTORS'
-      ? tutors.map(tutor => {
-        const tutorShifts = filteredShifts.filter(s => s.tutorId === tutor.id);
-
-        const monthlyHours: Record<string, number> = {};
-        const weeklyHours: Record<string, number> = {};
-        const plannedMonthlyHours: Record<string, number> = {};
-        const plannedWeeklyHours: Record<string, number> = {};
-
-        tutorShifts.forEach(shift => {
-          if (!shift.date || !shift.startTime || !shift.endTime) return;
-
-          // Use robust date parsing
-          const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
-          const date = parseISO(dateStr);
-
-          const monthKey = format(date, 'MMMM yyyy', { locale: it });
-          const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
-
-          const plannedHours = getHours(shift.startTime, shift.endTime);
-          const hours = getEffectiveHours(shift);
-
-          plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + plannedHours;
-          plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + plannedHours;
-          monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
-          weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
-        });
-
-        return {
-          id: tutor.id,
-          name: tutor.name,
-          targetHours: tutor.maxHoursPerWeek,
-          monthlyHours,
-          weeklyHours,
-          plannedMonthlyHours,
-          plannedWeeklyHours,
-          type: 'TUTOR'
-        };
-      })
-      : youths.map(youth => {
-        const youthShifts = filteredShifts.filter(s => s.youthId === youth.id);
-
-        const monthlyHours: Record<string, number> = {};
-        const weeklyHours: Record<string, number> = {};
-        const plannedMonthlyHours: Record<string, number> = {};
-        const plannedWeeklyHours: Record<string, number> = {};
-
-        youthShifts.forEach(shift => {
-          if (!shift.date || !shift.startTime || !shift.endTime) return;
-
-          // Use robust date parsing
-          const dateStr = typeof shift.date === 'string' ? shift.date.split('T')[0] : shift.date;
-          const date = parseISO(dateStr);
-
-          const monthKey = format(date, 'MMMM yyyy', { locale: it });
-          const weekKey = `Settimana ${getISOWeek(date)} (${getYear(date)})`;
-
-          const plannedHours = getHours(shift.startTime, shift.endTime);
-          const hours = getEffectiveHours(shift);
-
-          plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + plannedHours;
-          plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + plannedHours;
-          monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + hours;
-          weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + hours;
-        });
-
-        return {
-          id: youth.id,
-          name: youth.name,
-          targetHours: youth.requiredHoursPerWeek,
-          monthlyHours,
-          weeklyHours,
-          plannedMonthlyHours,
-          plannedWeeklyHours,
-          type: 'YOUTH'
-        };
-      });
+      ? tutors.map(t => buildSummary(t, 'TUTOR'))
+      : youths.map(y => buildSummary(y, 'YOUTH'));
 
     return (
       <div className="space-y-8">
@@ -2117,28 +2250,32 @@ function App() {
                     <CalendarIcon size={16} className="mr-2" /> Per Mese
                   </h4>
                   <div className="space-y-2">
-                    {Object.entries(data.monthlyHours).length > 0 ? (
-                      Object.entries(data.monthlyHours).map(([month, hours]) => {
-                        const hrs = Number(hours);
-                        const planned = data.plannedMonthlyHours[month] || 0;
-                        const delta = hrs - planned;
-                        return (
-                          <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                            <span className="capitalize text-slate-700">{month}</span>
-                            <span className="flex items-center gap-2">
-                              {Math.abs(delta) > 0.01 && (
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                                  {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
-                                </span>
-                              )}
-                              <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hrs.toFixed(1)}h</span>
-                            </span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-400 italic">Nessun dato mensile</p>
-                    )}
+                    {(() => {
+                      const keys = Array.from(new Set([...Object.keys(data.monthlyHours), ...Object.keys(data.plannedMonthlyHours)]));
+                      return keys.length > 0 ? (
+                        keys.map(month => {
+                          const hrs = Number(data.monthlyHours[month] || 0);
+                          const planned = Number(data.plannedMonthlyHours[month] || 0);
+                          const delta = hrs - planned;
+                          return (
+                            <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                              <span className="capitalize text-slate-700">{month}</span>
+                              <span className="flex items-center gap-2">
+                                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">Pian {planned.toFixed(1)}h</span>
+                                {Math.abs(delta) > 0.01 && (
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
+                                  </span>
+                                )}
+                                <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hrs.toFixed(1)}h</span>
+                              </span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-400 italic">Nessun dato mensile</p>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2147,40 +2284,44 @@ function App() {
                     <Clock size={16} className="mr-2" /> Per Settimana
                   </h4>
                   <div className="space-y-2">
-                    {Object.entries(data.weeklyHours).length > 0 ? (
-                      Object.entries(data.weeklyHours).map(([week, hours]) => {
-                        const hrs = Number(hours);
-                        const isOverLimit = data.type === 'TUTOR' && hrs > data.targetHours;
-                        const isUnderTarget = data.type === 'YOUTH' && hrs < data.targetHours;
-                        const planned = data.plannedWeeklyHours[week] || 0;
-                        const delta = hrs - planned;
+                    {(() => {
+                      const keys = Array.from(new Set([...Object.keys(data.weeklyHours), ...Object.keys(data.plannedWeeklyHours)]));
+                      return keys.length > 0 ? (
+                        keys.map(week => {
+                          const hrs = Number(data.weeklyHours[week] || 0);
+                          const isOverLimit = data.type === 'TUTOR' && hrs > data.targetHours;
+                          const isUnderTarget = data.type === 'YOUTH' && hrs < data.targetHours;
+                          const planned = Number(data.plannedWeeklyHours[week] || 0);
+                          const delta = hrs - planned;
 
-                        let textColor = 'text-teal-600';
-                        if (data.type === 'YOUTH') textColor = 'text-amber-600';
-                        if (isOverLimit) textColor = 'text-red-500';
-                        if (isUnderTarget) textColor = 'text-orange-500';
+                          let textColor = 'text-teal-600';
+                          if (data.type === 'YOUTH') textColor = 'text-amber-600';
+                          if (isOverLimit) textColor = 'text-red-500';
+                          if (isUnderTarget) textColor = 'text-orange-500';
 
-                        return (
-                          <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                            <span className="text-slate-700">{week}</span>
-                            <span className="flex items-center gap-2">
-                              {Math.abs(delta) > 0.01 && (
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                                  {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
+                          return (
+                            <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
+                              <span className="text-slate-700">{week}</span>
+                              <span className="flex items-center gap-2">
+                                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">Pian {planned.toFixed(1)}h</span>
+                                {Math.abs(delta) > 0.01 && (
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
+                                  </span>
+                                )}
+                                <span className={`font-bold ${textColor}`}>
+                                  {hrs.toFixed(1)}h
+                                  {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
+                                  {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
                                 </span>
-                              )}
-                              <span className={`font-bold ${textColor}`}>
-                                {hrs.toFixed(1)}h
-                                {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
-                                {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
                               </span>
-                            </span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-400 italic">Nessun dato settimanale</p>
-                    )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-slate-400 italic">Nessun dato settimanale</p>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2225,7 +2366,8 @@ function App() {
             </div>
           )}
 
-          {view === 'DASHBOARD' && renderCalendar()}
+          {view === 'DASHBOARD' && renderCalendar('plan')}
+          {view === 'VALIDATION' && renderCalendar('validate')}
           {view === 'TUTORS' && renderTutorsList()}
           {view === 'YOUTHS' && renderYouthsList()}
           {view === 'SUMMARY' && renderSummary()}
@@ -2244,10 +2386,10 @@ function App() {
             </div>
             <div>
               <p className="text-sm text-slate-700">
-                Vuoi <strong>cancellare i turni della settimana corrente</strong> prima di generare nuovi turni con l'AI?
+                Vuoi <strong>cancellare i turni della pianificazione</strong> prima di generare la nuova settimana tipo con l'AI?
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                I turni di altre settimane non verranno toccati.
+                Verrà sostituita solo la pianificazione (settimana tipo). I turni già validati non verranno toccati.
               </p>
             </div>
           </div>
@@ -2328,15 +2470,37 @@ function App() {
                   {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  className={fieldCls}
-                  value={editingShift?.date}
-                  onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
-                />
-              </div>
+              {shiftModalMode === 'plan' ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Giorno <span className="text-red-500">*</span></label>
+                  <select
+                    className={fieldCls}
+                    value={editingShift?.templateWeekday ?? weekdayOf(editingShift?.date)}
+                    onChange={e => {
+                      const wd = parseInt(e.target.value, 10);
+                      setEditingShift({
+                        ...editingShift,
+                        templateWeekday: wd,
+                        date: format(addDays(TEMPLATE_ANCHOR, wd - 1), 'yyyy-MM-dd'),
+                      });
+                    }}
+                  >
+                    {['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'].map((d, i) => (
+                      <option key={i} value={i + 1}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Data <span className="text-red-500">*</span></label>
+                  <input
+                    type="date"
+                    className={fieldCls}
+                    value={editingShift?.date}
+                    onChange={e => setEditingShift({ ...editingShift, date: e.target.value })}
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
                 <input
@@ -2368,7 +2532,7 @@ function App() {
             </div>
           </YouthSection>
 
-          {editingShift?.id && (
+          {editingShift?.id && shiftModalMode === 'validate' && (
             <YouthSection icon={<CheckCircle size={16} />} title="Consuntivo" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">

@@ -62,6 +62,9 @@ export interface Shift {
   actualStartTime?: string | null; // HH:mm effettivo
   actualEndTime?: string | null; // HH:mm effettivo
   actualNotes?: string;
+  isTemplate?: boolean; // turno della settimana tipo (pianificazione)
+  templateWeekday?: number | null; // 1 = LUN .. 6 = SAB (per turni template)
+  templateShiftId?: string | null; // id del template da cui deriva un turno validato
 }
 
 export interface User {
@@ -70,4 +73,4 @@ export interface User {
   permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'SUMMARY' | 'USER_MANAGEMENT';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'USER_MANAGEMENT';
