@@ -868,12 +868,19 @@ function App() {
         const newEndTime = fmt(newEndMin);
 
         const updatedShift = { ...shiftToUpdate, date: dateStr, startTime: newStartTime, endTime: newEndTime };
+        if (shiftToUpdate.isTemplate) {
+          updatedShift.templateWeekday = weekdayOf(dateStr);
+        }
+        const dbUpdate: Record<string, any> = {
+          date: dateStr,
+          start_time: newStartTime,
+          end_time: newEndTime,
+        };
+        if (shiftToUpdate.isTemplate) {
+          dbUpdate.template_weekday = weekdayOf(dateStr);
+        }
         try {
-          const { error } = await supabase.from('shifts').update({
-            date: dateStr,
-            start_time: newStartTime,
-            end_time: newEndTime,
-          }).eq('id', shiftId);
+          const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
           if (error) throw error;
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
         } catch (error) {
@@ -1920,8 +1927,8 @@ function App() {
                           return (
                             <td
                               key={i}
-                              onDragOver={(e) => { if (!isPlan) handleDragOver(e, layout.dateStr, minutes); }}
-                              onDrop={(e) => { if (!isPlan) handleDrop(e, layout.dateStr, minutes); }}
+                              onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
+                              onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
                               onClick={() => isPlan
                                 ? openNewTemplateShiftModal(i + 1, slotLabel)
                                 : openNewShiftModal(tutorFilter === 'all' ? '' : tutorFilter, layout.dateStr, slotLabel)}
@@ -1963,11 +1970,10 @@ function App() {
                                     return (
                                       <div
                                         key={shift.id}
-                                        draggable={!isPlan && shiftStatus !== 'cancellato'}
-                                        onDragStart={(e) => { if (!isPlan) handleDragStart(e, shift.id); }}
+                                        draggable={shiftStatus !== 'cancellato'}
+                                        onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); openShiftModal(shift, isPlan ? 'plan' : 'validate'); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] shadow-sm hover:shadow-md overflow-hidden group/item
-                                          ${isPlan ? 'cursor-pointer' : 'cursor-move'}
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                           ${shiftStatus === 'cancellato' ? 'opacity-45 grayscale' : ''}
@@ -2035,7 +2041,6 @@ function App() {
                                           </div>
                                         </div>
 
-                                        {!isPlan && (
                                         <div
                                           className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
                                           onPointerDown={(e) => {
@@ -2090,7 +2095,6 @@ function App() {
                                         >
                                           <div className="w-5 h-1 rounded-full bg-slate-500/80 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none" />
                                         </div>
-                                        )}
                                       </div>
                                     );
                                   })}
