@@ -834,7 +834,7 @@ function App() {
               </div>
               <div>
                 <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Turni settimanali</h2>
-                <p className="text-xs text-slate-400 font-medium">Fascia oraria LUN-SAB · 07:00 – 20:00</p>
+                <p className="text-xs text-slate-400 font-medium">Fascia oraria LUN-SAB · 08:00 – 19:00</p>
               </div>
             </div>
 
@@ -1031,8 +1031,8 @@ function App() {
               </thead>
               <tbody>
                 {(() => {
-                  const DAY_START = 7 * 60; // 07:00
-                  const DAY_END = 20 * 60; // 20:00
+                  const DAY_START = 8 * 60; // 08:00
+                  const DAY_END = 19 * 60; // 19:00
                   const SLOT = 15; // granularità 15 min
                   const ROW_COUNT = (DAY_END - DAY_START) / SLOT; // 52
                   const ROW_H = 28; // altezza riga (h-7) in px
@@ -1054,11 +1054,11 @@ function App() {
                         const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
                         const startMin = sh * 60 + sm;
                         const endMin = Math.max(startMin + SLOT, eh * 60 + em);
-                        const slotIdx = Math.round((startMin - DAY_START) / SLOT);
-                        const span = Math.max(1, Math.ceil((endMin - startMin) / SLOT));
+                        let slotIdx = Math.round((startMin - DAY_START) / SLOT);
+                        slotIdx = Math.max(0, Math.min(slotIdx, ROW_COUNT - 1));
+                        const span = Math.max(1, Math.min(Math.ceil((endMin - startMin) / SLOT), ROW_COUNT - slotIdx));
                         return { shift: s, slotIdx, span };
                       })
-                      .filter(p => p.slotIdx >= 0 && p.slotIdx < ROW_COUNT)
                       .sort((a, b) => a.slotIdx - b.slotIdx);
 
                     // Greedy interval coloring: overlapping shifts get distinct columns,
