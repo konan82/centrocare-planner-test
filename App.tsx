@@ -1325,23 +1325,24 @@ function App() {
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : 'CentroCare';
     return (
-      <div className="md:hidden bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center sticky top-0 z-30 shadow-lg shadow-black/20">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
-            <CalendarIcon size={18} />
-          </span>
-          <div className="leading-tight min-w-0">
-            <span className="block font-bold text-sm">CentroCare</span>
-            <span className="block text-[11px] text-teal-300 font-medium truncate">{viewLabel}</span>
-          </div>
-        </div>
+      <div className="md:hidden bg-slate-900 text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-black/20">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
-          className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all"
+          className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all shrink-0"
           aria-label="Apri menu"
         >
           <Menu size={24} />
         </button>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 justify-center">
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
+            <CalendarIcon size={18} />
+          </span>
+          <div className="leading-tight min-w-0 text-center">
+            <span className="block font-bold text-sm">CentroCare</span>
+            <span className="block text-[11px] text-teal-300 font-medium truncate">{viewLabel}</span>
+          </div>
+        </div>
+        <span className="w-10 shrink-0"></span>
       </div>
     );
   };
@@ -1841,20 +1842,20 @@ function App() {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
     return (
-      <div className="space-y-3 md:space-y-6 h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
+      <div className="space-y-3 md:space-y-6 h-[calc(100dvh-6rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
         <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
           <div className={`h-1.5 rounded-t-2xl ${isPlan ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400'}`}></div>
           <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className={`p-2.5 rounded-xl text-white shadow-md ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
-                {isPlan ? <CalendarIcon size={20} /> : <ClipboardCheck size={20} />}
+              <div className={`p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
+                {isPlan ? <CalendarIcon size={18} /> : <ClipboardCheck size={18} />}
               </div>
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight leading-tight">
                   {isPlan ? 'Pianificazione Turni' : 'Consuntivo Turni'}
                 </h2>
-                <p className="text-xs text-slate-400 font-medium">
+                <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-snug">
                   {isPlan
                     ? 'Settimana tipo LUN-SAB · 08:00 – 19:00 · ripetuta ogni settimana'
                     : `Fascia oraria LUN-SAB · 08:00 – 19:00 · copia della pianificazione`}
@@ -1879,9 +1880,12 @@ function App() {
                     }`}
                   >
                     <span className="flex items-center gap-1.5 md:gap-2">
-                      <CalendarIcon size={14} className="text-teal-600" />
-                      <span className="tracking-tight whitespace-nowrap">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
-                      <span className="inline-flex items-center gap-1 rounded-md md:rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2 py-0.5 md:px-2.5 md:py-1 text-[10px] md:text-xs font-bold tabular-nums shadow-sm">
+                      <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                      <span className="tracking-tight whitespace-nowrap">
+                        <span className="sm:hidden">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM')}</span>
+                        <span className="hidden sm:inline">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md md:rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2 py-0.5 md:px-2.5 md:py-1 text-[10px] md:text-xs font-bold tabular-nums shadow-sm shrink-0">
                         Sett. {getISOWeek(calendarDays[0])}
                       </span>
                     </span>
@@ -1897,7 +1901,7 @@ function App() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <PersonCombo
                 options={tutors}
                 value={tutorFilter}
@@ -1923,7 +1927,7 @@ function App() {
                       alert("Errore durante la cancellazione");
                     }
                   }}
-                  className="px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
                 >
                   <Trash2 size={16} />
                   Cancella Tutti
@@ -1933,7 +1937,7 @@ function App() {
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing}
-                  className="px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
                 >
                   {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
                   Analizza Conflitti
@@ -1943,7 +1947,7 @@ function App() {
                 <button
                   onClick={() => setShowConfirmClear(true)}
                   disabled={isGenerating}
-                  className="px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
                 >
                   {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BrainCircuit size={16} />}
                   AI Auto-Planner
@@ -1957,13 +1961,13 @@ function App() {
         {analysisResult && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-auto animate-fadeIn shrink-0 max-h-[40%]">
             {/* Header with score */}
-            <div className={`px-6 py-4 flex items-center justify-between ${
+            <div className={`px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between ${
               analysisResult.score >= 80 ? 'bg-emerald-50 border-b border-emerald-200' :
               analysisResult.score >= 50 ? 'bg-amber-50 border-b border-amber-200' :
               'bg-red-50 border-b border-red-200'
             }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`p-2 rounded-full shrink-0 ${
                   analysisResult.score >= 80 ? 'bg-emerald-100' :
                   analysisResult.score >= 50 ? 'bg-amber-100' :
                   'bg-red-100'
@@ -1972,12 +1976,12 @@ function App() {
                    analysisResult.score >= 50 ? <AlertTriangle className="h-6 w-6 text-amber-600" /> :
                    <XCircle className="h-6 w-6 text-red-600" />}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-gray-900">Analisi AI Conflitti</h3>
                   <p className="text-sm text-gray-600">{analysisResult.summary}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 sm:self-auto">
                 <div className="text-center">
                   <div className={`text-3xl font-black ${
                     analysisResult.score >= 80 ? 'text-emerald-600' :
@@ -1993,7 +1997,7 @@ function App() {
             </div>
 
             {/* Score bar */}
-            <div className="px-6 pt-3">
+            <div className="px-4 sm:px-6 pt-3">
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
@@ -2007,7 +2011,7 @@ function App() {
             </div>
 
             {/* Stats bar */}
-            <div className="px-6 py-3 flex gap-4 text-sm">
+            <div className="px-4 sm:px-6 py-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
               {analysisResult.issues.filter(i => i.severity === 'error').length > 0 && (
                 <span className="flex items-center gap-1 text-red-600 font-semibold">
                   <XCircle size={14} /> {analysisResult.issues.filter(i => i.severity === 'error').length} Errori
@@ -2032,7 +2036,7 @@ function App() {
 
             {/* Issues list */}
             {analysisResult.issues.length > 0 && (
-              <div className="px-6 pb-4 space-y-2">
+              <div className="px-4 sm:px-6 pb-4 space-y-2">
                 {analysisResult.issues.map((issue, idx) => (
                   <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${
                     issue.severity === 'error' ? 'bg-red-50 border-red-200' :
@@ -2049,7 +2053,7 @@ function App() {
                        <Info size={18} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${
                           issue.severity === 'error' ? 'bg-red-100 text-red-700' :
                           issue.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
@@ -2074,7 +2078,7 @@ function App() {
         )}
 
         {/* Weekly Time Matrix */}
-        <div className="flex-1 min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-[240px] md:min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
           <div className="overflow-auto flex-1 min-h-0">
             <table className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
