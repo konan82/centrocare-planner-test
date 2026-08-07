@@ -2510,6 +2510,37 @@ function App() {
                   );
                 })()}
               </div>
+
+              {(() => {
+                const totalDone = Object.values(data.monthlyHours).reduce((a, b) => a + Number(b || 0), 0);
+                const totalPlanned = Object.values(data.plannedMonthlyHours).reduce((a, b) => a + Number(b || 0), 0);
+                const delta = totalDone - totalPlanned;
+                const deltaBadge = Math.abs(delta) < 0.005
+                  ? 'bg-slate-200/70 text-slate-600'
+                  : delta > 0
+                    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                    : 'bg-red-50 text-red-600 ring-1 ring-red-200';
+                return (
+                  <div className="mt-6 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white shadow-sm overflow-hidden">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 items-stretch">
+                      <div className="px-4 py-3 border-b sm:border-b-0 border-slate-200 sm:border-r">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Pianificato</span>
+                        <span className="block mt-1 text-lg font-bold text-slate-700 tabular-nums">{totalPlanned.toFixed(1)}h</span>
+                      </div>
+                      <div className="px-4 py-3 border-b sm:border-b-0 border-slate-200 sm:border-r">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Effettuato</span>
+                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalDone.toFixed(1)}h</span>
+                      </div>
+                      <div className="px-4 py-3 col-span-2 sm:col-span-1 flex flex-col justify-center">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Delta</span>
+                        <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full font-bold tabular-nums self-start ${deltaBadge}`}>
+                          {Math.abs(delta) < 0.005 ? '0.0' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}`}h
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </Card>
           ))}
         </div>
