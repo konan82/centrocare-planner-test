@@ -1178,10 +1178,15 @@ function App() {
       {/* Desktop Sidebar */}
       <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-50 shadow-xl hidden md:flex">
         <div className="p-6 border-b border-slate-700">
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-            CentroCare
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+          <div className="flex items-center gap-3">
+                  <img src="/logo.png" alt="CentroCare" className="h-10 w-auto rounded-lg shadow-lg shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
+                CentroCare
+              </h1>
+              <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+            </div>
+          </div>
           <div className="mt-4 flex items-center text-xs text-slate-300 bg-slate-800 p-2 rounded">
             <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center mr-2 font-bold">
               {currentUser?.username?.charAt(0).toUpperCase() || '?'}
@@ -1246,11 +1251,14 @@ function App() {
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-900 text-slate-100 flex flex-col shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-slate-700">
               <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-                    CentroCare
-                  </h1>
-                  <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+                <div className="flex items-center gap-3 min-w-0">
+            <img src="/logo.png" alt="CentroCare" className="h-10 w-auto rounded-lg shadow-lg shrink-0" />
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
+                      CentroCare
+                    </h1>
+                    <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+                  </div>
                 </div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-white transition-colors">
                   <X size={24} />
@@ -1334,9 +1342,7 @@ function App() {
           <Menu size={24} />
         </button>
         <div className="flex items-center gap-2.5 min-w-0 flex-1 justify-center">
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
-            <CalendarIcon size={18} />
-          </span>
+          <img src="/logo.png" alt="" className="h-8 w-auto rounded-lg shrink-0" />
           <div className="leading-tight min-w-0 text-center">
             <span className="block font-bold text-sm">CentroCare</span>
             <span className="block text-[11px] text-teal-300 font-medium truncate">{viewLabel}</span>
@@ -3635,6 +3641,7 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
+          <img src="/logo.png" alt="CentroCare" className="h-16 w-auto mx-auto mb-4 rounded-xl shadow-lg" />
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500 mb-2">
             CentroCare
           </h1>
