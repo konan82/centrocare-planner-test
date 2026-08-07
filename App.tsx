@@ -121,14 +121,22 @@ const YOUTH_COLORS = [
   { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800', badge: 'bg-blue-500', hover: 'hover:bg-blue-200' },
 ];
 
+const colorIndexForId = (id: string, len: number) => {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % len;
+};
+
 const getTutorColor = (tutorId: string, tutors: Tutor[]) => {
   const idx = tutors.findIndex(t => t.id === tutorId);
-  return TUTOR_COLORS[idx % TUTOR_COLORS.length];
+  const i = idx >= 0 ? idx : colorIndexForId(tutorId, TUTOR_COLORS.length);
+  return TUTOR_COLORS[i % TUTOR_COLORS.length];
 };
 
 const getYouthColor = (youthId: string, youths: Youth[]) => {
   const idx = youths.findIndex(y => y.id === youthId);
-  return YOUTH_COLORS[idx % YOUTH_COLORS.length];
+  const i = idx >= 0 ? idx : colorIndexForId(youthId, YOUTH_COLORS.length);
+  return YOUTH_COLORS[i % YOUTH_COLORS.length];
 };
 
 const getInitials = (name?: string) => {
@@ -1675,6 +1683,7 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sorted.map(youth => {
               const theme = cardTheme(youth.status);
+              const youthColor = getYouthColor(youth.id, youths);
               const refTutor = tutors.find(t => t.id === youth.referringTutorId);
               return (
                 <Card key={youth.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
@@ -1691,7 +1700,7 @@ function App() {
                       </button>
                     </div>
                     <div className="flex items-center mb-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${theme.avatar}`}>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${youthColor.bg} ${youthColor.text}`}>
                         {youth.name?.charAt(0).toUpperCase() || '?'}
                       </div>
                       <div className="ml-4 min-w-0">
@@ -2501,7 +2510,7 @@ function App() {
           {filteredSummary.map(data => (
             <Card key={data.id} className={`p-6 ${data.type === 'YOUTH' ? 'border-l-4 border-l-amber-400' : ''}`}>
               <div className="flex items-center mb-4 border-b pb-4">
-                <div className={`w-10 h-10 ${data.type === 'TUTOR' ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'} rounded-full flex items-center justify-center font-bold mr-3`}>
+                <div className={`w-10 h-10 ${data.type === 'TUTOR' ? getTutorColor(data.id, tutors).bg : getYouthColor(data.id, youths).bg} ${data.type === 'TUTOR' ? getTutorColor(data.id, tutors).text : getYouthColor(data.id, youths).text} rounded-full flex items-center justify-center font-bold mr-3`}>
                   {data.name?.charAt(0) || '?'}
                 </div>
                 <h3 className="text-xl font-bold text-slate-800">{data.name}</h3>
