@@ -87,8 +87,6 @@ export const analyzeConflicts = (
 ): ConflictAnalysis => {
   const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
   const issues: ConflictIssue[] = [];
-  const tutorMap = Object.fromEntries(tutors.map(t => [t.id, t.name]));
-
   // 1. Turni in giorni di riposo
   tutors.forEach(t => {
     if (!t.unavailableDays?.length) return;
@@ -120,12 +118,13 @@ export const analyzeConflicts = (
         if (a.date !== b.date) continue;
         if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) continue;
         const aS = a.startTime, aE = a.endTime, bS = b.startTime, bE = b.endTime;
-        if (aS < bE && bS < aE) {
+        const sameYouth = a.youthId && b.youthId && a.youthId === b.youthId;
+        if (aS < bE && bS < aE && !(a.youthId && b.youthId && a.youthId !== b.youthId)) {
           issues.push({
             severity: 'error',
             category: 'Sovrapposizione',
             title: `Turni sovrapposti`,
-            description: `${t.name} ha due turni sovrapposti il ${a.date}: ${aS}-${aE} e ${bS}-${bE}.`,
+            description: `${t.name} ha due turni sovrapposti il ${a.date}: ${aS}-${aE} e ${bS}-${bE}${sameYouth ? ' per lo stesso ragazzo/a' : ''}.`,
             affectedTutors: [t.name],
             affectedDates: [a.date],
           });
@@ -164,26 +163,7 @@ export const analyzeConflicts = (
     });
   });
 
-  // 4. Turni con orari strani
-  shifts.forEach(s => {
-    if (!s.startTime || !s.endTime) return;
-    const [sh, sm] = s.startTime.split(':').map(Number);
-    const [eh, em] = s.endTime.split(':').map(Number);
-    const startMin = sh * 60 + sm;
-    const endMin = eh * 60 + em;
-    if (startMin < 14 * 60 || endMin > 19 * 60) {
-      issues.push({
-        severity: 'warning',
-        category: 'Orario anomalo',
-        title: `Turno fuori orario`,
-        description: `${tutorMap[s.tutorId] || s.tutorId} ha un turno il ${s.date} dalle ${s.startTime} alle ${s.endTime}, fuori dalla fascia 14:00-19:00.`,
-        affectedTutors: [tutorMap[s.tutorId] || s.tutorId],
-        affectedDates: [s.date],
-      });
-    }
-  });
-
-  // 5. Tutor non utilizzati
+  // 4. Tutor non utilizzati
   tutors.forEach(t => {
     const hasShifts = shifts.some(s => s.tutorId === t.id);
     if (!hasShifts) {
