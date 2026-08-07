@@ -2181,7 +2181,9 @@ function App() {
 
                                           <div className="min-w-0 flex flex-col gap-1.5">
                                             <div className="flex items-center gap-1 min-w-0">
-                                              <Clock size={12} className="text-slate-400 shrink-0" />
+                                              <span className="shrink-0 rounded bg-white/70 border border-slate-300 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600 leading-tight">
+                                                Prog.
+                                              </span>
                                               <span className={`rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {shift.startTime}–{shift.endTime}
                                               </span>
@@ -2189,8 +2191,10 @@ function App() {
 
                                             {shiftStatus === 'effettuato' && shift.actualStartTime && (
                                               <div className="flex items-center gap-1 min-w-0">
-                                                <Clock size={12} className="text-emerald-600 shrink-0" />
-                                                <span className="rounded bg-white/70 px-1.5 py-px text-[12px] font-bold text-emerald-800 tabular-nums pointer-events-none truncate">
+                                                <span className="shrink-0 rounded bg-emerald-200/90 border border-emerald-400 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-emerald-800 leading-tight">
+                                                  Effett.
+                                                </span>
+                                                <span className="rounded bg-white/70 px-1.5 py-px text-[13px] font-bold text-emerald-800 tabular-nums pointer-events-none truncate">
                                                   {shift.actualStartTime}–{shift.actualEndTime}
                                                 </span>
                                               </div>
