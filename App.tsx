@@ -46,7 +46,7 @@ import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { generateSmartSchedule, analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
-import { startOfWeek, addDays, format, parseISO, isSameDay, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
+import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const TUTOR_COLORS = [
@@ -571,11 +571,19 @@ function App() {
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
   const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
+  const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 6 }).map((_, i) => addDays(startOfCurrentWeek, i)); // LUN-SAB
   const templateWeekDays = Array.from({ length: 6 }).map((_, i) => addDays(TEMPLATE_ANCHOR, i)); // settimana tipo LUN-SAB
+
+  // Sposta il periodo del Riepilogo Ore al mese indicato (intervallo = intero mese)
+  const setSummaryMonthRange = (m: Date) => {
+    setSummaryMonth(m);
+    setSummaryStartDate(format(startOfMonth(m), 'yyyy-MM-dd'));
+    setSummaryEndDate(format(endOfMonth(m), 'yyyy-MM-dd'));
+  };
 
   // --- Handlers ---
 
@@ -1409,6 +1417,7 @@ function App() {
 
     return (
       <div className="space-y-6">
+        <div className="sticky top-0 z-20 bg-slate-50 pt-1 pb-2 space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Elenco Tutor</h2>
@@ -1489,6 +1498,7 @@ function App() {
           <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
             {filtered.length} su {allTutors.length} profili
           </span>
+        </div>
         </div>
 
         {/* Griglia card */}
@@ -1659,6 +1669,7 @@ function App() {
 
     return (
       <div className="space-y-6">
+        <div className="sticky top-0 z-20 bg-slate-50 pt-1 pb-2 space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Elenco Ragazzi</h2>
@@ -1742,6 +1753,7 @@ function App() {
           <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
             {filtered.length} su {allYouths.length} profili
           </span>
+        </div>
         </div>
 
         {/* Griglia card */}
@@ -2523,7 +2535,7 @@ function App() {
 
     return (
       <div className="space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+        <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore</h2>
             <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -2554,26 +2566,38 @@ function App() {
               allValue="all"
               className="w-full sm:w-56"
             />
-            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
-              <div className="flex flex-col">
-                <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Dal</label>
-                <input
-                  type="date"
-                  value={summaryStartDate}
-                  onChange={e => setSummaryStartDate(e.target.value)}
-                  className="border-none bg-transparent text-slate-700 focus:ring-0 p-0 text-sm"
-                />
-              </div>
-              <div className="h-8 w-px bg-gray-300 mx-1"></div>
-              <div className="flex flex-col">
-                <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Al</label>
-                <input
-                  type="date"
-                  value={summaryEndDate}
-                  onChange={e => setSummaryEndDate(e.target.value)}
-                  className="border-none bg-transparent text-slate-700 focus:ring-0 p-0 text-sm"
-                />
-              </div>
+            {/* Navigazione mese (stile Consuntivo Turni, ma per mesi) */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
+                title="Mese precedente"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => setSummaryMonthRange(new Date())}
+                title="Torna al mese corrente"
+                className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                  isSameMonth(summaryMonth, new Date())
+                    ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5 md:gap-2">
+                  <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                  <span className="tracking-tight whitespace-nowrap capitalize">
+                    {format(summaryMonth, 'MMMM yyyy', { locale: it })}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => setSummaryMonthRange(addMonths(summaryMonth, 1))}
+                title="Mese successivo"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
           </div>
         </div>
