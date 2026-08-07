@@ -206,6 +206,109 @@ const YouthSection: React.FC<YouthSectionProps> = ({ icon, title, chipBg, header
   </div>
 );
 
+// --- PersonCombo: combo box cercabile con avatar colorati ---
+interface PersonComboProps {
+  options: { id: string; name?: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  placeholder: string;
+  colorOf: (id: string) => { bg: string; text: string };
+  allowAll?: boolean;
+  allLabel?: string;
+  allValue?: string;
+  className?: string;
+}
+
+const PersonCombo: React.FC<PersonComboProps> = ({ options, value, onChange, placeholder, colorOf, allowAll = false, allLabel = 'Tutti', allValue = 'all', className = '' }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = value !== allValue ? options.find(o => o.id === value) : null;
+  const q = search.trim().toLowerCase();
+  const filtered = options.filter(o => !q || (o.name || '').toLowerCase().includes(q));
+
+  return (
+    <div className={`relative ${className}`} ref={ref}>
+      <div className={`flex items-center gap-2 px-3 py-2.5 bg-white rounded-xl border shadow-sm transition-all ${
+        selected ? 'border-teal-200' : 'border-slate-200'
+      }`}>
+        <Users size={16} className="shrink-0 text-slate-400" />
+        <input
+          type="text"
+          value={open ? search : (selected?.name || '')}
+          placeholder={selected ? '' : placeholder}
+          onFocus={() => { setOpen(true); setSearch(selected?.name || ''); }}
+          onChange={e => { setOpen(true); setSearch(e.target.value); }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') { setOpen(false); setSearch(selected?.name || ''); }
+            if (e.key === 'Enter') setOpen(false);
+          }}
+          className="w-full min-w-0 outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400"
+        />
+        <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1 max-h-72 overflow-y-auto">
+          {allowAll && (
+            <>
+              <button
+                type="button"
+                onClick={() => { onChange(allValue); setSearch(''); setOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                  value === allValue ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                }`}
+              >
+                <span className="h-6 w-6 shrink-0 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center">
+                  <Users size={12} />
+                </span>
+                <span className="flex-1 truncate">{allLabel}</span>
+                {value === allValue && <Check size={14} className="shrink-0 text-teal-600" />}
+              </button>
+              <div className="my-1 h-px bg-slate-100" />
+            </>
+          )}
+          {filtered.length > 0 ? (
+            filtered.map(o => {
+              const c = colorOf(o.id);
+              const active = value === o.id;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => { onChange(o.id); setSearch(o.name || ''); setOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                    active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                  }`}
+                >
+                  <span className={`h-6 w-6 shrink-0 rounded-full ${c.bg} ${c.text} text-[11px] font-bold flex items-center justify-center`}>
+                    {getInitials(o.name)}
+                  </span>
+                  <span className="flex-1 truncate">{o.name || '?'}</span>
+                  {active && <Check size={14} className="shrink-0 text-teal-600" />}
+                </button>
+              );
+            })
+          ) : (
+            <p className="px-4 py-2 text-sm text-slate-400 italic">Nessun risultato</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- Error Boundary ---
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
   constructor(props: any) {
@@ -447,22 +550,10 @@ function App() {
 
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
-  const [isTutorFilterOpen, setIsTutorFilterOpen] = useState(false);
   const [tutorSearch, setTutorSearch] = useState('');
   const [tutorSort, setTutorSort] = useState<'asc' | 'desc'>('asc');
   const [tutorStatusFilter, setTutorStatusFilter] = useState<'tutti' | 'attivo' | 'pausa' | 'archiviato'>('tutti');
   const [tutorRoleFilter, setTutorRoleFilter] = useState('tutti');
-  const tutorFilterRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (tutorFilterRef.current && !tutorFilterRef.current.contains(e.target as Node)) {
-        setIsTutorFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -472,19 +563,6 @@ function App() {
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
   const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
-  const [isSummaryFilterOpen, setIsSummaryFilterOpen] = useState(false);
-  const [summaryFilterSearch, setSummaryFilterSearch] = useState('');
-  const summaryFilterRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (summaryFilterRef.current && !summaryFilterRef.current.contains(e.target as Node)) {
-        setIsSummaryFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -1576,14 +1654,17 @@ function App() {
               </button>
             ))}
           </div>
-          <select
-            className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+          <PersonCombo
+            options={tutors}
             value={youthTutorFilter}
-            onChange={e => setYouthTutorFilter(e.target.value)}
-          >
-            <option value="tutti">Tutti i referenti</option>
-            {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+            onChange={setYouthTutorFilter}
+            placeholder="Tutti i referenti"
+            colorOf={id => getTutorColor(id, tutors)}
+            allowAll
+            allLabel="Tutti i referenti"
+            allValue="tutti"
+            className="w-64"
+          />
           <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
             {filtered.length} su {allYouths.length} profili
           </span>
@@ -1746,53 +1827,17 @@ function App() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <div className="relative" ref={tutorFilterRef}>
-                <button
-                  onClick={() => setIsTutorFilterOpen(o => !o)}
-                  title="Filtra per tutor"
-                  className={`px-4 py-2.5 bg-white rounded-xl flex items-center gap-2 border shadow-sm hover:shadow transition-all font-semibold text-sm ${
-                    tutorFilter === 'all'
-                      ? 'text-slate-600 border-slate-200 hover:bg-slate-50'
-                      : 'text-teal-600 border-teal-200 hover:bg-teal-50'
-                  }`}
-                >
-                  <Users size={16} className="shrink-0" />
-                  <span className="max-w-[140px] truncate">
-                    {tutorFilter === 'all' ? 'Tutti' : (tutors.find(t => t.id === tutorFilter)?.name || 'Tutti')}
-                  </span>
-                  <ChevronDown size={14} className={`shrink-0 transition-transform ${isTutorFilterOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isTutorFilterOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
-                    <button
-                      onClick={() => { setTutorFilter('all'); setIsTutorFilterOpen(false); }}
-                      className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                        tutorFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                      }`}
-                    >
-                      Tutti
-                      {tutorFilter === 'all' && <Check size={14} className="text-teal-600" />}
-                    </button>
-                    <div className="my-1 h-px bg-slate-100" />
-                    {tutors.map(t => {
-                      const active = tutorFilter === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => { setTutorFilter(t.id); setIsTutorFilterOpen(false); }}
-                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                            active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                          }`}
-                        >
-                          {t.name}
-                          {active && <Check size={14} className="text-teal-600" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <PersonCombo
+                options={tutors}
+                value={tutorFilter}
+                onChange={setTutorFilter}
+                placeholder="Tutti"
+                colorOf={id => getTutorColor(id, tutors)}
+                allowAll
+                allLabel="Tutti"
+                allValue="all"
+                className="w-56"
+              />
               {isPlan && (
                 <button
                   onClick={async () => {
@@ -2417,81 +2462,17 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative" ref={summaryFilterRef}>
-              {(() => {
-                const summaryPersonList = summaryViewMode === 'TUTORS' ? tutors : youths;
-                const selectedPerson = summaryPersonFilter === 'all'
-                  ? null
-                  : summaryPersonList.find(p => p.id === summaryPersonFilter) || null;
-                const inputValue = isSummaryFilterOpen
-                  ? summaryFilterSearch
-                  : (selectedPerson?.name || '');
-                return (
-                  <>
-                    <div className={`flex items-center gap-2 px-3 py-2.5 bg-white rounded-xl border shadow-sm transition-all font-semibold text-sm ${
-                      summaryPersonFilter !== 'all' ? 'border-teal-200 text-teal-600' : 'border-slate-200 text-slate-600'
-                    }`}>
-                      <Users size={16} className="shrink-0 text-slate-400" />
-                      <input
-                        type="text"
-                        value={inputValue}
-                        placeholder={summaryPersonFilter === 'all' ? 'Tutti...' : ''}
-                        onFocus={() => { setIsSummaryFilterOpen(true); setSummaryFilterSearch(selectedPerson?.name || ''); }}
-                        onChange={e => { setIsSummaryFilterOpen(true); setSummaryFilterSearch(e.target.value); }}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') { setIsSummaryFilterOpen(false); setSummaryFilterSearch(selectedPerson?.name || ''); }
-                          if (e.key === 'Enter') { setIsSummaryFilterOpen(false); }
-                        }}
-                        className="w-36 outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400"
-                      />
-                      <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${isSummaryFilterOpen ? 'rotate-180' : ''}`} />
-                    </div>
-
-                    {isSummaryFilterOpen && (
-                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
-                        <button
-                          onClick={() => { setSummaryPersonFilter('all'); setSummaryFilterSearch(''); setIsSummaryFilterOpen(false); }}
-                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                            summaryPersonFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                          }`}
-                        >
-                          Tutti
-                          {summaryPersonFilter === 'all' && <Check size={14} className="text-teal-600" />}
-                        </button>
-                        <div className="my-1 h-px bg-slate-100" />
-                        {(() => {
-                          const q = summaryFilterSearch.trim().toLowerCase();
-                          const filtered = summaryPersonList.filter(p => !q || (p.name || '').toLowerCase().includes(q));
-                          return filtered.length > 0 ? (
-                            filtered.map(p => {
-                              const active = summaryPersonFilter === p.id;
-                              const c = summaryViewMode === 'TUTORS' ? getTutorColor(p.id, tutors) : getYouthColor(p.id, youths);
-                              return (
-                                <button
-                                  key={p.id}
-                                  onClick={() => { setSummaryPersonFilter(p.id); setSummaryFilterSearch(p.name || ''); setIsSummaryFilterOpen(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                                    active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                                  }`}
-                                >
-                                  <span className={`h-6 w-6 shrink-0 rounded-full ${c.bg} ${c.text} text-[11px] font-bold flex items-center justify-center`}>
-                                    {getInitials(p.name)}
-                                  </span>
-                                  <span className="flex-1 truncate">{p.name || '?'}</span>
-                                  {active && <Check size={14} className="shrink-0 text-teal-600" />}
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <p className="px-4 py-2 text-sm text-slate-400 italic">Nessun risultato</p>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+            <PersonCombo
+              options={summaryViewMode === 'TUTORS' ? tutors : youths}
+              value={summaryPersonFilter}
+              onChange={setSummaryPersonFilter}
+              placeholder="Tutti..."
+              colorOf={id => summaryViewMode === 'TUTORS' ? getTutorColor(id, tutors) : getYouthColor(id, youths)}
+              allowAll
+              allLabel="Tutti"
+              allValue="all"
+              className="w-56"
+            />
             <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
               <div className="flex flex-col">
                 <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Dal</label>
@@ -2763,25 +2744,23 @@ function App() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Tutor <span className="text-red-500">*</span></label>
-                <select
-                  className={fieldCls}
-                  value={editingShift?.tutorId}
-                  onChange={e => setEditingShift({ ...editingShift, tutorId: e.target.value })}
-                >
-                  <option value="">Seleziona Tutor</option>
-                  {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <PersonCombo
+                  options={tutors}
+                  value={editingShift?.tutorId || ''}
+                  onChange={id => setEditingShift({ ...editingShift, tutorId: id })}
+                  placeholder="Seleziona Tutor"
+                  colorOf={id => getTutorColor(id, tutors)}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a <span className="text-red-500">*</span></label>
-                <select
-                  className={fieldCls}
-                  value={editingShift?.youthId}
-                  onChange={e => setEditingShift({ ...editingShift, youthId: e.target.value })}
-                >
-                  <option value="">Seleziona Ragazzo/a</option>
-                  {youths.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
-                </select>
+                <PersonCombo
+                  options={youths}
+                  value={editingShift?.youthId || ''}
+                  onChange={id => setEditingShift({ ...editingShift, youthId: id })}
+                  placeholder="Seleziona Ragazzo/a"
+                  colorOf={id => getYouthColor(id, youths)}
+                />
               </div>
               {shiftModalMode === 'plan' ? (
                 <div>
@@ -3433,14 +3412,13 @@ function App() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Tutor referente</label>
-                <select
-                  className={fieldCls}
+                <PersonCombo
+                  options={tutors}
                   value={newYouth.referringTutorId || ''}
-                  onChange={e => setNewYouth({ ...newYouth, referringTutorId: e.target.value || null })}
-                >
-                  <option value="">—</option>
-                  {tutors.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                  onChange={id => setNewYouth({ ...newYouth, referringTutorId: id || null })}
+                  placeholder="—"
+                  colorOf={id => getTutorColor(id, tutors)}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
