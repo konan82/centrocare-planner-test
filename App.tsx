@@ -974,6 +974,11 @@ function App() {
 
   // --- Drag and Drop Handlers ---
   const handleDragStart = (e: React.DragEvent, shiftId: string) => {
+    const s = shifts.find(x => x.id === shiftId);
+    if (s && (s.status === 'effettuato' || s.status === 'cancellato')) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData("text/plain", shiftId);
     e.dataTransfer.effectAllowed = "move";
     setDraggedShiftId(shiftId);
@@ -2110,6 +2115,8 @@ function App() {
                                   {layout.placed.map((p, idx) => {
                                     const shift = p.shift;
                                     const shiftStatus = shift.status || 'pianificato';
+                                    const effettuato = shiftStatus === 'effettuato';
+                                    const shiftLocked = effettuato || shiftStatus === 'cancellato';
                                     const tutor = tutors.find(t => t.id === shift.tutorId);
                                     const youth = youths.find(y => y.id === shift.youthId);
                                     const isDragging = draggedShiftId === shift.id;
@@ -2121,10 +2128,10 @@ function App() {
                                     return (
                                       <div
                                         key={shift.id}
-                                        draggable={shiftStatus !== 'cancellato'}
+                                        draggable={!shiftLocked}
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); openShiftModal(shift, isPlan ? 'plan' : 'validate'); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] cursor-move shadow-sm hover:shadow-md overflow-hidden group/item
+                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] ${shiftLocked ? 'cursor-default' : 'cursor-move'} shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                           ${shiftStatus === 'cancellato' ? 'opacity-45 grayscale' : ''}
@@ -2192,6 +2199,7 @@ function App() {
                                           </div>
                                         </div>
 
+                                        {!shiftLocked && (
                                         <div
                                           className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
                                           onPointerDown={(e) => {
@@ -2254,6 +2262,7 @@ function App() {
                                         >
                                           <div className="w-5 h-1 rounded-full bg-slate-500/80 opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none" />
                                         </div>
+                                        )}
                                       </div>
                                     );
                                   })}
