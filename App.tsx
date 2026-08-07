@@ -473,6 +473,7 @@ function App() {
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
   const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
   const [isSummaryFilterOpen, setIsSummaryFilterOpen] = useState(false);
+  const [summaryFilterSearch, setSummaryFilterSearch] = useState('');
   const summaryFilterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -2417,55 +2418,75 @@ function App() {
 
           <div className="flex items-center gap-4">
             <div className="relative" ref={summaryFilterRef}>
-              <button
-                onClick={() => setIsSummaryFilterOpen(o => !o)}
-                title="Filtra per persona"
-                className={`px-4 py-2.5 bg-white rounded-xl flex items-center gap-2 border shadow-sm hover:shadow transition-all font-semibold text-sm ${
-                  summaryPersonFilter === 'all'
-                    ? 'text-slate-600 border-slate-200 hover:bg-slate-50'
-                    : 'text-teal-600 border-teal-200 hover:bg-teal-50'
-                }`}
-              >
-                <Users size={16} className="shrink-0" />
-                <span className="max-w-[140px] truncate">
-                  {summaryPersonFilter === 'all'
-                    ? 'Tutti'
-                    : (summaryViewMode === 'TUTORS'
-                        ? (tutors.find(t => t.id === summaryPersonFilter)?.name || 'Tutti')
-                        : (youths.find(y => y.id === summaryPersonFilter)?.name || 'Tutti'))}
-                </span>
-                <ChevronDown size={14} className={`shrink-0 transition-transform ${isSummaryFilterOpen ? 'rotate-180' : ''}`} />
-              </button>
+              {(() => {
+                const summaryPersonList = summaryViewMode === 'TUTORS' ? tutors : youths;
+                const selectedPerson = summaryPersonFilter === 'all'
+                  ? null
+                  : summaryPersonList.find(p => p.id === summaryPersonFilter) || null;
+                const inputValue = isSummaryFilterOpen
+                  ? summaryFilterSearch
+                  : (selectedPerson?.name || '');
+                return (
+                  <>
+                    <div className={`flex items-center gap-2 px-3 py-2.5 bg-white rounded-xl border shadow-sm transition-all font-semibold text-sm ${
+                      summaryPersonFilter !== 'all' ? 'border-teal-200 text-teal-600' : 'border-slate-200 text-slate-600'
+                    }`}>
+                      <Users size={16} className="shrink-0 text-slate-400" />
+                      <input
+                        type="text"
+                        value={inputValue}
+                        placeholder={summaryPersonFilter === 'all' ? 'Tutti...' : ''}
+                        onFocus={() => { setIsSummaryFilterOpen(true); setSummaryFilterSearch(selectedPerson?.name || ''); }}
+                        onChange={e => { setIsSummaryFilterOpen(true); setSummaryFilterSearch(e.target.value); }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') { setIsSummaryFilterOpen(false); setSummaryFilterSearch(selectedPerson?.name || ''); }
+                          if (e.key === 'Enter') { setIsSummaryFilterOpen(false); }
+                        }}
+                        className="w-36 outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400"
+                      />
+                      <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${isSummaryFilterOpen ? 'rotate-180' : ''}`} />
+                    </div>
 
-              {isSummaryFilterOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
-                  <button
-                    onClick={() => { setSummaryPersonFilter('all'); setIsSummaryFilterOpen(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                      summaryPersonFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                    }`}
-                  >
-                    Tutti
-                    {summaryPersonFilter === 'all' && <Check size={14} className="text-teal-600" />}
-                  </button>
-                  <div className="my-1 h-px bg-slate-100" />
-                  {(summaryViewMode === 'TUTORS' ? tutors : youths).map(p => {
-                    const active = summaryPersonFilter === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => { setSummaryPersonFilter(p.id); setIsSummaryFilterOpen(false); }}
-                        className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
-                          active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
-                        }`}
-                      >
-                        {p.name || '?'}
-                        {active && <Check size={14} className="text-teal-600" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                    {isSummaryFilterOpen && (
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
+                        <button
+                          onClick={() => { setSummaryPersonFilter('all'); setSummaryFilterSearch(''); setIsSummaryFilterOpen(false); }}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                            summaryPersonFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                          }`}
+                        >
+                          Tutti
+                          {summaryPersonFilter === 'all' && <Check size={14} className="text-teal-600" />}
+                        </button>
+                        <div className="my-1 h-px bg-slate-100" />
+                        {(() => {
+                          const q = summaryFilterSearch.trim().toLowerCase();
+                          const filtered = summaryPersonList.filter(p => !q || (p.name || '').toLowerCase().includes(q));
+                          return filtered.length > 0 ? (
+                            filtered.map(p => {
+                              const active = summaryPersonFilter === p.id;
+                              return (
+                                <button
+                                  key={p.id}
+                                  onClick={() => { setSummaryPersonFilter(p.id); setSummaryFilterSearch(p.name || ''); setIsSummaryFilterOpen(false); }}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                                    active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                                  }`}
+                                >
+                                  {p.name || '?'}
+                                  {active && <Check size={14} className="text-teal-600" />}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <p className="px-4 py-2 text-sm text-slate-400 italic">Nessun risultato</p>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
               <div className="flex flex-col">
