@@ -38,7 +38,9 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
-  ClipboardCheck
+  ClipboardCheck,
+  MousePointer2,
+  Play
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
@@ -1019,6 +1021,11 @@ function App() {
         };
         if (shiftToUpdate.isTemplate) {
           dbUpdate.template_weekday = weekdayOf(dateStr);
+        } else if ((shiftToUpdate.status || 'pianificato') === 'effettuato') {
+          dbUpdate.actual_start_time = newStartTime;
+          dbUpdate.actual_end_time = newEndTime;
+          updatedShift.actualStartTime = newStartTime;
+          updatedShift.actualEndTime = newEndTime;
         }
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
@@ -2219,7 +2226,11 @@ function App() {
                                             setResizingShiftId(null);
                                             const nEnd = fmt(endMin);
                                             setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
-                                            supabase.from('shifts').update({ end_time: nEnd }).eq('id', shift.id)
+                                            const dbResize: Record<string, any> = { end_time: nEnd };
+                                            if (!shift.isTemplate && (shift.status || 'pianificato') === 'effettuato') {
+                                              dbResize.actual_end_time = nEnd;
+                                            }
+                                            supabase.from('shifts').update(dbResize).eq('id', shift.id)
                                               .then(async ({ error }) => {
                                                 if (error) {
                                                   console.error('Error resizing shift:', error);
@@ -2667,7 +2678,8 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Inizio pianificato <span className="text-red-500">*</span></label>
                 <input
                   type="time"
-                  className={fieldCls}
+                  className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
+                  readOnly={shiftModalMode === 'validate'}
                   value={editingShift?.startTime}
                   onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
                 />
@@ -2676,72 +2688,109 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Fine pianificata <span className="text-red-500">*</span></label>
                 <input
                   type="time"
-                  className={fieldCls}
+                  className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
+                  readOnly={shiftModalMode === 'validate'}
                   value={editingShift?.endTime}
                   onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
                 />
               </div>
             </div>
+            {shiftModalMode === 'validate' && (
+              <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
+                <MousePointer2 size={14} />
+                Gli orari si modificano <strong>trascinando il box</strong> direttamente sul calendario.
+              </div>
+            )}
           </YouthSection>
 
           {editingShift?.id && shiftModalMode === 'validate' && (
             <YouthSection icon={<CheckCircle size={16} />} title="Consuntivo" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato del turno</label>
-                  <div className="flex gap-2">
-                    {[
-                      { v: 'pianificato', label: 'Pianificato', on: 'bg-teal-500 text-white border-teal-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-teal-400' },
-                      { v: 'effettuato', label: 'Effettuato', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
-                      { v: 'cancellato', label: 'Cancellato', on: 'bg-red-500 text-white border-red-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-red-400' },
-                    ].map(o => (
-                      <button
-                        key={o.v}
-                        type="button"
-                        onClick={() => setEditingShift({ ...editingShift, status: o.v })}
-                        className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition ${(editingShift.status || 'pianificato') === o.v ? o.on : o.off}`}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Esito del turno</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(() => {
+                      const st = editingShift.status || 'pianificato';
+                      const effOn = st === 'effettuato';
+                      const cancOn = st === 'cancellato';
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const turningOn = !effOn;
+                              setEditingShift({
+                                ...editingShift,
+                                status: turningOn ? 'effettuato' : 'pianificato',
+                                actualStartTime: turningOn ? (editingShift.actualStartTime || editingShift.startTime) : editingShift.actualStartTime,
+                                actualEndTime: turningOn ? (editingShift.actualEndTime || editingShift.endTime) : editingShift.actualEndTime,
+                              });
+                            }}
+                            className={`rounded-xl border-2 px-4 py-3 text-left transition ${
+                              effOn
+                                ? 'border-emerald-500 bg-emerald-500 text-white shadow-md'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50'
+                            } ${cancOn ? 'opacity-40' : ''}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold flex items-center gap-2">
+                                <span className={`w-6 h-6 rounded-md flex items-center justify-center ${effOn ? 'bg-white/20' : 'bg-emerald-100 text-emerald-600'}`}>
+                                  {effOn ? <Check size={14} /> : <Play size={14} />}
+                                </span>
+                                Effettuato
+                              </span>
+                              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${effOn ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>
+                                {effOn ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <p className={`text-xs mt-1.5 leading-snug ${effOn ? 'text-white/85' : 'text-slate-400'}`}>
+                              {effOn ? `Rapportato ed eseguito · ${getValidatedHours(editingShift)}h nel monte ore` : 'Ancora non eseguito · 0h nel monte ore'}
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const turningOn = !cancOn;
+                              setEditingShift({ ...editingShift, status: turningOn ? 'cancellato' : 'pianificato' });
+                            }}
+                            className={`rounded-xl border-2 px-4 py-3 text-left transition ${
+                              cancOn
+                                ? 'border-red-500 bg-red-500 text-white shadow-md'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50'
+                            } ${effOn ? 'opacity-40' : ''}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold flex items-center gap-2">
+                                <span className={`w-6 h-6 rounded-md flex items-center justify-center ${cancOn ? 'bg-white/20' : 'bg-red-100 text-red-600'}`}>
+                                  <X size={14} />
+                                </span>
+                                Cancellato
+                              </span>
+                              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cancOn ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>
+                                {cancOn ? 'ON' : 'OFF'}
+                              </span>
+                            </div>
+                            <p className={`text-xs mt-1.5 leading-snug ${cancOn ? 'text-white/85' : 'text-slate-400'}`}>
+                              {cancOn ? 'Turno saltato · non conteggiato, box in grigio' : 'Turno attivo'}
+                            </p>
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
+                  {((editingShift.status || 'pianificato') === 'pianificato') && (
+                    <p className="mt-2 text-xs text-slate-400">In attesa di esecuzione: non conteggiato nel monte ore finché non premi <strong>Effettuato</strong>.</p>
+                  )}
                 </div>
-                {(editingShift.status || 'pianificato') === 'effettuato' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Inizio effettivo</label>
-                      <input
-                        type="time"
-                        className={fieldCls}
-                        value={editingShift.actualStartTime || ''}
-                        onChange={e => setEditingShift({ ...editingShift, actualStartTime: e.target.value || null })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Fine effettiva</label>
-                      <input
-                        type="time"
-                        className={fieldCls}
-                        value={editingShift.actualEndTime || ''}
-                        onChange={e => setEditingShift({ ...editingShift, actualEndTime: e.target.value || null })}
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
-                      <textarea
-                        className={fieldCls + " min-h-[60px]"}
-                        placeholder="Come è andato il turno, variazioni, note..."
-                        value={editingShift.actualNotes || ''}
-                        onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
-                      />
-                    </div>
-                  </>
-                )}
-                {editingShift?.actualNotes && (editingShift.status || 'pianificato') === 'effettuato' && (
-                  <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                    <span className="font-semibold text-slate-700">Nota:</span> {editingShift.actualNotes}
-                  </div>
-                )}
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
+                  <textarea
+                    className={fieldCls + " min-h-[60px]"}
+                    placeholder="Come è andato il turno, variazioni, note..."
+                    value={editingShift.actualNotes || ''}
+                    onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
+                  />
+                </div>
               </div>
             </YouthSection>
           )}
