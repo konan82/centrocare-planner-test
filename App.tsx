@@ -2148,7 +2148,17 @@ function App() {
                                           width: `calc(${wPct}% - 2px)`,
                                         }}
                                       >
-                                        <div className="flex h-full flex-col min-w-0">
+                                        {effettuato && (
+                                          <div className="absolute inset-0 bg-emerald-300/40 pointer-events-none z-0"></div>
+                                        )}
+                                        {effettuato && (
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden">
+                                            <span className="uppercase font-black text-emerald-800/70 text-base sm:text-lg tracking-[0.3em] rotate-[-20deg] border-[3px] border-emerald-700/60 rounded-xl px-4 py-1 select-none whitespace-nowrap">
+                                              Effettivo
+                                            </span>
+                                          </div>
+                                        )}
+                                        <div className="flex h-full flex-col min-w-0 relative z-10">
                                           <div className="flex items-center gap-1.5 shrink-0">
                                             <span className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm`}>
                                               {getInitials(tutor?.name)}
@@ -2158,9 +2168,6 @@ function App() {
                                             </span>
                                             {shiftStatus === 'cancellato' && (
                                               <span className="shrink-0 px-1.5 py-px rounded bg-red-100 text-red-600 text-[10px] font-bold uppercase">Annullato</span>
-                                            )}
-                                            {shiftStatus === 'effettuato' && shift.actualStartTime && (
-                                              <span className="shrink-0 px-1.5 py-px rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Eff.</span>
                                             )}
                                             <button
                                               onClick={(e) => { e.stopPropagation(); handleDeleteShift(shift.id); }}
@@ -2182,9 +2189,9 @@ function App() {
 
                                             {shiftStatus === 'effettuato' && shift.actualStartTime && (
                                               <div className="flex items-center gap-1 min-w-0">
-                                                <CheckCircle size={12} className="text-emerald-600 shrink-0" />
-                                                <span className="rounded bg-emerald-50 px-1.5 py-px text-[12px] font-bold text-emerald-700 tabular-nums pointer-events-none truncate">
-                                                  Effettivo {shift.actualStartTime}–{shift.actualEndTime}
+                                                <Clock size={12} className="text-emerald-600 shrink-0" />
+                                                <span className="rounded bg-white/70 px-1.5 py-px text-[12px] font-bold text-emerald-800 tabular-nums pointer-events-none truncate">
+                                                  {shift.actualStartTime}–{shift.actualEndTime}
                                                 </span>
                                               </div>
                                             )}
