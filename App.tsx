@@ -2771,7 +2771,16 @@ function App() {
                               </span>
                             </div>
                             <p className={`text-xs mt-1.5 leading-snug ${effOn ? 'text-white/85' : 'text-slate-400'}`}>
-                              {effOn ? `Rapportato ed eseguito · ${getValidatedHours(editingShift)}h nel monte ore` : 'Ancora non eseguito · 0h nel monte ore'}
+                              {effOn ? (
+                                <>
+                                  Rapportato ed eseguito · <strong>{getValidatedHours(editingShift)}h</strong> nel monte ore
+                                  <span className="block mt-1 rounded-lg bg-white/15 px-2 py-1 tabular-nums">
+                                    Inizio <strong>{editingShift.actualStartTime || editingShift.startTime}</strong> · Fine <strong>{editingShift.actualEndTime || editingShift.endTime}</strong>
+                                  </span>
+                                </>
+                              ) : (
+                                'Ancora non eseguito · 0h nel monte ore'
+                              )}
                             </p>
                           </button>
                           <button
