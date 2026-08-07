@@ -2435,85 +2435,80 @@ function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
-                    <CalendarIcon size={16} className="mr-2" /> Per Mese
-                  </h4>
-                  <div className="space-y-2">
-                    {(() => {
-                      const keys = Array.from(new Set([...Object.keys(data.monthlyHours), ...Object.keys(data.plannedMonthlyHours)]));
-                      return keys.length > 0 ? (
-                        keys.map(month => {
-                          const hrs = Number(data.monthlyHours[month] || 0);
-                          const planned = Number(data.plannedMonthlyHours[month] || 0);
-                          const delta = hrs - planned;
-                          return (
-                            <div key={month} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                              <span className="capitalize text-slate-700">{month}</span>
-                              <span className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">Pian {planned.toFixed(1)}h</span>
-                                {Math.abs(delta) > 0.01 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
-                                  </span>
-                                )}
-                                <span className={`font-bold ${data.type === 'TUTOR' ? 'text-teal-600' : 'text-amber-600'}`}>{hrs.toFixed(1)}h</span>
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">Nessun dato mensile</p>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
-                    <Clock size={16} className="mr-2" /> Per Settimana
-                  </h4>
-                  <div className="space-y-2">
-                    {(() => {
-                      const keys = Array.from(new Set([...Object.keys(data.weeklyHours), ...Object.keys(data.plannedWeeklyHours)]));
-                      return keys.length > 0 ? (
-                        keys.map(week => {
-                          const hrs = Number(data.weeklyHours[week] || 0);
-                          const isOverLimit = data.type === 'TUTOR' && hrs > data.targetHours;
-                          const isUnderTarget = data.type === 'YOUTH' && hrs < data.targetHours;
-                          const planned = Number(data.plannedWeeklyHours[week] || 0);
-                          const delta = hrs - planned;
-
-                          let textColor = 'text-teal-600';
-                          if (data.type === 'YOUTH') textColor = 'text-amber-600';
-                          if (isOverLimit) textColor = 'text-red-500';
-                          if (isUnderTarget) textColor = 'text-orange-500';
-
-                          return (
-                            <div key={week} className="flex justify-between items-center bg-slate-50 p-2 rounded">
-                              <span className="text-slate-700">{week}</span>
-                              <span className="flex items-center gap-2">
-                                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">Pian {planned.toFixed(1)}h</span>
-                                {Math.abs(delta) > 0.01 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${delta >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h
-                                  </span>
-                                )}
-                                <span className={`font-bold ${textColor}`}>
-                                  {hrs.toFixed(1)}h
-                                  {isOverLimit && <AlertTriangle size={14} className="inline ml-1" />}
-                                  {isUnderTarget && <AlertTriangle size={14} className="inline ml-1" />}
+                {(() => {
+                  const doneColor = data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700';
+                  const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string) => (
+                    rows.length > 0 ? (
+                      <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          <span>Periodo</span>
+                          <span className="text-right">Pianificato</span>
+                          <span className="text-right">Effettuato</span>
+                          <span className="text-right">Delta</span>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {rows.map(r => {
+                            const delta = r.done - r.planned;
+                            const deltaBadge = Math.abs(delta) < 0.005
+                              ? 'bg-slate-200/70 text-slate-600'
+                              : delta > 0
+                                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                                : 'bg-red-50 text-red-600 ring-1 ring-red-200';
+                            const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
+                            return (
+                              <div key={r.label} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors">
+                                <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
+                                <span className="text-right text-sm text-slate-500 tabular-nums">{r.planned.toFixed(1)}h</span>
+                                <span className={`text-right text-sm font-bold tabular-nums ${doneTxt}`}>
+                                  {r.done.toFixed(1)}h
+                                  {r.over && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
+                                  {r.under && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
                                 </span>
-                              </span>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">Nessun dato settimanale</p>
-                      );
-                    })()}
-                  </div>
-                </div>
+                                <span className={`text-right text-xs font-bold px-2 py-1 rounded-full tabular-nums min-w-[64px] text-center ${deltaBadge}`}>
+                                  {Math.abs(delta) < 0.005 ? '0.0' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}`}h
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400 italic">{emptyMsg}</p>
+                    )
+                  );
+
+                  const monthRows = Array.from(new Set([...Object.keys(data.monthlyHours), ...Object.keys(data.plannedMonthlyHours)]))
+                    .map(month => ({
+                      label: month,
+                      planned: Number(data.plannedMonthlyHours[month] || 0),
+                      done: Number(data.monthlyHours[month] || 0),
+                    }));
+                  const weekRows = Array.from(new Set([...Object.keys(data.weeklyHours), ...Object.keys(data.plannedWeeklyHours)]))
+                    .map(week => ({
+                      label: week,
+                      planned: Number(data.plannedWeeklyHours[week] || 0),
+                      done: Number(data.weeklyHours[week] || 0),
+                      over: data.type === 'TUTOR' && Number(data.weeklyHours[week] || 0) > data.targetHours,
+                      under: data.type === 'YOUTH' && Number(data.weeklyHours[week] || 0) < data.targetHours,
+                    }));
+
+                  return (
+                    <>
+                      <div>
+                        <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
+                          <CalendarIcon size={16} className="mr-2" /> Per Mese
+                        </h4>
+                        {renderGrid(monthRows, 'Nessun dato mensile')}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
+                          <Clock size={16} className="mr-2" /> Per Settimana
+                        </h4>
+                        {renderGrid(weekRows, 'Nessun dato settimanale')}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </Card>
           ))}
