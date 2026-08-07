@@ -1031,6 +1031,11 @@ function App() {
           dbUpdate.actual_end_time = newEndTime;
           updatedShift.actualStartTime = newStartTime;
           updatedShift.actualEndTime = newEndTime;
+        } else {
+          dbUpdate.actual_start_time = null;
+          dbUpdate.actual_end_time = null;
+          updatedShift.actualStartTime = null;
+          updatedShift.actualEndTime = null;
         }
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
@@ -2237,6 +2242,8 @@ function App() {
                                             const dbResize: Record<string, any> = { end_time: nEnd };
                                             if (!shift.isTemplate && (shift.status || 'pianificato') === 'effettuato') {
                                               dbResize.actual_end_time = nEnd;
+                                            } else if (!shift.isTemplate) {
+                                              dbResize.actual_end_time = null;
                                             }
                                             supabase.from('shifts').update(dbResize).eq('id', shift.id)
                                               .then(async ({ error }) => {
@@ -2731,8 +2738,8 @@ function App() {
                               setEditingShift({
                                 ...editingShift,
                                 status: turningOn ? 'effettuato' : 'pianificato',
-                                actualStartTime: turningOn ? (editingShift.actualStartTime || editingShift.startTime) : editingShift.actualStartTime,
-                                actualEndTime: turningOn ? (editingShift.actualEndTime || editingShift.endTime) : editingShift.actualEndTime,
+                                actualStartTime: turningOn ? editingShift.startTime : editingShift.actualStartTime,
+                                actualEndTime: turningOn ? editingShift.endTime : editingShift.actualEndTime,
                               });
                             }}
                             className={`rounded-xl border-2 px-4 py-3 text-left transition ${
