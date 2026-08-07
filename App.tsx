@@ -1716,6 +1716,9 @@ function App() {
                     }`}
                   >
                     {format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-teal-100 text-teal-700 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                      Sett. {getISOWeek(calendarDays[0])}
+                    </span>
                   </button>
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, 7))}
