@@ -837,7 +837,7 @@ function App() {
     }
   };
 
-  // Materializza la settimana visibile quando si entra in Validazione Turni o si cambia settimana
+  // Materializza la settimana visibile quando si entra in Consuntivo Turni o si cambia settimana
   useEffect(() => {
     if (view !== 'VALIDATION') return;
     materializeWeek(startOfWeek(currentDate, { weekStartsOn: 1 }));
@@ -1099,7 +1099,7 @@ function App() {
           {hasPermission('DASHBOARD') && (
             <button onClick={() => setView('VALIDATION')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
               <ClipboardCheck size={20} />
-              <span>Validazione Turni</span>
+              <span>Consuntivo Turni</span>
             </button>
           )}
           {hasPermission('TUTORS') && (
@@ -1164,7 +1164,7 @@ function App() {
               {hasPermission('DASHBOARD') && (
                 <button onClick={() => { setView('VALIDATION'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
                   <ClipboardCheck size={20} />
-                  <span>Validazione Turni</span>
+                  <span>Consuntivo Turni</span>
                 </button>
               )}
               {/* ... other mobile items ... */}
@@ -1689,7 +1689,7 @@ function App() {
               </div>
               <div>
                 <h2 className="text-lg font-extrabold text-slate-800 tracking-tight leading-tight">
-                  {isPlan ? 'Pianificazione Turni' : 'Validazione Turni'}
+                  {isPlan ? 'Pianificazione Turni' : 'Consuntivo Turni'}
                 </h2>
                 <p className="text-xs text-slate-400 font-medium">
                   {isPlan
