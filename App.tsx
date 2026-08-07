@@ -2465,16 +2465,20 @@ function App() {
                           return filtered.length > 0 ? (
                             filtered.map(p => {
                               const active = summaryPersonFilter === p.id;
+                              const c = summaryViewMode === 'TUTORS' ? getTutorColor(p.id, tutors) : getYouthColor(p.id, youths);
                               return (
                                 <button
                                   key={p.id}
                                   onClick={() => { setSummaryPersonFilter(p.id); setSummaryFilterSearch(p.name || ''); setIsSummaryFilterOpen(false); }}
-                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left hover:bg-slate-50 ${
                                     active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
                                   }`}
                                 >
-                                  {p.name || '?'}
-                                  {active && <Check size={14} className="text-teal-600" />}
+                                  <span className={`h-6 w-6 shrink-0 rounded-full ${c.bg} ${c.text} text-[11px] font-bold flex items-center justify-center`}>
+                                    {getInitials(p.name)}
+                                  </span>
+                                  <span className="flex-1 truncate">{p.name || '?'}</span>
+                                  {active && <Check size={14} className="shrink-0 text-teal-600" />}
                                 </button>
                               );
                             })
