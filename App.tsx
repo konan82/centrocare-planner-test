@@ -2751,10 +2751,10 @@ function App() {
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 overflow-x-clip">
       {renderSidebar()}
 
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen min-w-0">
+      <div className="flex-1 md:ml-64 flex flex-col h-dvh min-w-0">
         {renderMobileHeader()}
 
-        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-y-auto min-w-0">
+        <main className="flex-1 min-h-0 overflow-y-auto min-w-0">
           {isLoading && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-8 shadow-xl text-center">
@@ -2765,12 +2765,14 @@ function App() {
             </div>
           )}
 
-          {view === 'DASHBOARD' && renderCalendar('plan')}
-          {view === 'VALIDATION' && renderCalendar('validate')}
-          {view === 'TUTORS' && renderTutorsList()}
-          {view === 'YOUTHS' && renderYouthsList()}
-          {view === 'SUMMARY' && renderSummary()}
-          {view === 'USER_MANAGEMENT' && <UserManagementView />}
+          <div className="p-3 sm:p-4 md:p-8">
+            {view === 'DASHBOARD' && renderCalendar('plan')}
+            {view === 'VALIDATION' && renderCalendar('validate')}
+            {view === 'TUTORS' && renderTutorsList()}
+            {view === 'YOUTHS' && renderYouthsList()}
+            {view === 'SUMMARY' && renderSummary()}
+            {view === 'USER_MANAGEMENT' && <UserManagementView />}
+          </div>
         </main>
       </div>
 
