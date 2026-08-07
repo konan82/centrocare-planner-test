@@ -2440,7 +2440,7 @@ function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {(() => {
                   const doneColor = data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700';
-                  const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string) => (
+                  const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string, flashNegative = false) => (
                     rows.length > 0 ? (
                       <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
                         <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -2459,7 +2459,7 @@ function App() {
                                 : 'bg-red-50 text-red-600 ring-1 ring-red-200';
                             const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
                             return (
-                              <div key={r.label} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors">
+                              <div key={r.label} className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
                                 <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
                                 <span className="text-right text-sm text-slate-500 tabular-nums">{r.planned.toFixed(1)}h</span>
                                 <span className={`text-right text-sm font-bold tabular-nums ${doneTxt}`}>
@@ -2507,7 +2507,7 @@ function App() {
                         <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
                           <Clock size={16} className="mr-2" /> Per Settimana
                         </h4>
-                        {renderGrid(weekRows, 'Nessun dato settimanale')}
+                        {renderGrid(weekRows, 'Nessun dato settimanale', true)}
                       </div>
                     </>
                   );

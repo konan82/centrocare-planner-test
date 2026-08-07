@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+@keyframes rowFlash {
+  0%, 100% { background-color: rgb(254 226 226 / 0.95); }
+  50% { background-color: rgb(255 255 255); }
+}
+.animate-row-flash {
+  animation: rowFlash 1.2s ease-in-out infinite;
+}
