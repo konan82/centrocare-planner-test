@@ -1802,27 +1802,27 @@ function App() {
                 </p>
               </div>
               {!isPlan && (
-                <div className="flex items-center gap-1.5 ml-1 lg:ml-3">
+                <div className="flex items-center gap-2 ml-1 lg:ml-3">
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, -7))}
                     title="Settimana precedente"
-                    className="p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 hover:shadow active:scale-95 transition-all text-slate-600"
+                    className="p-3.5 rounded-2xl border-2 border-slate-200 bg-white shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={22} />
                   </button>
                   <button
                     onClick={() => setCurrentDate(new Date())}
                     title="Torna alla settimana corrente"
-                    className={`px-3 py-2 rounded-xl text-xs font-bold shadow-sm transition-all ${
+                    className={`px-5 py-3 rounded-2xl text-sm font-bold shadow-md transition-all ${
                       isSameDay(calendarDays[0], startOfWeek(new Date(), { weekStartsOn: 1 }))
-                        ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400'
-                        : 'text-slate-700 border border-slate-200 bg-white hover:bg-slate-50'
+                        ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                        : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
-                    <span className="flex items-center gap-1.5">
-                      <CalendarIcon size={14} className="text-teal-600" />
-                      {format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}
-                      <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
+                    <span className="flex items-center gap-2">
+                      <CalendarIcon size={16} className="text-teal-600" />
+                      <span className="tracking-tight">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2.5 py-1 text-xs font-bold tabular-nums shadow-sm">
                         Sett. {getISOWeek(calendarDays[0])}
                       </span>
                     </span>
@@ -1830,9 +1830,9 @@ function App() {
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, 7))}
                     title="Settimana successiva"
-                    className="p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 hover:shadow active:scale-95 transition-all text-slate-600"
+                    className="p-3.5 rounded-2xl border-2 border-slate-200 bg-white shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
                   >
-                    <ChevronRight size={18} />
+                    <ChevronRight size={22} />
                   </button>
                 </div>
               )}
