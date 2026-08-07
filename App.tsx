@@ -2718,13 +2718,13 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 overflow-x-clip">
       {renderSidebar()}
 
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen min-w-0">
         {renderMobileHeader()}
 
-        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-y-auto min-w-0">
           {isLoading && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-8 shadow-xl text-center">
