@@ -7,3 +7,11 @@
 .animate-row-flash {
   animation: rowFlash 1.2s ease-in-out infinite;
 }
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.25s ease-out;
+}

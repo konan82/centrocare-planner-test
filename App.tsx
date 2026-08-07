@@ -168,13 +168,13 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'} overflow-hidden animate-fadeIn`}>
-        <div className="flex justify-between items-center p-4 border-b bg-teal-600 text-white">
-          <h3 className="font-semibold text-lg">{title}</h3>
-          <button onClick={onClose}><X size={20} /></button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 p-0 sm:p-4">
+      <div className={`bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'} overflow-hidden animate-fadeIn sm:max-h-[90vh] max-h-[92dvh]`}>
+        <div className="flex justify-between items-center px-4 sm:px-5 py-3 sm:py-4 border-b bg-teal-600 text-white">
+          <h3 className="font-semibold text-base sm:text-lg leading-tight">{title}</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={20} /></button>
         </div>
-        <div className="p-6 text-slate-900 max-h-[80vh] overflow-y-auto">
+        <div className="p-4 sm:p-6 text-slate-900 max-h-[calc(92dvh-4rem)] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -1241,20 +1241,29 @@ function App() {
 
       {/* Mobile Sidebar */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black bg-opacity-50" onClick={() => setIsMobileMenuOpen(false)}>
-          <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-                  CentroCare
-                </h1>
-                <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+        <div className="md:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-900 text-slate-100 flex flex-col shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-700">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
+                    CentroCare
+                  </h1>
+                  <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+                </div>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-white transition-colors">
+                  <X size={24} />
+                </button>
               </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2">
-                <X size={24} />
-              </button>
+              <div className="mt-4 flex items-center text-xs text-slate-300 bg-slate-800 p-2 rounded">
+                <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center mr-2 font-bold shrink-0">
+                  {currentUser?.username?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <span className="truncate">{currentUser?.username || 'Utente'}</span>
+              </div>
             </div>
-            <nav className="flex-1 p-4 space-y-2">
+            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
               {hasPermission('DASHBOARD') && (
                 <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
                   <CalendarIcon size={20} />
@@ -1267,25 +1276,75 @@ function App() {
                   <span>Consuntivo Turni</span>
                 </button>
               )}
-              {/* ... other mobile items ... */}
-              {/* Simplified for brevity, assume similar logic for mobile */}
-              <button onClick={handleLogout} className="flex items-center space-x-3 w-full p-3 rounded-lg hover:bg-red-900/30 text-slate-300 hover:text-red-400 transition-colors mt-auto">
+              {hasPermission('TUTORS') && (
+                <button onClick={() => { setView('TUTORS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                  <UserCheck size={20} />
+                  <span>Gestione Tutor</span>
+                </button>
+              )}
+              {hasPermission('YOUTHS') && (
+                <button onClick={() => { setView('YOUTHS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                  <Users size={20} />
+                  <span>Anagrafica Ragazzi</span>
+                </button>
+              )}
+              {hasPermission('SUMMARY') && (
+                <button onClick={() => { setView('SUMMARY'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'SUMMARY' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                  <BarChart3 size={20} />
+                  <span>Riepilogo Ore</span>
+                </button>
+              )}
+              {hasPermission('ALL') && (
+                <>
+                  <div className="border-t border-slate-700 my-2 pt-2"></div>
+                  <button onClick={() => { setView('USER_MANAGEMENT'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'USER_MANAGEMENT' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
+                    <Settings size={20} />
+                    <span>Gestione Utenti</span>
+                  </button>
+                </>
+              )}
+            </nav>
+            <div className="p-4 border-t border-slate-700">
+              <button onClick={handleLogout} className="flex items-center space-x-3 w-full p-3 rounded-lg hover:bg-red-900/30 text-slate-300 hover:text-red-400 transition-colors">
                 <LogOut size={20} />
                 <span>Disconnetti</span>
               </button>
-            </nav>
+            </div>
           </div>
         </div>
       )}
     </>
   );
 
-  const renderMobileHeader = () => (
-    <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-20">
-      <span className="font-bold text-lg">CentroCare</span>
-      <button onClick={() => setIsMobileMenuOpen(true)} className="p-2"><Menu /></button>
-    </div>
-  );
+  const renderMobileHeader = () => {
+    const viewLabel = view === 'DASHBOARD' ? 'Pianificazione Turni'
+      : view === 'VALIDATION' ? 'Consuntivo Turni'
+      : view === 'TUTORS' ? 'Gestione Tutor'
+      : view === 'YOUTHS' ? 'Anagrafica Ragazzi'
+      : view === 'SUMMARY' ? 'Riepilogo Ore'
+      : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
+      : 'CentroCare';
+    return (
+      <div className="md:hidden bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center sticky top-0 z-30 shadow-lg shadow-black/20">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-md shrink-0">
+            <CalendarIcon size={18} />
+          </span>
+          <div className="leading-tight min-w-0">
+            <span className="block font-bold text-sm">CentroCare</span>
+            <span className="block text-[11px] text-teal-300 font-medium truncate">{viewLabel}</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all"
+          aria-label="Apri menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+    );
+  };
 
   const renderTutorsList = () => {
     const allTutors = Array.isArray(tutors) ? tutors : [];
@@ -1782,12 +1841,12 @@ function App() {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
     return (
-      <div className="space-y-4 md:space-y-6 h-[calc(100dvh-7rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
+      <div className="space-y-3 md:space-y-6 h-[calc(100dvh-8.5rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
         <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
           <div className={`h-1.5 rounded-t-2xl ${isPlan ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400'}`}></div>
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center px-5 py-4 gap-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className={`p-2.5 rounded-xl text-white shadow-md ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
                 {isPlan ? <CalendarIcon size={20} /> : <ClipboardCheck size={20} />}
               </div>
@@ -1802,27 +1861,27 @@ function App() {
                 </p>
               </div>
               {!isPlan && (
-                <div className="flex items-center gap-2 ml-1 lg:ml-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto ml-0 lg:ml-3">
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, -7))}
                     title="Settimana precedente"
-                    className="p-3.5 rounded-2xl border-2 border-slate-200 bg-white shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                    className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
                   >
-                    <ChevronLeft size={22} />
+                    <ChevronLeft size={20} />
                   </button>
                   <button
                     onClick={() => setCurrentDate(new Date())}
                     title="Torna alla settimana corrente"
-                    className={`px-5 py-3 rounded-2xl text-sm font-bold shadow-md transition-all ${
+                    className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
                       isSameDay(calendarDays[0], startOfWeek(new Date(), { weekStartsOn: 1 }))
                         ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
                         : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <CalendarIcon size={16} className="text-teal-600" />
-                      <span className="tracking-tight">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2.5 py-1 text-xs font-bold tabular-nums shadow-sm">
+                    <span className="flex items-center gap-1.5 md:gap-2">
+                      <CalendarIcon size={14} className="text-teal-600" />
+                      <span className="tracking-tight whitespace-nowrap">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
+                      <span className="inline-flex items-center gap-1 rounded-md md:rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2 py-0.5 md:px-2.5 md:py-1 text-[10px] md:text-xs font-bold tabular-nums shadow-sm">
                         Sett. {getISOWeek(calendarDays[0])}
                       </span>
                     </span>
@@ -1830,9 +1889,9 @@ function App() {
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, 7))}
                     title="Settimana successiva"
-                    className="p-3.5 rounded-2xl border-2 border-slate-200 bg-white shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                    className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
                   >
-                    <ChevronRight size={22} />
+                    <ChevronRight size={20} />
                   </button>
                 </div>
               )}
@@ -1848,7 +1907,7 @@ function App() {
                 allowAll
                 allLabel="Tutti"
                 allValue="all"
-                className="w-56"
+                className="w-full sm:w-56"
               />
               {isPlan && (
                 <button
@@ -2473,7 +2532,7 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <PersonCombo
               options={summaryViewMode === 'TUTORS' ? tutors : youths}
               value={summaryPersonFilter}
@@ -2483,7 +2542,7 @@ function App() {
               allowAll
               allLabel="Tutti"
               allValue="all"
-              className="w-56"
+              className="w-full sm:w-56"
             />
             <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
               <div className="flex flex-col">
@@ -2528,10 +2587,10 @@ function App() {
                   const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string, flashNegative = false) => (
                     rows.length > 0 ? (
                       <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                           <span>Periodo</span>
-                          <span className="text-right">Pianificato</span>
-                          <span className="text-right">Effettuato</span>
+                          <span className="text-right">Pianif.</span>
+                          <span className="text-right">Effett.</span>
                           <span className="text-right">Delta</span>
                         </div>
                         <div className="divide-y divide-slate-100">
@@ -2544,7 +2603,7 @@ function App() {
                                 : 'bg-red-50 text-red-600 ring-1 ring-red-200';
                             const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
                             return (
-                              <div key={r.label} className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
+                              <div key={r.label} className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
                                 <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
                                 <span className="text-right text-sm text-slate-500 tabular-nums">{r.planned.toFixed(1)}h</span>
                                 <span className={`text-right text-sm font-bold tabular-nums ${doneTxt}`}>
@@ -2661,7 +2720,7 @@ function App() {
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
         {renderMobileHeader()}
 
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-4 md:p-8 overflow-y-auto">
           {isLoading && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-8 shadow-xl text-center">
