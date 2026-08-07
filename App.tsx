@@ -1193,10 +1193,11 @@ function App() {
 
     const sidebarDecor = (
       <>
-        <div className="pointer-events-none absolute -top-24 -right-20 w-72 h-72 rounded-full bg-cyan-300/25 blur-3xl"></div>
-        <div className="pointer-events-none absolute top-1/3 -left-24 w-80 h-80 rounded-full bg-violet-400/25 blur-3xl"></div>
-        <div className="pointer-events-none absolute -bottom-16 -right-10 w-72 h-72 rounded-full bg-emerald-200/30 blur-3xl"></div>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-white/70 to-amber-300"></div>
+        <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 7px)' }}></div>
+        <div className="pointer-events-none absolute -top-24 -right-20 w-72 h-72 rounded-full bg-teal-500/15 blur-3xl"></div>
+        <div className="pointer-events-none absolute top-1/3 -left-24 w-80 h-80 rounded-full bg-violet-500/10 blur-3xl"></div>
+        <div className="pointer-events-none absolute -bottom-16 -right-10 w-72 h-72 rounded-full bg-emerald-400/15 blur-3xl"></div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-400/60 via-white/20 to-emerald-400/60"></div>
       </>
     );
 
@@ -1209,8 +1210,8 @@ function App() {
           onClick={onNavigate}
           className={`group relative flex items-center w-full p-2.5 rounded-xl transition-all duration-200 active:scale-[0.98] ${
             active
-              ? 'bg-white/25 ring-1 ring-white/40 shadow-lg shadow-indigo-900/25'
-              : 'hover:bg-white/15 hover:ring-1 hover:ring-white/20'
+              ? 'bg-white/15 ring-1 ring-white/25 shadow-lg shadow-black/40'
+              : 'hover:bg-white/10 hover:ring-1 hover:ring-white/15'
           }`}
         >
           <span className={`flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-md ring-1 ring-white/50 ${item.chipText} shrink-0 transition-transform duration-200 group-hover:scale-105 ${active ? 'scale-105' : ''}`}>
@@ -1227,9 +1228,9 @@ function App() {
     return (
       <>
       {/* Desktop Sidebar */}
-      <div className="w-64 bg-gradient-to-b from-indigo-700 via-teal-700 to-emerald-700 text-white flex flex-col h-screen fixed left-0 top-0 z-50 shadow-2xl shadow-indigo-900/40 hidden md:flex overflow-hidden">
+      <div className="w-64 bg-gradient-to-b from-zinc-900 via-slate-900 to-black text-white flex flex-col h-screen fixed left-0 top-0 z-50 shadow-2xl shadow-black/60 hidden md:flex overflow-hidden">
         {sidebarDecor}
-        <div className="relative p-6 border-b border-white/15">
+        <div className="relative p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="CentroCare" className="h-11 w-11 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
             <div className="min-w-0">
@@ -1262,7 +1263,7 @@ function App() {
           )}
         </nav>
 
-        <div className="relative p-4 border-t border-white/15 bg-black/10">
+        <div className="relative p-4 border-t border-white/10 bg-black/30">
           <button onClick={handleLogout} className="group flex items-center w-full p-2.5 rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98]">
             <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 mr-3 transition-transform group-hover:scale-105">
               <LogOut size={17} strokeWidth={2.2} />
@@ -1276,9 +1277,9 @@ function App() {
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-gradient-to-b from-indigo-700 via-teal-700 to-emerald-700 text-white flex flex-col shadow-2xl animate-slide-in-left overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-gradient-to-b from-zinc-900 via-slate-900 to-black text-white flex flex-col shadow-2xl animate-slide-in-left overflow-hidden" onClick={(e) => e.stopPropagation()}>
             {sidebarDecor}
-            <div className="relative p-5 border-b border-white/15">
+            <div className="relative p-5 border-b border-white/10">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3 min-w-0">
                   <img src="/logo.png" alt="CentroCare" className="h-10 w-10 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
@@ -1314,7 +1315,7 @@ function App() {
                 </>
               )}
             </nav>
-            <div className="relative p-4 border-t border-white/15 bg-black/10">
+            <div className="relative p-4 border-t border-white/10 bg-black/30">
               <button onClick={handleLogout} className="group flex items-center w-full p-2.5 rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98]">
                 <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 mr-3 transition-transform group-hover:scale-105">
                   <LogOut size={17} strokeWidth={2.2} />
@@ -1338,7 +1339,7 @@ function App() {
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : 'CentroCare';
     return (
-      <div className="md:hidden bg-gradient-to-r from-indigo-700 via-teal-700 to-emerald-700 text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-indigo-900/30">
+      <div className="md:hidden bg-gradient-to-r from-zinc-900 via-slate-900 to-black text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-black/40">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all shrink-0"
