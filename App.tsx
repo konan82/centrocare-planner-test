@@ -1181,73 +1181,93 @@ function App() {
     setView('LOGIN');
   };
 
-  const renderSidebar = () => (
-    <>
+  const renderSidebar = () => {
+    const navItems: { view: ViewState; perm: string; label: string; icon: React.ElementType; chipText: string }[] = [
+      { view: 'DASHBOARD', perm: 'DASHBOARD', label: 'Pianificazione Turni', icon: CalendarIcon, chipText: 'text-teal-600' },
+      { view: 'VALIDATION', perm: 'DASHBOARD', label: 'Consuntivo Turni', icon: ClipboardCheck, chipText: 'text-indigo-600' },
+      { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
+      { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
+      { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
+    ];
+    const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
+
+    const sidebarDecor = (
+      <>
+        <div className="pointer-events-none absolute -top-24 -right-20 w-72 h-72 rounded-full bg-cyan-300/25 blur-3xl"></div>
+        <div className="pointer-events-none absolute top-1/3 -left-24 w-80 h-80 rounded-full bg-violet-400/25 blur-3xl"></div>
+        <div className="pointer-events-none absolute -bottom-16 -right-10 w-72 h-72 rounded-full bg-emerald-200/30 blur-3xl"></div>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-white/70 to-amber-300"></div>
+      </>
+    );
+
+    const renderNavItem = (item: { view: ViewState; label: string; icon: React.ElementType; chipText: string }, onNavigate: () => void) => {
+      const active = view === item.view;
+      const Icon = item.icon;
+      return (
+        <button
+          key={item.view}
+          onClick={onNavigate}
+          className={`group relative flex items-center w-full p-2.5 rounded-xl transition-all duration-200 active:scale-[0.98] ${
+            active
+              ? 'bg-white/25 ring-1 ring-white/40 shadow-lg shadow-indigo-900/25'
+              : 'hover:bg-white/15 hover:ring-1 hover:ring-white/20'
+          }`}
+        >
+          <span className={`flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-md ring-1 ring-white/50 ${item.chipText} shrink-0 transition-transform duration-200 group-hover:scale-105 ${active ? 'scale-105' : ''}`}>
+            <Icon size={17} strokeWidth={2.2} />
+          </span>
+          <span className={`ml-3 flex-1 text-sm font-semibold truncate text-left ${active ? 'text-white' : 'text-white/85 group-hover:text-white'}`}>
+            {item.label}
+          </span>
+          {active && <span className="w-1.5 h-7 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]" />}
+        </button>
+      );
+    };
+
+    return (
+      <>
       {/* Desktop Sidebar */}
-      <div className="w-64 bg-slate-900 text-slate-100 flex flex-col h-screen fixed left-0 top-0 z-50 shadow-xl hidden md:flex">
-        <div className="p-6 border-b border-slate-700">
+      <div className="w-64 bg-gradient-to-b from-indigo-700 via-teal-700 to-emerald-700 text-white flex flex-col h-screen fixed left-0 top-0 z-50 shadow-2xl shadow-indigo-900/40 hidden md:flex overflow-hidden">
+        {sidebarDecor}
+        <div className="relative p-6 border-b border-white/15">
           <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="CentroCare" className="h-10 w-auto rounded-lg shadow-lg shrink-0" />
+            <img src="/logo.png" alt="CentroCare" className="h-11 w-11 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-                CentroCare
-              </h1>
-              <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+              <h1 className="text-xl font-black tracking-tight text-white drop-shadow-md">CentroCare</h1>
+              <p className="text-[11px] text-white/70 mt-0.5 font-medium">Gestione Pianificazione</p>
             </div>
           </div>
-          <div className="mt-4 flex items-center text-xs text-slate-300 bg-slate-800 p-2 rounded">
-            <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center mr-2 font-bold">
+          <div className="mt-4 flex items-center gap-2.5 text-xs text-white bg-white/15 ring-1 ring-white/25 backdrop-blur px-3 py-2 rounded-xl">
+            <div className="w-7 h-7 bg-white/95 text-teal-700 rounded-full flex items-center justify-center font-bold shadow-md shrink-0">
               {currentUser?.username?.charAt(0).toUpperCase() || '?'}
             </div>
-            <span>{currentUser?.username || 'Utente'}</span>
+            <div className="min-w-0">
+              <span className="block font-bold truncate">{currentUser?.username || 'Utente'}</span>
+              <span className="block text-[10px] text-white/60 uppercase tracking-wider">Area riservata</span>
+            </div>
           </div>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          {hasPermission('DASHBOARD') && (
-            <button onClick={() => setView('DASHBOARD')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-              <CalendarIcon size={20} />
-              <span>Pianificazione Turni</span>
-            </button>
-          )}
-          {hasPermission('DASHBOARD') && (
-            <button onClick={() => setView('VALIDATION')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-              <ClipboardCheck size={20} />
-              <span>Consuntivo Turni</span>
-            </button>
-          )}
-          {hasPermission('TUTORS') && (
-            <button onClick={() => setView('TUTORS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-              <UserCheck size={20} />
-              <span>Gestione Tutor</span>
-            </button>
-          )}
-          {hasPermission('YOUTHS') && (
-            <button onClick={() => setView('YOUTHS')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-              <Users size={20} />
-              <span>Anagrafica Ragazzi</span>
-            </button>
-          )}
-          {hasPermission('SUMMARY') && (
-            <button onClick={() => setView('SUMMARY')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'SUMMARY' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-              <BarChart3 size={20} />
-              <span>Riepilogo Ore</span>
-            </button>
-          )}
 
+        <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
+          {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => setView(i.view)))}
           {hasPermission('ALL') && (
             <>
-              <div className="border-t border-slate-700 my-2 pt-2"></div>
-              <button onClick={() => setView('USER_MANAGEMENT')} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'USER_MANAGEMENT' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                <Settings size={20} />
-                <span>Gestione Utenti</span>
-              </button>
+              <div className="flex items-center gap-3 my-3 px-1">
+                <div className="h-px flex-1 bg-white/15"></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Amministrazione</span>
+                <div className="h-px flex-1 bg-white/15"></div>
+              </div>
+              {renderNavItem(adminItem, () => setView(adminItem.view))}
             </>
           )}
         </nav>
-        <div className="p-4 border-t border-slate-700">
-          <button onClick={handleLogout} className="flex items-center space-x-3 w-full p-3 rounded-lg hover:bg-red-900/30 text-slate-300 hover:text-red-400 transition-colors">
-            <LogOut size={20} />
-            <span>Disconnetti</span>
+
+        <div className="relative p-4 border-t border-white/15 bg-black/10">
+          <button onClick={handleLogout} className="group flex items-center w-full p-2.5 rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98]">
+            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 mr-3 transition-transform group-hover:scale-105">
+              <LogOut size={17} strokeWidth={2.2} />
+            </span>
+            <span className="text-sm font-semibold">Disconnetti</span>
           </button>
         </div>
       </div>
@@ -1255,82 +1275,59 @@ function App() {
       {/* Mobile Sidebar */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setIsMobileMenuOpen(false)}></div>
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-900 text-slate-100 flex flex-col shadow-2xl animate-slide-in-left" onClick={(e) => e.stopPropagation()}>
-            <div className="p-5 border-b border-slate-700">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-gradient-to-b from-indigo-700 via-teal-700 to-emerald-700 text-white flex flex-col shadow-2xl animate-slide-in-left overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {sidebarDecor}
+            <div className="relative p-5 border-b border-white/15">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3 min-w-0">
-            <img src="/logo.png" alt="CentroCare" className="h-10 w-auto rounded-lg shadow-lg shrink-0" />
+                  <img src="/logo.png" alt="CentroCare" className="h-10 w-10 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
                   <div className="min-w-0">
-                    <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-500">
-                      CentroCare
-                    </h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestione Pianificazione</p>
+                    <h1 className="text-xl font-black tracking-tight text-white drop-shadow-md">CentroCare</h1>
+                    <p className="text-[11px] text-white/70 font-medium">Gestione Pianificazione</p>
                   </div>
                 </div>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-white transition-colors">
-                  <X size={24} />
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-xl bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-colors shrink-0" aria-label="Chiudi menu">
+                  <X size={22} />
                 </button>
               </div>
-              <div className="mt-4 flex items-center text-xs text-slate-300 bg-slate-800 p-2 rounded">
-                <div className="w-6 h-6 bg-teal-600 rounded-full flex items-center justify-center mr-2 font-bold shrink-0">
+              <div className="mt-4 flex items-center gap-2.5 text-xs text-white bg-white/15 ring-1 ring-white/25 backdrop-blur px-3 py-2 rounded-xl">
+                <div className="w-7 h-7 bg-white/95 text-teal-700 rounded-full flex items-center justify-center font-bold shadow-md shrink-0">
                   {currentUser?.username?.charAt(0).toUpperCase() || '?'}
                 </div>
-                <span className="truncate">{currentUser?.username || 'Utente'}</span>
+                <div className="min-w-0">
+                  <span className="block font-bold truncate">{currentUser?.username || 'Utente'}</span>
+                  <span className="block text-[10px] text-white/60 uppercase tracking-wider">Area riservata</span>
+                </div>
               </div>
             </div>
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-              {hasPermission('DASHBOARD') && (
-                <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'DASHBOARD' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <CalendarIcon size={20} />
-                  <span>Pianificazione Turni</span>
-                </button>
-              )}
-              {hasPermission('DASHBOARD') && (
-                <button onClick={() => { setView('VALIDATION'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'VALIDATION' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <ClipboardCheck size={20} />
-                  <span>Consuntivo Turni</span>
-                </button>
-              )}
-              {hasPermission('TUTORS') && (
-                <button onClick={() => { setView('TUTORS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'TUTORS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <UserCheck size={20} />
-                  <span>Gestione Tutor</span>
-                </button>
-              )}
-              {hasPermission('YOUTHS') && (
-                <button onClick={() => { setView('YOUTHS'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'YOUTHS' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <Users size={20} />
-                  <span>Anagrafica Ragazzi</span>
-                </button>
-              )}
-              {hasPermission('SUMMARY') && (
-                <button onClick={() => { setView('SUMMARY'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'SUMMARY' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                  <BarChart3 size={20} />
-                  <span>Riepilogo Ore</span>
-                </button>
-              )}
+            <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
+              {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => { setView(i.view); setIsMobileMenuOpen(false); }))}
               {hasPermission('ALL') && (
                 <>
-                  <div className="border-t border-slate-700 my-2 pt-2"></div>
-                  <button onClick={() => { setView('USER_MANAGEMENT'); setIsMobileMenuOpen(false); }} className={`flex items-center space-x-3 w-full p-3 rounded-lg transition-colors ${view === 'USER_MANAGEMENT' ? 'bg-teal-600 text-white' : 'hover:bg-slate-800'}`}>
-                    <Settings size={20} />
-                    <span>Gestione Utenti</span>
-                  </button>
+                  <div className="flex items-center gap-3 my-3 px-1">
+                    <div className="h-px flex-1 bg-white/15"></div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Amministrazione</span>
+                    <div className="h-px flex-1 bg-white/15"></div>
+                  </div>
+                  {renderNavItem(adminItem, () => { setView(adminItem.view); setIsMobileMenuOpen(false); })}
                 </>
               )}
             </nav>
-            <div className="p-4 border-t border-slate-700">
-              <button onClick={handleLogout} className="flex items-center space-x-3 w-full p-3 rounded-lg hover:bg-red-900/30 text-slate-300 hover:text-red-400 transition-colors">
-                <LogOut size={20} />
-                <span>Disconnetti</span>
+            <div className="relative p-4 border-t border-white/15 bg-black/10">
+              <button onClick={handleLogout} className="group flex items-center w-full p-2.5 rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98]">
+                <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 mr-3 transition-transform group-hover:scale-105">
+                  <LogOut size={17} strokeWidth={2.2} />
+                </span>
+                <span className="text-sm font-semibold">Disconnetti</span>
               </button>
             </div>
           </div>
         </div>
       )}
-    </>
-  );
+      </>
+    );
+  };
 
   const renderMobileHeader = () => {
     const viewLabel = view === 'DASHBOARD' ? 'Pianificazione Turni'
@@ -1341,7 +1338,7 @@ function App() {
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : 'CentroCare';
     return (
-      <div className="md:hidden bg-slate-900 text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-black/20">
+      <div className="md:hidden bg-gradient-to-r from-indigo-700 via-teal-700 to-emerald-700 text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-indigo-900/30">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all shrink-0"
