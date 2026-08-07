@@ -471,6 +471,19 @@ function App() {
   const [summaryStartDate, setSummaryStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
+  const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
+  const [isSummaryFilterOpen, setIsSummaryFilterOpen] = useState(false);
+  const summaryFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (summaryFilterRef.current && !summaryFilterRef.current.contains(e.target as Node)) {
+        setIsSummaryFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -2377,6 +2390,9 @@ function App() {
     const summaryData = summaryViewMode === 'TUTORS'
       ? tutors.map(t => buildSummary(t, 'TUTOR'))
       : youths.map(y => buildSummary(y, 'YOUTH'));
+    const filteredSummary = summaryPersonFilter === 'all'
+      ? summaryData
+      : summaryData.filter(p => p.id === summaryPersonFilter);
 
     return (
       <div className="space-y-8">
@@ -2385,13 +2401,13 @@ function App() {
             <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore</h2>
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button
-                onClick={() => setSummaryViewMode('TUTORS')}
+                onClick={() => { setSummaryViewMode('TUTORS'); setSummaryPersonFilter('all'); }}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'TUTORS' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Tutor
               </button>
               <button
-                onClick={() => setSummaryViewMode('YOUTHS')}
+                onClick={() => { setSummaryViewMode('YOUTHS'); setSummaryPersonFilter('all'); }}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'YOUTHS' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Ragazzi
@@ -2400,6 +2416,57 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="relative" ref={summaryFilterRef}>
+              <button
+                onClick={() => setIsSummaryFilterOpen(o => !o)}
+                title="Filtra per persona"
+                className={`px-4 py-2.5 bg-white rounded-xl flex items-center gap-2 border shadow-sm hover:shadow transition-all font-semibold text-sm ${
+                  summaryPersonFilter === 'all'
+                    ? 'text-slate-600 border-slate-200 hover:bg-slate-50'
+                    : 'text-teal-600 border-teal-200 hover:bg-teal-50'
+                }`}
+              >
+                <Users size={16} className="shrink-0" />
+                <span className="max-w-[140px] truncate">
+                  {summaryPersonFilter === 'all'
+                    ? 'Tutti'
+                    : (summaryViewMode === 'TUTORS'
+                        ? (tutors.find(t => t.id === summaryPersonFilter)?.name || 'Tutti')
+                        : (youths.find(y => y.id === summaryPersonFilter)?.name || 'Tutti'))}
+                </span>
+                <ChevronDown size={14} className={`shrink-0 transition-transform ${isSummaryFilterOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isSummaryFilterOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1">
+                  <button
+                    onClick={() => { setSummaryPersonFilter('all'); setIsSummaryFilterOpen(false); }}
+                    className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                      summaryPersonFilter === 'all' ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                    }`}
+                  >
+                    Tutti
+                    {summaryPersonFilter === 'all' && <Check size={14} className="text-teal-600" />}
+                  </button>
+                  <div className="my-1 h-px bg-slate-100" />
+                  {(summaryViewMode === 'TUTORS' ? tutors : youths).map(p => {
+                    const active = summaryPersonFilter === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSummaryPersonFilter(p.id); setIsSummaryFilterOpen(false); }}
+                        className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-slate-50 ${
+                          active ? 'text-teal-600 font-bold' : 'text-slate-700 font-medium'
+                        }`}
+                      >
+                        {p.name || '?'}
+                        {active && <Check size={14} className="text-teal-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-gray-200">
               <div className="flex flex-col">
                 <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Dal</label>
@@ -2425,7 +2492,7 @@ function App() {
         </div>
 
         <div className="grid grid-cols-1 gap-6">
-          {summaryData.map(data => (
+          {filteredSummary.map(data => (
             <Card key={data.id} className={`p-6 ${data.type === 'YOUTH' ? 'border-l-4 border-l-amber-400' : ''}`}>
               <div className="flex items-center mb-4 border-b pb-4">
                 <div className={`w-10 h-10 ${data.type === 'TUTOR' ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'} rounded-full flex items-center justify-center font-bold mr-3`}>
@@ -2515,8 +2582,10 @@ function App() {
               </div>
 
               {(() => {
-                const totalDone = Object.values(data.monthlyHours).reduce((a, b) => a + Number(b || 0), 0);
-                const totalPlanned = Object.values(data.plannedMonthlyHours).reduce((a, b) => a + Number(b || 0), 0);
+                const sumHours = (rec: Record<string, number>) =>
+                  Object.values(rec || {}).reduce((acc: number, v) => acc + (Number(v) || 0), 0);
+                const totalDone = sumHours(data.monthlyHours);
+                const totalPlanned = sumHours(data.plannedMonthlyHours);
                 const delta = totalDone - totalPlanned;
                 const deltaBadge = Math.abs(delta) < 0.005
                   ? 'bg-slate-200/70 text-slate-600'
