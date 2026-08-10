@@ -185,10 +185,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 }
 
-const Card: React.FC<CardProps> = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-lg shadow-md border border-gray-100 ${className}`}>
+const Card: React.FC<CardProps> = ({ children, className = "", onClick }) => (
+  <div
+    className={`bg-white rounded-lg shadow-md border border-gray-100 ${className}${onClick ? ' hover:border-teal-300' : ''}`}
+    onClick={onClick}
+  >
     {children}
   </div>
 );
@@ -640,6 +644,7 @@ function App() {
 
   const [isYouthModalOpen, setIsYouthModalOpen] = useState(false);
   const [newYouth, setNewYouth] = useState<Partial<Youth>>({});
+  const [youthToDelete, setYouthToDelete] = useState<Youth | null>(null);
   const [youthSearch, setYouthSearch] = useState('');
   const [youthSort, setYouthSort] = useState<'asc' | 'desc'>('asc');
   const [youthStatusFilter, setYouthStatusFilter] = useState<'tutti' | 'attivo' | 'pausa' | 'archiviato'>('tutti');
@@ -825,7 +830,6 @@ function App() {
   };
 
   const handleDeleteYouth = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo ragazzo?")) return;
     try {
       const { error } = await supabase.from('youths').delete().eq('id', id);
       if (error) throw error;
@@ -1900,16 +1904,17 @@ function App() {
               const youthColor = getYouthColor(youth.id, youths);
               const assignedTutors = (youth.tutorIds || []).map(id => tutors.find(t => t.id === id)).filter((t): t is Tutor => !!t);
               return (
-                <Card key={youth.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
+                <Card key={youth.id} className="overflow-hidden hover:shadow-xl transition-shadow group cursor-pointer" onClick={() => openEditYouthModal(youth)}>
                   <div className={`h-1.5 bg-gradient-to-r ${theme.strip}`}></div>
                   <div className="p-5 relative">
                     <div className="absolute top-4 right-4 flex space-x-2 items-center">
                       {youth.status === 'pausa' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pausa</span>}
                       {youth.status === 'archiviato' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-200 text-slate-600 border border-slate-300">Archiviato</span>}
-                      <button onClick={() => openEditYouthModal(youth)} className="text-gray-300 hover:text-blue-500 transition-colors" title="Modifica">
-                        <Edit size={18} />
-                      </button>
-                      <button onClick={() => handleDeleteYouth(youth.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Elimina">
+                      <button
+                        onClick={e => { e.stopPropagation(); setYouthToDelete(youth); }}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        title="Elimina"
+                      >
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -2937,6 +2942,39 @@ function App() {
       </div>
 
       {/* --- Modals --- */}
+
+      {/* Confirm Delete Youth Modal */}
+      <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
+              <AlertTriangle size={20} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Sei sicuro di voler cancellare la scheda di <strong>{youthToDelete?.name}</strong>?
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Verranno eliminati anche tutti i turni associati. L'operazione non può essere annullata.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setYouthToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={() => { const id = youthToDelete?.id; setYouthToDelete(null); if (id) handleDeleteYouth(id); }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Si, elimina
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirm Clear Week Modal */}
       <Modal isOpen={showConfirmClear} onClose={() => setShowConfirmClear(false)} title="Conferma generazione turni">
