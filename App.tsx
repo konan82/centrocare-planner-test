@@ -1550,7 +1550,7 @@ function App() {
               </div>
             </div>
             <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
-              {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => { setView(i.view); setIsMobileMenuOpen(false); }))}
+              {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => { setView(i.view); setIsMobileMenuOpen(false); }, true))}
               {hasPermission('ALL') && (
                 <>
                   <div className="flex items-center gap-3 my-3 px-1">
@@ -1558,7 +1558,7 @@ function App() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Amministrazione</span>
                     <div className="h-px flex-1 bg-white/15"></div>
                   </div>
-                  {renderNavItem(adminItem, () => { setView(adminItem.view); setIsMobileMenuOpen(false); })}
+                  {renderNavItem(adminItem, () => { setView(adminItem.view); setIsMobileMenuOpen(false); }, true)}
                 </>
               )}
             </nav>
@@ -1662,7 +1662,7 @@ function App() {
 
     return (
       <div className="space-y-6">
-        <div className="sticky top-0 z-20 bg-slate-50 pt-1 pb-2 space-y-6">
+        <div className="md:sticky md:top-0 md:z-20 bg-slate-50 pt-1 pb-2 space-y-4 md:space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Elenco Tutor</h2>
@@ -1674,19 +1674,19 @@ function App() {
         </div>
 
         {/* Contatori stato */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
           {statusCounters.map(c => (
             <button
               key={c.key}
               onClick={() => setTutorStatusFilter(c.key)}
-              className={`flex items-center gap-3 rounded-xl border bg-white p-4 text-left transition-all ring-2 ring-transparent ${tutorStatusFilter === c.key ? c.active : c.idle}`}
+              className={`flex items-center gap-3 rounded-xl border bg-white p-3 md:p-4 text-left transition-all ring-2 ring-transparent ${tutorStatusFilter === c.key ? c.active : c.idle}`}
             >
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${c.iconCls}`}>
+              <span className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${c.iconCls}`}>
                 <c.icon size={18} />
               </span>
               <span>
-                <span className="block text-2xl font-extrabold text-slate-800 leading-none">{c.count}</span>
-                <span className="block text-xs font-medium text-slate-500 mt-1">{c.label}</span>
+                <span className="block text-xl md:text-2xl font-extrabold text-slate-800 leading-none">{c.count}</span>
+                <span className="block text-[11px] md:text-xs font-medium text-slate-500 mt-1">{c.label}</span>
               </span>
             </button>
           ))}
@@ -1911,7 +1911,7 @@ function App() {
 
     return (
       <div className="space-y-6">
-        <div className="sticky top-0 z-20 bg-slate-50 pt-1 pb-2 space-y-6">
+        <div className="md:sticky md:top-0 md:z-20 bg-slate-50 pt-1 pb-2 space-y-4 md:space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Elenco Ragazzi</h2>
@@ -1923,19 +1923,19 @@ function App() {
         </div>
 
         {/* Contatori stato */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
           {statusCounters.map(c => (
             <button
               key={c.key}
               onClick={() => setYouthStatusFilter(c.key)}
-              className={`flex items-center gap-3 rounded-xl border bg-white p-4 text-left transition-all ring-2 ring-transparent ${youthStatusFilter === c.key ? c.active : c.idle}`}
+              className={`flex items-center gap-3 rounded-xl border bg-white p-3 md:p-4 text-left transition-all ring-2 ring-transparent ${youthStatusFilter === c.key ? c.active : c.idle}`}
             >
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${c.iconCls}`}>
+              <span className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${c.iconCls}`}>
                 <c.icon size={18} />
               </span>
               <span>
-                <span className="block text-2xl font-extrabold text-slate-800 leading-none">{c.count}</span>
-                <span className="block text-xs font-medium text-slate-500 mt-1">{c.label}</span>
+                <span className="block text-xl md:text-2xl font-extrabold text-slate-800 leading-none">{c.count}</span>
+                <span className="block text-[11px] md:text-xs font-medium text-slate-500 mt-1">{c.label}</span>
               </span>
             </button>
           ))}
