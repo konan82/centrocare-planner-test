@@ -643,6 +643,7 @@ function App() {
 
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
+  const [tutorToDelete, setTutorToDelete] = useState<Tutor | null>(null);
 
   const [isYouthModalOpen, setIsYouthModalOpen] = useState(false);
   const [newYouth, setNewYouth] = useState<Partial<Youth>>({});
@@ -744,7 +745,6 @@ function App() {
   };
 
   const handleDeleteTutor = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo tutor?")) return;
     try {
       const { error } = await supabase.from('tutors').delete().eq('id', id);
       if (error) throw error;
@@ -1738,7 +1738,7 @@ function App() {
               const barColor = pct > 100 ? 'bg-red-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
               const unavailableText = tutor.unavailableDays?.map(d => DAYS_OF_WEEK[d === 0 ? 6 : d - 1]).join(', ');
               return (
-                <Card key={tutor.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
+                <Card key={tutor.id} className="overflow-hidden hover:shadow-xl transition-shadow group cursor-pointer" onClick={() => openEditTutorModal(tutor)}>
                   <div className={`h-1.5 bg-gradient-to-r ${
                     tutor.status === 'pausa' ? 'from-amber-400 to-orange-500'
                     : tutor.status === 'archiviato' ? 'from-slate-300 to-slate-400'
@@ -1748,10 +1748,7 @@ function App() {
                     <div className="absolute top-4 right-4 flex space-x-2 items-center">
                       {tutor.status === 'pausa' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pausa</span>}
                       {tutor.status === 'archiviato' && <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-200 text-slate-600 border border-slate-300">Archiviato</span>}
-                      <button onClick={() => openEditTutorModal(tutor)} className="text-gray-300 hover:text-blue-500 transition-colors" title="Modifica">
-                        <Edit size={18} />
-                      </button>
-                      <button onClick={() => handleDeleteTutor(tutor.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Elimina">
+                      <button onClick={e => { e.stopPropagation(); setTutorToDelete(tutor); }} className="text-gray-300 hover:text-red-500 transition-colors" title="Elimina">
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -3088,6 +3085,39 @@ function App() {
       </div>
 
       {/* --- Modals --- */}
+
+      {/* Confirm Delete Tutor Modal */}
+      <Modal isOpen={!!tutorToDelete} onClose={() => setTutorToDelete(null)} title="Elimina scheda tutor">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
+              <AlertTriangle size={20} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Sei sicuro di voler cancellare la scheda di <strong>{tutorToDelete?.name}</strong>?
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Verranno eliminati anche tutti i turni associati. L'operazione non può essere annullata.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setTutorToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={() => { const id = tutorToDelete?.id; setTutorToDelete(null); if (id) handleDeleteTutor(id); }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Si, elimina
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirm Delete Youth Modal */}
       <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo">
