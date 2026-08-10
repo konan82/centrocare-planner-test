@@ -23,6 +23,14 @@ export interface Tutor {
   entryDate?: string | null;
 }
 
+export interface YouthContact {
+  id: string;
+  label: string; // es. "Genitore", "Zia", "Assistente"
+  name: string;
+  phone: string;
+  email: string;
+}
+
 export interface Youth {
   id: string;
   name: string;
@@ -34,12 +42,7 @@ export interface Youth {
   fiscalCode?: string;
   phone?: string;
   school?: string;
-  parent1Name?: string;
-  parent1Phone?: string;
-  parent1Email?: string;
-  parent2Name?: string;
-  parent2Phone?: string;
-  parent2Email?: string;
+  contacts: YouthContact[];
   privacyConsentDate?: string | null;
   outingsAuthorized?: boolean;
   diagnoses: string[];

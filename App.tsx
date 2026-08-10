@@ -602,12 +602,16 @@ function App() {
           fiscalCode: youth.fiscal_code || '',
           phone: youth.phone || '',
           school: youth.school || '',
-          parent1Name: youth.parent1_name || '',
-          parent1Phone: youth.parent1_phone || '',
-          parent1Email: youth.parent1_email || '',
-          parent2Name: youth.parent2_name || '',
-          parent2Phone: youth.parent2_phone || '',
-          parent2Email: youth.parent2_email || '',
+          contacts: (Array.isArray(youth.contacts) && youth.contacts.length > 0)
+            ? youth.contacts
+            : [
+                ...(youth.parent1_name || youth.parent1_phone || youth.parent1_email
+                  ? [{ id: 'p1', label: 'Genitore 1', name: youth.parent1_name || '', phone: youth.parent1_phone || '', email: youth.parent1_email || '' }]
+                  : []),
+                ...(youth.parent2_name || youth.parent2_phone || youth.parent2_email
+                  ? [{ id: 'p2', label: 'Genitore 2', name: youth.parent2_name || '', phone: youth.parent2_phone || '', email: youth.parent2_email || '' }]
+                  : []),
+              ],
           privacyConsentDate: youth.privacy_consent_date || null,
           outingsAuthorized: youth.outings_authorized || false,
           allergies: youth.allergies || '',
@@ -790,12 +794,7 @@ function App() {
         fiscal_code: newYouth.fiscalCode || '',
         phone: newYouth.phone || '',
         school: newYouth.school || '',
-        parent1_name: newYouth.parent1Name || '',
-        parent1_phone: newYouth.parent1Phone || '',
-        parent1_email: newYouth.parent1Email || '',
-        parent2_name: newYouth.parent2Name || '',
-        parent2_phone: newYouth.parent2Phone || '',
-        parent2_email: newYouth.parent2Email || '',
+        contacts: (newYouth.contacts || []).map(c => ({ ...c, name: c.name || '', phone: c.phone || '', email: c.email || '' })),
         privacy_consent_date: newYouth.privacyConsentDate || null,
         outings_authorized: newYouth.outingsAuthorized || false,
         diagnoses: newYouth.diagnoses || [],
@@ -826,12 +825,7 @@ function App() {
         birthDate: youthData.birth_date,
         birthPlace: youthData.birth_place,
         fiscalCode: youthData.fiscal_code,
-        parent1Name: youthData.parent1_name,
-        parent1Phone: youthData.parent1_phone,
-        parent1Email: youthData.parent1_email,
-        parent2Name: youthData.parent2_name,
-        parent2Phone: youthData.parent2_phone,
-        parent2Email: youthData.parent2_email,
+        contacts: youthData.contacts,
         privacyConsentDate: youthData.privacy_consent_date,
         outingsAuthorized: youthData.outings_authorized,
         allergies: youthData.allergies,
@@ -866,6 +860,18 @@ function App() {
       console.error("Error deleting youth:", error);
       alert("Errore nell'eliminazione del ragazzo");
     }
+  };
+
+  const updateContact = (cid: string, field: 'label' | 'name' | 'phone' | 'email', value: string) => {
+    setNewYouth({ ...newYouth, contacts: (newYouth.contacts || []).map(c => c.id === cid ? { ...c, [field]: value } : c) });
+  };
+
+  const addContact = () => {
+    setNewYouth({ ...newYouth, contacts: [...(newYouth.contacts || []), { id: `c${Date.now()}${Math.random().toString(36).slice(2, 6)}`, label: 'Genitore', name: '', phone: '', email: '' }] });
+  };
+
+  const removeContact = (cid: string) => {
+    setNewYouth({ ...newYouth, contacts: (newYouth.contacts || []).filter(c => c.id !== cid) });
   };
 
   const handleSaveShift = async () => {
@@ -2104,44 +2110,31 @@ function App() {
                         </div>
                       )}
                     </div>
-                    {(youth.parent1Name || youth.parent1Phone || youth.parent2Name || youth.parent2Phone) && (
+                    {(youth.contacts && youth.contacts.some(c => c.name || c.phone || c.email)) && (
                       <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-2.5 border border-slate-100 space-y-2">
-                        {(youth.parent1Name || youth.parent1Phone) && (
-                          <div>
-                            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">Genitore 1</p>
-                            {youth.parent1Name && <p className="font-medium text-slate-700">{youth.parent1Name}</p>}
-                            {youth.parent1Phone && (
+                        {youth.contacts.filter(c => c.name || c.phone || c.email).map(contact => (
+                          <div key={contact.id}>
+                            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">{contact.label || 'Contatto'}</p>
+                            {contact.name && <p className="font-medium text-slate-700">{contact.name}</p>}
+                            {contact.phone && (
                               <p className="flex items-center gap-1.5">
-                                <a href={`tel:${youth.parent1Phone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
-                                  <Phone size={13} /> {youth.parent1Phone}
+                                <a href={`tel:${contact.phone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
+                                  <Phone size={13} /> {contact.phone}
                                 </a>
-                                {waHref(youth.parent1Phone) && (
-                                  <a href={waHref(youth.parent1Phone)} target="_blank" rel="noopener noreferrer" title={`Chat WhatsApp con ${youth.parent1Name || 'Genitore 1'}`} className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                                {waHref(contact.phone) && (
+                                  <a href={waHref(contact.phone)} target="_blank" rel="noopener noreferrer" title={`Chat WhatsApp con ${contact.name || contact.label || 'Contatto'}`} className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
                                     <WhatsAppIcon size={13} />
                                   </a>
                                 )}
                               </p>
                             )}
-                          </div>
-                        )}
-                        {(youth.parent2Name || youth.parent2Phone) && (
-                          <div>
-                            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">Genitore 2</p>
-                            {youth.parent2Name && <p className="font-medium text-slate-700">{youth.parent2Name}</p>}
-                            {youth.parent2Phone && (
-                              <p className="flex items-center gap-1.5">
-                                <a href={`tel:${youth.parent2Phone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
-                                  <Phone size={13} /> {youth.parent2Phone}
-                                </a>
-                                {waHref(youth.parent2Phone) && (
-                                  <a href={waHref(youth.parent2Phone)} target="_blank" rel="noopener noreferrer" title={`Chat WhatsApp con ${youth.parent2Name || 'Genitore 2'}`} className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
-                                    <WhatsAppIcon size={13} />
-                                  </a>
-                                )}
-                              </p>
+                            {contact.email && (
+                              <a href={`mailto:${contact.email}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
+                                <span className="text-slate-500"><UserCheck size={13} /></span> {contact.email}
+                              </a>
                             )}
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
                     {youth.notes && <p className="text-sm text-slate-500 italic mt-4 border-t pt-3">"{youth.notes}"</p>}
@@ -3851,95 +3844,77 @@ function App() {
             </div>
           </YouthSection>
 
-          <YouthSection icon={<Phone size={16} />} title="Famiglia e Contatti" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
+          <YouthSection icon={<Phone size={16} />} title="Contatti di riferimento" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3.5">
-                <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-                  <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">1</span>
-                  Genitore 1
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
-                    <input
-                      type="text"
-                      className={fieldCls}
-                      placeholder="Nome e cognome"
-                      value={newYouth.parent1Name || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent1Name: e.target.value })}
-                    />
+              <div className="sm:col-span-2 space-y-4">
+                {(newYouth.contacts || []).map((contact, idx) => (
+                  <div key={contact.id} className="rounded-xl border border-slate-200 bg-white p-3.5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                        <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">{idx + 1}</span>
+                        Contatto {idx + 1}
+                      </p>
+                      <button type="button" onClick={() => removeContact(contact.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Rimuovi contatto">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Etichetta (es. Genitore, Zia, Assistente)</label>
+                        <input
+                          type="text"
+                          className={fieldCls}
+                          placeholder="Es. Genitore, Zia"
+                          value={contact.label || ''}
+                          onChange={e => updateContact(contact.id, 'label', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
+                        <input
+                          type="text"
+                          className={fieldCls}
+                          placeholder="Nome e cognome"
+                          value={contact.name || ''}
+                          onChange={e => updateContact(contact.id, 'name', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                          {waHref(contact.phone || '') && (
+                            <a href={waHref(contact.phone || '')} target="_blank" rel="noopener noreferrer" title={`Chat WhatsApp con ${contact.name || contact.label || 'il contatto'}`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                              <WhatsAppIcon size={12} />
+                            </a>
+                          )}
+                        </label>
+                        <input
+                          type="tel"
+                          className={fieldCls}
+                          placeholder="3XX XXX XXXX"
+                          value={contact.phone || ''}
+                          onChange={e => updateContact(contact.id, 'phone', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <input
+                          type="email"
+                          className={fieldCls}
+                          placeholder="contatto@email.it"
+                          value={contact.email || ''}
+                          onChange={e => updateContact(contact.id, 'email', e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
-                      {waHref(newYouth.parent1Phone || '') && (
-                        <a href={waHref(newYouth.parent1Phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il Genitore 1" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
-                          <WhatsAppIcon size={12} />
-                        </a>
-                      )}
-                    </label>
-                    <input
-                      type="tel"
-                      className={fieldCls}
-                      placeholder="3XX XXX XXXX"
-                      value={newYouth.parent1Phone || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent1Phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      className={fieldCls}
-                      placeholder="genitore@email.it"
-                      value={newYouth.parent1Email || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent1Email: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3.5">
-                <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-                  <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">2</span>
-                  Genitore 2
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
-                    <input
-                      type="text"
-                      className={fieldCls}
-                      placeholder="Nome e cognome"
-                      value={newYouth.parent2Name || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent2Name: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
-                      {waHref(newYouth.parent2Phone || '') && (
-                        <a href={waHref(newYouth.parent2Phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il Genitore 2" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
-                          <WhatsAppIcon size={12} />
-                        </a>
-                      )}
-                    </label>
-                    <input
-                      type="tel"
-                      className={fieldCls}
-                      placeholder="3XX XXX XXXX"
-                      value={newYouth.parent2Phone || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent2Phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      className={fieldCls}
-                      placeholder="genitore@email.it"
-                      value={newYouth.parent2Email || ''}
-                      onChange={e => setNewYouth({ ...newYouth, parent2Email: e.target.value })}
-                    />
-                  </div>
-                </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addContact}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 transition-colors text-sm font-semibold"
+                >
+                  <Plus size={16} /> Aggiungi contatto di riferimento
+                </button>
               </div>
               <div className="sm:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
