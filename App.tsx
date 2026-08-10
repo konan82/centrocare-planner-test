@@ -2678,10 +2678,8 @@ function App() {
                                           <div className="absolute inset-0 bg-emerald-300/40 pointer-events-none z-0"></div>
                                         )}
                                         {approved && (
-                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden">
-                                            <span className="uppercase font-black text-emerald-800/70 text-base sm:text-lg tracking-[0.3em] rotate-[-20deg] border-[3px] border-emerald-700/60 rounded-xl px-4 py-1 select-none whitespace-nowrap">
-                                              Effettivo
-                                            </span>
+                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden rotate-[-20deg]">
+                                            <CheckCircle2 size={60} className="text-emerald-600/35" strokeWidth={2.5} />
                                           </div>
                                         )}
                                         <div className="flex h-full flex-col min-w-0 relative z-10">
