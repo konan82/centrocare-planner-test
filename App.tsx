@@ -21,6 +21,7 @@ import {
   Settings,
   Clock,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   AlertCircle,
   Info,
@@ -1685,17 +1686,6 @@ function App() {
       { key: 'archiviato' as const, label: 'Archiviati', count: counts.archiviato, icon: Archive, active: 'border-slate-400 bg-slate-100 ring-slate-200', idle: 'border-slate-200 hover:border-slate-400', iconCls: 'bg-slate-500' },
     ];
 
-    const renderCrimBadge = (tutor: Tutor) => {
-      const expiry = tutor.criminalRecordExpiry;
-      if (!expiry) {
-        return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario mancante</span>;
-      }
-      const daysLeft = Math.floor((parseISO(expiry).getTime() - Date.now()) / 86400000);
-      if (daysLeft < 0) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario scaduto</span>;
-      if (daysLeft <= 30) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Casellario: scade tra {daysLeft}g</span>;
-      return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Casellario ok</span>;
-    };
-
     return (
       <div className="space-y-6">
         <div className="md:sticky md:top-0 md:z-20 bg-slate-50 pt-1 pb-2 space-y-4 md:space-y-6">
@@ -2656,24 +2646,23 @@ function App() {
                                     const col = layout.colOf[idx];
                                     const wPct = 100 / (layout.clusterMaxCol[layout.clusterOf[idx]] + 1);
 
-    const renderCrimBadge = (tutor: Tutor) => {
-      const expiry = tutor.criminalRecordExpiry;
-      if (!expiry) {
-        return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario mancante</span>;
-      }
-      const daysLeft = Math.floor((parseISO(expiry).getTime() - Date.now()) / 86400000);
-      if (daysLeft < 0) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario scaduto</span>;
-      if (daysLeft <= 30) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Casellario: scade tra {daysLeft}g</span>;
-      return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Casellario ok</span>;
-    };
+                                    const isValidate = mode === 'validate';
+                                    const approved = isValidate && effettuato;
+                                    const daValidare = isValidate && !effettuato && shiftStatus !== 'cancellato';
+                                    const chipBg = approved ? 'bg-emerald-100' : daValidare ? 'bg-amber-50' : yColor.bg;
+                                    const chipBorder = approved
+                                      ? 'border-emerald-400 border-l-4 border-l-emerald-600'
+                                      : daValidare
+                                        ? 'border-amber-300 border-dashed border-l-4 border-l-amber-400'
+                                        : `${yColor.border} border-l-4 ${tColor.border}`;
 
-    return (
+                                    return (
                                       <div
                                         key={shift.id}
                                         draggable={!shiftLocked}
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
                                         onClick={(e) => { e.stopPropagation(); openShiftModal(shift, isPlan ? 'plan' : 'validate'); }}
-                                        className={`absolute pointer-events-auto rounded-md ${yColor.bg} border ${yColor.border} border-l-4 ${tColor.border} p-2 text-[13px] ${shiftLocked ? 'cursor-default' : 'cursor-move'} shadow-sm hover:shadow-md overflow-hidden group/item
+                                        className={`absolute pointer-events-auto rounded-md ${chipBg} border ${chipBorder} p-2 text-[13px] ${shiftLocked ? 'cursor-default' : 'cursor-move'} shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
                                           ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}
                                           ${shiftStatus === 'cancellato' ? 'opacity-45 grayscale' : ''}
@@ -2688,7 +2677,7 @@ function App() {
                                         {effettuato && (
                                           <div className="absolute inset-0 bg-emerald-300/40 pointer-events-none z-0"></div>
                                         )}
-                                        {effettuato && (
+                                        {approved && (
                                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden">
                                             <span className="uppercase font-black text-emerald-800/70 text-base sm:text-lg tracking-[0.3em] rotate-[-20deg] border-[3px] border-emerald-700/60 rounded-xl px-4 py-1 select-none whitespace-nowrap">
                                               Effettivo
@@ -2703,6 +2692,14 @@ function App() {
                                             <span className={`truncate font-bold text-slate-800 pointer-events-none text-[14px] leading-tight ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                               {tutor?.name || 'Sconosciuto'}
                                             </span>
+                                            {approved && (
+                                              <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-px rounded bg-emerald-600 text-white text-[10px] font-bold uppercase">
+                                                <CheckCircle2 size={11} /> Validato
+                                              </span>
+                                            )}
+                                            {daValidare && (
+                                              <span className="shrink-0 px-1.5 py-px rounded bg-amber-200 text-amber-800 text-[10px] font-bold uppercase">Da validare</span>
+                                            )}
                                             {shiftStatus === 'cancellato' && (
                                               <span className="shrink-0 px-1.5 py-px rounded bg-red-100 text-red-600 text-[10px] font-bold uppercase">Annullato</span>
                                             )}
