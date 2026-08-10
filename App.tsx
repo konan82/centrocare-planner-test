@@ -317,6 +317,98 @@ const PersonCombo: React.FC<PersonComboProps> = ({ options, value, onChange, pla
   );
 };
 
+// --- PersonMultiCombo: combo box cercabile con selezione multipla ---
+interface PersonMultiComboProps {
+  options: { id: string; name?: string }[];
+  values: string[];
+  onChange: (ids: string[]) => void;
+  placeholder: string;
+  colorOf: (id: string) => { bg: string; text: string };
+  className?: string;
+}
+
+const PersonMultiCombo: React.FC<PersonMultiComboProps> = ({ options, values, onChange, placeholder, colorOf, className = '' }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = options.filter(o => values.includes(o.id));
+  const q = search.trim().toLowerCase();
+  const filtered = options.filter(o => !q || (o.name || '').toLowerCase().includes(q));
+
+  const toggle = (id: string) => {
+    onChange(values.includes(id) ? values.filter(v => v !== id) : [...values, id]);
+  };
+
+  return (
+    <div className={`relative ${className}`} ref={ref}>
+      <div
+        className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm transition-all min-h-[44px] cursor-text"
+        onClick={() => { setOpen(!open); setSearch(''); }}
+      >
+        {selected.map(o => {
+          const c = colorOf(o.id);
+          return (
+            <span key={o.id} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${c.bg} ${c.text}`}>
+              {o.name || '?'}
+              <button type="button" onClick={e => { e.stopPropagation(); toggle(o.id); }} className="hover:opacity-70">
+                <X size={12} />
+              </button>
+            </span>
+          );
+        })}
+        <input
+          type="text"
+          value={open ? search : ''}
+          placeholder={selected.length === 0 ? placeholder : ''}
+          onFocus={() => setOpen(true)}
+          onChange={e => { setOpen(true); setSearch(e.target.value); }}
+          onKeyDown={e => { if (e.key === 'Escape') setOpen(false); if (e.key === 'Enter') setOpen(false); }}
+          onClick={e => e.stopPropagation()}
+          className="flex-1 min-w-[100px] outline-none bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400"
+        />
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl z-50 overflow-hidden py-1 max-h-72 overflow-y-auto">
+          {filtered.length > 0 ? (
+            filtered.map(o => {
+              const c = colorOf(o.id);
+              const active = values.includes(o.id);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => toggle(o.id)}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm text-left hover:bg-slate-50 ${active ? 'text-teal-700 font-semibold' : 'text-slate-700 font-medium'}`}
+                >
+                  <span className={`h-6 w-6 shrink-0 rounded-full ${c.bg} ${c.text} text-[11px] font-bold flex items-center justify-center`}>
+                    {getInitials(o.name)}
+                  </span>
+                  <span className="flex-1 truncate">{o.name || '?'}</span>
+                  {active && <Check size={14} className="shrink-0 text-teal-600" />}
+                </button>
+              );
+            })
+          ) : (
+            <p className="px-4 py-2 text-sm text-slate-400 italic">Nessun risultato</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- Error Boundary ---
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
   constructor(props: any) {
@@ -444,15 +536,23 @@ function App() {
       setLoadError(null);
 
       try {
-        const [t, y, s] = await Promise.all([
+        const [t, y, s, yt] = await Promise.all([
           supabase.from('tutors').select('*'),
           supabase.from('youths').select('*'),
-          supabase.from('shifts').select('*')
+          supabase.from('shifts').select('*'),
+          supabase.from('youth_tutors').select('*')
         ]);
 
         if (t.error) throw t.error;
         if (y.error) throw y.error;
         if (s.error) throw s.error;
+        if (yt.error) throw yt.error;
+
+        const tutorsByYouth: Record<string, string[]> = {};
+        (yt.data || []).forEach((row: any) => {
+          if (!tutorsByYouth[row.youth_id]) tutorsByYouth[row.youth_id] = [];
+          tutorsByYouth[row.youth_id].push(row.tutor_id);
+        });
 
         const normalizedTutors = (t.data || []).map((tutor: any) => ({
           ...tutor,
@@ -478,22 +578,25 @@ function App() {
           requiredHoursPerWeek: youth.required_hours_per_week,
           birthDate: youth.birth_date || undefined,
           birthPlace: youth.birth_place || '',
-          gender: youth.gender || '',
-          nationality: youth.nationality || '',
           fiscalCode: youth.fiscal_code || '',
           phone: youth.phone || '',
-          parentName: youth.parent_name || '',
-          parentPhone: youth.parent_phone || '',
-          parentEmail: youth.parent_email || '',
+          school: youth.school || '',
+          parent1Name: youth.parent1_name || '',
+          parent1Phone: youth.parent1_phone || '',
+          parent1Email: youth.parent1_email || '',
+          parent2Name: youth.parent2_name || '',
+          parent2Phone: youth.parent2_phone || '',
+          parent2Email: youth.parent2_email || '',
           privacyConsentDate: youth.privacy_consent_date || null,
           outingsAuthorized: youth.outings_authorized || false,
           allergies: youth.allergies || '',
           medications: youth.medications || '',
-          doctor: youth.doctor || '',
-          referringTutorId: youth.referring_tutor_id || null,
+          contractStartDate: youth.contract_start_date || null,
+          contractEndDate: youth.contract_end_date || null,
           entryDate: youth.entry_date || null,
           status: youth.status || 'attivo',
           goals: youth.goals || '',
+          tutorIds: tutorsByYouth[youth.id] || [],
         }));
 
         const normalizedShifts = (s.data || []).map((shift: any) => ({
@@ -643,28 +746,31 @@ function App() {
     if (!newYouth.name) return;
 
     try {
+      const youthId = newYouth.id || Math.random().toString(36).slice(2, 11);
       const youthData = {
-        id: newYouth.id || Math.random().toString(36).slice(2, 11),
+        id: youthId,
         name: newYouth.name,
         needs: newYouth.needs || [],
         required_hours_per_week: newYouth.requiredHoursPerWeek ?? 4,
         notes: newYouth.notes || '',
         birth_date: newYouth.birthDate || null,
         birth_place: newYouth.birthPlace || '',
-        gender: newYouth.gender || '',
-        nationality: newYouth.nationality || '',
         fiscal_code: newYouth.fiscalCode || '',
         phone: newYouth.phone || '',
-        parent_name: newYouth.parentName || '',
-        parent_phone: newYouth.parentPhone || '',
-        parent_email: newYouth.parentEmail || '',
+        school: newYouth.school || '',
+        parent1_name: newYouth.parent1Name || '',
+        parent1_phone: newYouth.parent1Phone || '',
+        parent1_email: newYouth.parent1Email || '',
+        parent2_name: newYouth.parent2Name || '',
+        parent2_phone: newYouth.parent2Phone || '',
+        parent2_email: newYouth.parent2Email || '',
         privacy_consent_date: newYouth.privacyConsentDate || null,
         outings_authorized: newYouth.outingsAuthorized || false,
         diagnoses: newYouth.diagnoses || [],
         allergies: newYouth.allergies || '',
         medications: newYouth.medications || '',
-        doctor: newYouth.doctor || '',
-        referring_tutor_id: newYouth.referringTutorId || null,
+        contract_start_date: newYouth.contractStartDate || null,
+        contract_end_date: newYouth.contractEndDate || null,
         entry_date: newYouth.entryDate || null,
         status: newYouth.status || 'attivo',
         goals: newYouth.goals || '',
@@ -673,10 +779,42 @@ function App() {
       const { error } = await supabase.from('youths').upsert(youthData);
       if (error) throw error;
 
+      const tutorIds = newYouth.tutorIds || [];
+      await supabase.from('youth_tutors').delete().eq('youth_id', youthId);
+      if (tutorIds.length > 0) {
+        const { error: linkError } = await supabase.from('youth_tutors').insert(
+          tutorIds.map(tutorId => ({ youth_id: youthId, tutor_id: tutorId }))
+        );
+        if (linkError) throw linkError;
+      }
+
+      const normalized = {
+        ...youthData,
+        requiredHoursPerWeek: youthData.required_hours_per_week,
+        birthDate: youthData.birth_date,
+        birthPlace: youthData.birth_place,
+        fiscalCode: youthData.fiscal_code,
+        parent1Name: youthData.parent1_name,
+        parent1Phone: youthData.parent1_phone,
+        parent1Email: youthData.parent1_email,
+        parent2Name: youthData.parent2_name,
+        parent2Phone: youthData.parent2_phone,
+        parent2Email: youthData.parent2_email,
+        privacyConsentDate: youthData.privacy_consent_date,
+        outingsAuthorized: youthData.outings_authorized,
+        allergies: youthData.allergies,
+        medications: youthData.medications,
+        contractStartDate: youthData.contract_start_date,
+        contractEndDate: youthData.contract_end_date,
+        entryDate: youthData.entry_date,
+        goals: youthData.goals,
+        tutorIds,
+      };
+
       if (newYouth.id) {
-        setYouths(youths.map(y => y.id === newYouth.id ? { ...y, ...youthData, requiredHoursPerWeek: youthData.required_hours_per_week } : y));
+        setYouths(youths.map(y => y.id === youthId ? { ...y, ...normalized } : y));
       } else {
-        setYouths([...youths, { ...youthData, requiredHoursPerWeek: youthData.required_hours_per_week }]);
+        setYouths([...youths, { ...normalized }]);
       }
       setIsYouthModalOpen(false);
       setNewYouth({});
@@ -1634,7 +1772,7 @@ function App() {
     const filtered = allYouths.filter(y => {
       const matchQ = !q || (y.name || '').toLowerCase().includes(q);
       const matchStatus = youthStatusFilter === 'tutti' || y.status === youthStatusFilter;
-      const matchTutor = youthTutorFilter === 'tutti' || y.referringTutorId === youthTutorFilter;
+      const matchTutor = youthTutorFilter === 'tutti' || (y.tutorIds || []).includes(youthTutorFilter);
       return matchQ && matchStatus && matchTutor;
     });
     const sorted = [...filtered].sort((a, b) =>
@@ -1760,7 +1898,7 @@ function App() {
             {sorted.map(youth => {
               const theme = cardTheme(youth.status);
               const youthColor = getYouthColor(youth.id, youths);
-              const refTutor = tutors.find(t => t.id === youth.referringTutorId);
+              const assignedTutors = (youth.tutorIds || []).map(id => tutors.find(t => t.id === id)).filter((t): t is Tutor => !!t);
               return (
                 <Card key={youth.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
                   <div className={`h-1.5 bg-gradient-to-r ${theme.strip}`}></div>
@@ -1806,23 +1944,47 @@ function App() {
                           </div>
                         </div>
                       )}
-                      {refTutor && (
-                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                          <UserCheck size={14} className="text-teal-600 shrink-0" />
-                          <span className="truncate">Referente: <span className="font-medium text-slate-700">{refTutor.name}</span></span>
+                      {assignedTutors.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Tutor assegnati</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {assignedTutors.map(t => (
+                              <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100">
+                                <UserCheck size={12} className="shrink-0" />
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
-                    {(youth.parentName || youth.parentPhone) && (
-                      <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-2.5 border border-slate-100 space-y-1">
-                        {youth.parentName && <p><span className="font-medium">Genitore:</span> {youth.parentName}</p>}
-                        {youth.parentPhone && (
-                          <p className="flex items-center gap-1.5">
-                            <span className="font-medium">Tel:</span>
-                            <a href={`tel:${youth.parentPhone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
-                              <Phone size={13} /> {youth.parentPhone}
-                            </a>
-                          </p>
+                    {(youth.parent1Name || youth.parent1Phone || youth.parent2Name || youth.parent2Phone) && (
+                      <div className="text-sm text-slate-600 bg-slate-50 rounded-lg p-2.5 border border-slate-100 space-y-2">
+                        {(youth.parent1Name || youth.parent1Phone) && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">Genitore 1</p>
+                            {youth.parent1Name && <p className="font-medium text-slate-700">{youth.parent1Name}</p>}
+                            {youth.parent1Phone && (
+                              <p className="flex items-center gap-1.5">
+                                <a href={`tel:${youth.parent1Phone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
+                                  <Phone size={13} /> {youth.parent1Phone}
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {(youth.parent2Name || youth.parent2Phone) && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-0.5">Genitore 2</p>
+                            {youth.parent2Name && <p className="font-medium text-slate-700">{youth.parent2Name}</p>}
+                            {youth.parent2Phone && (
+                              <p className="flex items-center gap-1.5">
+                                <a href={`tel:${youth.parent2Phone.replace(/\s+/g, '')}`} className="text-teal-700 hover:underline font-medium inline-flex items-center gap-1">
+                                  <Phone size={13} /> {youth.parent2Phone}
+                                </a>
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -3313,11 +3475,6 @@ function App() {
                       {getAge(newYouth.birthDate)} anni
                     </span>
                   )}
-                  {newYouth.gender && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${newYouth.gender === 'Femmina' ? 'bg-pink-100 text-pink-700' : 'bg-violet-100 text-violet-700'}`}>
-                      {newYouth.gender}
-                    </span>
-                  )}
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                     newYouth.status === 'pausa' ? 'bg-amber-100 text-amber-700'
                     : newYouth.status === 'archiviato' ? 'bg-slate-200 text-slate-600'
@@ -3352,19 +3509,6 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Sesso</label>
-                <select
-                  className={fieldCls}
-                  value={newYouth.gender || ''}
-                  onChange={e => setNewYouth({ ...newYouth, gender: e.target.value })}
-                >
-                  <option value="">—</option>
-                  <option value="Maschio">Maschio</option>
-                  <option value="Femmina">Femmina</option>
-                  <option value="Altro">Altro</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Luogo di nascita</label>
                 <input
                   type="text"
@@ -3375,13 +3519,13 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nazionalità</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Scuola / Istituto</label>
                 <input
                   type="text"
                   className={fieldCls}
-                  placeholder="Italiana"
-                  value={newYouth.nationality || ''}
-                  onChange={e => setNewYouth({ ...newYouth, nationality: e.target.value })}
+                  placeholder="Istituto frequentato"
+                  value={newYouth.school || ''}
+                  onChange={e => setNewYouth({ ...newYouth, school: e.target.value })}
                 />
               </div>
               <div>
@@ -3409,35 +3553,81 @@ function App() {
 
           <YouthSection icon={<Phone size={16} />} title="Famiglia e Contatti" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Genitore / Tutore</label>
-                <input
-                  type="text"
-                  className={fieldCls}
-                  placeholder="Nome e cognome"
-                  value={newYouth.parentName || ''}
-                  onChange={e => setNewYouth({ ...newYouth, parentName: e.target.value })}
-                />
+              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                  <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">1</span>
+                  Genitore 1
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
+                    <input
+                      type="text"
+                      className={fieldCls}
+                      placeholder="Nome e cognome"
+                      value={newYouth.parent1Name || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent1Name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <input
+                      type="tel"
+                      className={fieldCls}
+                      placeholder="3XX XXX XXXX"
+                      value={newYouth.parent1Phone || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent1Phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      className={fieldCls}
+                      placeholder="genitore@email.it"
+                      value={newYouth.parent1Email || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent1Email: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono genitore</label>
-                <input
-                  type="tel"
-                  className={fieldCls}
-                  placeholder="3XX XXX XXXX"
-                  value={newYouth.parentPhone || ''}
-                  onChange={e => setNewYouth({ ...newYouth, parentPhone: e.target.value })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email genitore</label>
-                <input
-                  type="email"
-                  className={fieldCls}
-                  placeholder="genitore@email.it"
-                  value={newYouth.parentEmail || ''}
-                  onChange={e => setNewYouth({ ...newYouth, parentEmail: e.target.value })}
-                />
+              <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3.5">
+                <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
+                  <span className="w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center">2</span>
+                  Genitore 2
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
+                    <input
+                      type="text"
+                      className={fieldCls}
+                      placeholder="Nome e cognome"
+                      value={newYouth.parent2Name || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent2Name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <input
+                      type="tel"
+                      className={fieldCls}
+                      placeholder="3XX XXX XXXX"
+                      value={newYouth.parent2Phone || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent2Phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      className={fieldCls}
+                      placeholder="genitore@email.it"
+                      value={newYouth.parent2Email || ''}
+                      onChange={e => setNewYouth({ ...newYouth, parent2Email: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="sm:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -3500,29 +3690,37 @@ function App() {
                   onChange={e => setNewYouth({ ...newYouth, medications: e.target.value })}
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Medico di riferimento</label>
-                <input
-                  type="text"
-                  className={fieldCls}
-                  placeholder="Nome e specializzazione"
-                  value={newYouth.doctor || ''}
-                  onChange={e => setNewYouth({ ...newYouth, doctor: e.target.value })}
-                />
-              </div>
             </div>
           </YouthSection>
 
           <YouthSection icon={<Target size={16} />} title="Percorso al Centro" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor referente</label>
-                <PersonCombo
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor assegnati</label>
+                <PersonMultiCombo
                   options={tutors}
-                  value={newYouth.referringTutorId || ''}
-                  onChange={id => setNewYouth({ ...newYouth, referringTutorId: id || null })}
-                  placeholder="—"
+                  values={newYouth.tutorIds || []}
+                  onChange={ids => setNewYouth({ ...newYouth, tutorIds: ids })}
+                  placeholder="Seleziona uno o più tutor..."
                   colorOf={id => getTutorColor(id, tutors)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Inizio contratto</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={newYouth.contractStartDate || ''}
+                  onChange={e => setNewYouth({ ...newYouth, contractStartDate: e.target.value || null })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fine contratto</label>
+                <input
+                  type="date"
+                  className={fieldCls}
+                  value={newYouth.contractEndDate || ''}
+                  onChange={e => setNewYouth({ ...newYouth, contractEndDate: e.target.value || null })}
                 />
               </div>
               <div>
