@@ -684,6 +684,9 @@ function App() {
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Desktop Sidebar State: nascosta di default, appare al mouse over
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+
   // Summary View State
   const [summaryStartDate, setSummaryStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -1428,14 +1431,17 @@ function App() {
       </>
     );
 
-    const renderNavItem = (item: { view: ViewState; label: string; icon: React.ElementType; chipText: string }, onNavigate: () => void) => {
+    const renderNavItem = (item: { view: ViewState; label: string; icon: React.ElementType; chipText: string }, onNavigate: () => void, showLabels: boolean) => {
       const active = view === item.view;
       const Icon = item.icon;
       return (
         <button
           key={item.view}
           onClick={onNavigate}
-          className={`group relative flex items-center w-full p-2.5 rounded-xl transition-all duration-200 active:scale-[0.98] ${
+          title={showLabels ? undefined : item.label}
+          className={`group relative flex items-center w-full rounded-xl transition-all duration-200 active:scale-[0.98] ${
+            showLabels ? 'p-2.5' : 'justify-center p-2'
+          } ${
             active
               ? 'bg-white/15 ring-1 ring-white/25 shadow-lg shadow-black/40'
               : 'hover:bg-white/10 hover:ring-1 hover:ring-white/15'
@@ -1444,58 +1450,72 @@ function App() {
           <span className={`flex items-center justify-center w-9 h-9 rounded-lg bg-white shadow-md ring-1 ring-white/50 ${item.chipText} shrink-0 transition-transform duration-200 group-hover:scale-105 ${active ? 'scale-105' : ''}`}>
             <Icon size={17} strokeWidth={2.2} />
           </span>
-          <span className={`ml-3 flex-1 text-sm font-semibold truncate text-left ${active ? 'text-white' : 'text-white/85 group-hover:text-white'}`}>
-            {item.label}
-          </span>
-          {active && <span className="w-1.5 h-7 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]" />}
+          {showLabels && (
+            <>
+              <span className={`ml-3 flex-1 text-sm font-semibold truncate text-left ${active ? 'text-white' : 'text-white/85 group-hover:text-white'}`}>
+                {item.label}
+              </span>
+              {active && <span className="w-1.5 h-7 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]" />}
+            </>
+          )}
         </button>
       );
     };
 
     return (
       <>
-      {/* Desktop Sidebar */}
-      <div className="w-64 bg-gradient-to-b from-zinc-900 via-slate-900 to-black text-white flex flex-col h-screen fixed left-0 top-0 z-50 shadow-2xl shadow-black/60 hidden md:flex overflow-hidden">
+      {/* Desktop Sidebar (auto-hide: appare al mouse over) */}
+      <div
+        onMouseEnter={() => setSidebarExpanded(true)}
+        onMouseLeave={() => setSidebarExpanded(false)}
+        className={`hidden md:flex fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-zinc-900 via-slate-900 to-black text-white shadow-2xl shadow-black/60 flex-col overflow-hidden transition-all duration-300 ${sidebarExpanded ? 'w-64' : 'w-16'}`}
+      >
         {sidebarDecor}
-        <div className="relative p-6 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="CentroCare" className="h-11 w-11 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
-            <div className="min-w-0">
-              <h1 className="text-xl font-black tracking-tight text-white drop-shadow-md">CentroCare</h1>
-              <p className="text-[11px] text-white/70 mt-0.5 font-medium">Gestione Pianificazione</p>
-            </div>
+        <div className={`relative border-b border-white/10 shrink-0 ${sidebarExpanded ? 'p-6' : 'p-3'}`}>
+          <div className={`flex items-center gap-3 min-w-0 ${sidebarExpanded ? '' : 'justify-center'}`}>
+            <img src="/logo.png" alt="CentroCare" className="h-10 w-10 rounded-xl shadow-lg ring-2 ring-white/30 shrink-0" />
+            {sidebarExpanded && (
+              <div className="min-w-0">
+                <h1 className="text-xl font-black tracking-tight text-white drop-shadow-md">CentroCare</h1>
+                <p className="text-[11px] text-white/70 mt-0.5 font-medium">Gestione Pianificazione</p>
+              </div>
+            )}
           </div>
-          <div className="mt-4 flex items-center gap-2.5 text-xs text-white bg-white/15 ring-1 ring-white/25 backdrop-blur px-3 py-2 rounded-xl">
-            <div className="w-7 h-7 bg-white/95 text-teal-700 rounded-full flex items-center justify-center font-bold shadow-md shrink-0">
-              {currentUser?.username?.charAt(0).toUpperCase() || '?'}
+          {sidebarExpanded && (
+            <div className="mt-4 flex items-center gap-2.5 text-xs text-white bg-white/15 ring-1 ring-white/25 backdrop-blur px-3 py-2 rounded-xl">
+              <div className="w-7 h-7 bg-white/95 text-teal-700 rounded-full flex items-center justify-center font-bold shadow-md shrink-0">
+                {currentUser?.username?.charAt(0).toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0">
+                <span className="block font-bold truncate">{currentUser?.username || 'Utente'}</span>
+                <span className="block text-[10px] text-white/60 uppercase tracking-wider">Area riservata</span>
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="block font-bold truncate">{currentUser?.username || 'Utente'}</span>
-              <span className="block text-[10px] text-white/60 uppercase tracking-wider">Area riservata</span>
-            </div>
-          </div>
+          )}
         </div>
 
         <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => setView(i.view)))}
+          {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => setView(i.view), sidebarExpanded))}
           {hasPermission('ALL') && (
             <>
-              <div className="flex items-center gap-3 my-3 px-1">
-                <div className="h-px flex-1 bg-white/15"></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Amministrazione</span>
-                <div className="h-px flex-1 bg-white/15"></div>
-              </div>
-              {renderNavItem(adminItem, () => setView(adminItem.view))}
+              {sidebarExpanded && (
+                <div className="flex items-center gap-3 my-3 px-1">
+                  <div className="h-px flex-1 bg-white/15"></div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Amministrazione</span>
+                  <div className="h-px flex-1 bg-white/15"></div>
+                </div>
+              )}
+              {renderNavItem(adminItem, () => setView(adminItem.view), sidebarExpanded)}
             </>
           )}
         </nav>
 
-        <div className="relative p-4 border-t border-white/10 bg-black/30">
-          <button onClick={handleLogout} className="group flex items-center w-full p-2.5 rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98]">
-            <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 mr-3 transition-transform group-hover:scale-105">
+        <div className={`relative border-t border-white/10 bg-black/30 shrink-0 ${sidebarExpanded ? 'p-4' : 'p-2'}`}>
+          <button onClick={handleLogout} title={sidebarExpanded ? undefined : 'Disconnetti'} className={`group flex items-center w-full rounded-xl text-white/85 hover:text-white hover:bg-red-500/25 ring-1 ring-transparent hover:ring-red-400/40 transition-all active:scale-[0.98] ${sidebarExpanded ? 'p-2.5' : 'justify-center p-2'}`}>
+            <span className={`flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 text-red-600 shadow-md ring-1 ring-white/50 shrink-0 transition-transform group-hover:scale-105 ${sidebarExpanded ? 'mr-3' : ''}`}>
               <LogOut size={17} strokeWidth={2.2} />
             </span>
-            <span className="text-sm font-semibold">Disconnetti</span>
+            {sidebarExpanded && <span className="text-sm font-semibold">Disconnetti</span>}
           </button>
         </div>
       </div>
@@ -3059,7 +3079,7 @@ function App() {
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 overflow-x-clip">
       {renderSidebar()}
 
-      <div className="flex-1 md:ml-64 flex flex-col h-dvh min-w-0">
+      <div className={`flex-1 flex flex-col h-dvh min-w-0 transition-all duration-300 ${sidebarExpanded ? 'md:ml-64' : 'md:ml-16'}`}>
         {renderMobileHeader()}
 
         <main className="flex-1 min-h-0 overflow-y-auto min-w-0">
