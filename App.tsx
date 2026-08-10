@@ -587,7 +587,6 @@ function App() {
           role: tutor.role || '',
           qualifications: tutor.qualifications || '',
           yearsExperience: tutor.years_experience || undefined,
-          criminalRecordExpiry: tutor.criminal_record_expiry || null,
           status: tutor.status || 'attivo',
           entryDate: tutor.entry_date || null,
         }));
@@ -745,7 +744,6 @@ function App() {
         role: newTutor.role || '',
         qualifications: newTutor.qualifications || '',
         years_experience: newTutor.yearsExperience || null,
-        criminal_record_expiry: newTutor.criminalRecordExpiry || null,
         status: newTutor.status || 'attivo',
         entry_date: newTutor.entryDate || null,
       };
@@ -754,9 +752,9 @@ function App() {
       if (error) throw error;
 
       if (newTutor.id) {
-        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, criminalRecordExpiry: tutorData.criminal_record_expiry, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
+        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
       } else {
-        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, criminalRecordExpiry: tutorData.criminal_record_expiry, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience }]);
+        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience }]);
       }
       setIsTutorModalOpen(false);
       setNewTutor({});
@@ -1880,8 +1878,6 @@ function App() {
                       </div>
                     )}
 
-                    <div className="mb-1">{renderCrimBadge(tutor)}</div>
-
                     {tutor.notes && <p className="text-sm text-slate-500 italic mt-3 border-t pt-3">"{tutor.notes}"</p>}
                   </div>
                 </Card>
@@ -2660,7 +2656,18 @@ function App() {
                                     const col = layout.colOf[idx];
                                     const wPct = 100 / (layout.clusterMaxCol[layout.clusterOf[idx]] + 1);
 
-                                    return (
+    const renderCrimBadge = (tutor: Tutor) => {
+      const expiry = tutor.criminalRecordExpiry;
+      if (!expiry) {
+        return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario mancante</span>;
+      }
+      const daysLeft = Math.floor((parseISO(expiry).getTime() - Date.now()) / 86400000);
+      if (daysLeft < 0) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">Casellario scaduto</span>;
+      if (daysLeft <= 30) return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Casellario: scade tra {daysLeft}g</span>;
+      return <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Casellario ok</span>;
+    };
+
+    return (
                                       <div
                                         key={shift.id}
                                         draggable={!shiftLocked}
@@ -3643,25 +3650,6 @@ function App() {
                   min={0}
                   value={newTutor.maxHoursPerWeek ?? ''}
                   onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-                />
-              </div>
-            </div>
-          </YouthSection>
-
-          <YouthSection icon={<Shield size={16} />} title="Lavoro con Minori" chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
-            <div className="rounded-lg border border-rose-200 bg-rose-50/60 p-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-rose-800 flex items-center gap-1.5">
-                    <CheckCircle size={15} /> Certificato casellario giudiziale
-                  </p>
-                  <p className="text-xs text-rose-700/70 mt-0.5">Requisito obbligatorio per il lavoro con minori</p>
-                </div>
-                <input
-                  type="date"
-                  className={fieldCls + " sm:w-44"}
-                  value={newTutor.criminalRecordExpiry || ''}
-                  onChange={e => setNewTutor({ ...newTutor, criminalRecordExpiry: e.target.value || null })}
                 />
               </div>
             </div>

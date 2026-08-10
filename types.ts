@@ -18,7 +18,6 @@ export interface Tutor {
   role?: string;
   qualifications?: string;
   yearsExperience?: number;
-  criminalRecordExpiry?: string | null;
   status?: string;
   entryDate?: string | null;
 }
