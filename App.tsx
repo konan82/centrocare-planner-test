@@ -3571,7 +3571,13 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                  {waHref(newTutor.phone || '') && (
+                    <a href={waHref(newTutor.phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il tutor" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                      <WhatsAppIcon size={12} />
+                    </a>
+                  )}
+                </label>
                 <input
                   type="tel"
                   className={fieldCls}
@@ -3827,7 +3833,13 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                  {waHref(newYouth.phone || '') && (
+                    <a href={waHref(newYouth.phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il ragazzo" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                      <WhatsAppIcon size={12} />
+                    </a>
+                  )}
+                </label>
                 <input
                   type="tel"
                   className={fieldCls}
@@ -3858,7 +3870,13 @@ function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                      {waHref(newYouth.parent1Phone || '') && (
+                        <a href={waHref(newYouth.parent1Phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il Genitore 1" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                          <WhatsAppIcon size={12} />
+                        </a>
+                      )}
+                    </label>
                     <input
                       type="tel"
                       className={fieldCls}
@@ -3896,7 +3914,13 @@ function App() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                      {waHref(newYouth.parent2Phone || '') && (
+                        <a href={waHref(newYouth.parent2Phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il Genitore 2" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
+                          <WhatsAppIcon size={12} />
+                        </a>
+                      )}
+                    </label>
                     <input
                       type="tel"
                       className={fieldCls}
