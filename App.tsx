@@ -41,7 +41,6 @@ import {
   ClipboardCheck,
   MousePointer2,
   MessageCircle,
-  Send,
   Play
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
@@ -679,9 +678,6 @@ function App() {
   const [youthFilter, setYouthFilter] = useState<string>('all');
 
   // WhatsApp share state
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
-  const [whatsAppPhone, setWhatsAppPhone] = useState('');
-  const [whatsAppError, setWhatsAppError] = useState('');
   const [isWhatsAppSending, setIsWhatsAppSending] = useState(false);
 
   // Mobile Menu State
@@ -1003,13 +999,7 @@ function App() {
   };
 
   const handleWhatsAppSend = async () => {
-    const digits = whatsAppPhone.replace(/\D/g, '');
-    if (digits.length < 9 || digits.length > 15) {
-      setWhatsAppError('Inserisci un numero di cellulare valido (es. 3331234567).');
-      return;
-    }
     setIsWhatsAppSending(true);
-    setWhatsAppError('');
     try {
       const node = document.getElementById('weekly-matrix');
       if (!node) throw new Error('Matrice non trovata');
@@ -1020,8 +1010,6 @@ function App() {
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Turni settimanali', text });
-        setIsWhatsAppModalOpen(false);
-        setWhatsAppPhone('');
       } else {
         let copied = false;
         if (navigator.clipboard && (navigator.clipboard as any).write) {
@@ -1032,19 +1020,16 @@ function App() {
             copied = false;
           }
         }
-        const intl = digits.startsWith('39') ? digits : '39' + digits;
-        window.open(`https://wa.me/${intl}?text=${encodeURIComponent(text)}`, '_blank');
-        setIsWhatsAppModalOpen(false);
-        setWhatsAppPhone('');
+        window.open('https://web.whatsapp.com/', '_blank');
         if (copied) {
-          alert('Screenshot copiato negli appunti: incollalo (Ctrl+V) nella chat WhatsApp appena aperta e invia.');
+          alert('Screenshot copiato negli appunti: apri la chat in WhatsApp Web e incollalo (Ctrl+V) per inviarlo.');
         } else {
-          alert('Apri la chat WhatsApp appena aperta e allega il file "turni_settimanali.png" scaricabile dal download.');
+          alert('WhatsApp Web è stato aperto: allega manualmente il file "turni_settimanali.png" alla chat scelta.');
         }
       }
     } catch (error) {
       console.error("Errore invio WhatsApp:", error);
-      setWhatsAppError('Errore durante la generazione dell\'immagine. Riprova.');
+      alert("Errore durante la generazione dell'immagine. Riprova.");
     } finally {
       setIsWhatsAppSending(false);
     }
@@ -2232,12 +2217,13 @@ function App() {
                 />
               )}
               <button
-                onClick={() => { setWhatsAppPhone(''); setWhatsAppError(''); setIsWhatsAppModalOpen(true); }}
-                title="Invia i turni visualizzati via WhatsApp"
-                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 shadow-md shadow-green-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+                onClick={handleWhatsAppSend}
+                disabled={isWhatsAppSending}
+                title="Cattura lo screenshot dei turni e invialo via WhatsApp"
+                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 shadow-md shadow-green-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg disabled:opacity-50"
               >
-                <MessageCircle size={16} />
-                Invia su WhatsApp
+                {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
+                {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
               </button>
               {isPlan && (
                 <button
@@ -3097,55 +3083,6 @@ function App() {
       </div>
 
       {/* --- Modals --- */}
-
-      {/* WhatsApp Share Modal */}
-      <Modal isOpen={isWhatsAppModalOpen} onClose={() => { if (!isWhatsAppSending) setIsWhatsAppModalOpen(false); }} title="Invia i turni su WhatsApp">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-green-100 rounded-full flex-shrink-0 mt-0.5">
-              <MessageCircle size={20} className="text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-700">
-                Verrà inviato lo <strong>screenshot dei turni attualmente visualizzati</strong> insieme a un riepilogo testuale.
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Suggerimento: seleziona prima la vista <strong>Ragazzo</strong> e il ragazzo interessato, così la settimana mostrata sarà solo la sua.
-              </p>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Numero di cellulare</label>
-            <input
-              type="tel"
-              className={fieldCls}
-              placeholder="333 1234567"
-              value={whatsAppPhone}
-              autoFocus
-              onChange={e => { setWhatsAppPhone(e.target.value); setWhatsAppError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter' && !isWhatsAppSending) handleWhatsAppSend(); }}
-            />
-            {whatsAppError && <p className="text-xs text-red-600 mt-1.5">{whatsAppError}</p>}
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setIsWhatsAppModalOpen(false)}
-              disabled={isWhatsAppSending}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-            >
-              Annulla
-            </button>
-            <button
-              onClick={handleWhatsAppSend}
-              disabled={isWhatsAppSending}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Send size={14} />}
-              Invia
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Confirm Delete Youth Modal */}
       <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo">
