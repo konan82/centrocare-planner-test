@@ -1020,7 +1020,7 @@ function App() {
             copied = false;
           }
         }
-        window.open('https://web.whatsapp.com/', '_blank');
+        window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}&app_absent=1`, '_blank');
         if (copied) {
           alert('Screenshot copiato negli appunti: apri la chat in WhatsApp Web e incollalo (Ctrl+V) per inviarlo.');
         } else {
