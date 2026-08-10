@@ -18,7 +18,7 @@ serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const { email, password, username, permissions } = await req.json();
+    const { email, password, username, permissions, tutorId } = await req.json();
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -27,10 +27,20 @@ serve(async (req: Request) => {
       user_metadata: {
         username,
         permissions,
+        tutor_id: tutorId || null,
       },
     });
 
     if (error) throw error;
+
+    // Imposta il tutor associato sul profilo appena creato dal trigger
+    if (data.user) {
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .update({ tutor_id: tutorId || null })
+        .eq("id", data.user.id);
+      if (profileError) throw profileError;
+    }
 
     return new Response(JSON.stringify({ data }), {
       status: 200,

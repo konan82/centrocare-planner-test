@@ -514,6 +514,7 @@ function App() {
             id: session.user.id,
             username: profile.username,
             permissions: profile.permissions || [],
+            tutorId: profile.tutor_id || null,
           });
           setToken(session.access_token);
           setView('DASHBOARD');
@@ -977,7 +978,7 @@ function App() {
     const lines: string[] = [];
     days.forEach((day, idx) => {
       const dateStr = format(day, 'yyyy-MM-dd');
-      const dayShifts = shifts.filter(s => {
+      const dayShifts = visibleShifts.filter(s => {
         if (calendarView === 'youth') {
           if (youthFilter !== 'all' && s.youthId !== youthFilter) return false;
         } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
@@ -1401,6 +1402,23 @@ function App() {
     if (perms.includes('ALL')) return true;
     return perms.includes(perm);
   };
+
+  // Utente "limitato": ha un tutor associato ma NON è ADMIN COMPLETO (ALL).
+  // In Pianificazione e Consuntivo vede solo i propri turni.
+  const restrictedUserTutorId =
+    currentUser && !(Array.isArray(currentUser.permissions) && currentUser.permissions.includes('ALL'))
+      ? (currentUser.tutorId || null)
+      : null;
+  const visibleShifts = restrictedUserTutorId
+    ? shifts.filter(s => s.tutorId === restrictedUserTutorId)
+    : shifts;
+
+  useEffect(() => {
+    if (restrictedUserTutorId) {
+      setCalendarView('tutor');
+      setTutorFilter(restrictedUserTutorId);
+    }
+  }, [restrictedUserTutorId]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -2213,7 +2231,12 @@ function App() {
                   </span>
                 </button>
               </div>
-              {calendarView === 'youth' ? (
+              {restrictedUserTutorId ? (
+                <span className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                  <UserCheck size={15} />
+                  Solo i tuoi turni
+                </span>
+              ) : calendarView === 'youth' ? (
                 <PersonCombo
                   options={youths}
                   value={youthFilter}
@@ -2463,7 +2486,7 @@ function App() {
                   // Overlapping shifts are placed side by side via greedy interval coloring.
                   const dayLayouts = calendarDays.map((day, dayIdx) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const dayShifts = shifts.filter(s => {
+                    const dayShifts = visibleShifts.filter(s => {
                       if (calendarView === 'youth') {
                         if (youthFilter !== 'all' && s.youthId !== youthFilter) return false;
                       } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
@@ -3099,7 +3122,7 @@ function App() {
             {view === 'TUTORS' && renderTutorsList()}
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}
-            {view === 'USER_MANAGEMENT' && <UserManagementView />}
+            {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} />}
           </div>
         </main>
       </div>
@@ -4084,6 +4107,7 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
           id: data.user.id,
           username: profile.username,
           permissions: profile.permissions || [],
+          tutorId: profile.tutor_id || null,
         },
       });
     } catch (err: any) {
@@ -4159,13 +4183,15 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
   );
 }
 
-function UserManagementView() {
+function UserManagementView({ tutors }: { tutors: Tutor[] }) {
   const [users, setUsers] = useState<User[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'] });
+  const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '' });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
+  const [editTutorId, setEditTutorId] = useState('');
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -4179,6 +4205,7 @@ function UserManagementView() {
         id: p.id,
         username: p.username,
         permissions: p.permissions || [],
+        tutorId: p.tutor_id || null,
       })) : []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -4200,6 +4227,7 @@ function UserManagementView() {
             password: newUser.password,
             username: newUser.username,
             permissions: newUser.permissions,
+            tutorId: newUser.tutorId || null,
           }),
         }
       );
@@ -4208,7 +4236,7 @@ function UserManagementView() {
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to create user');
 
       setIsUserModalOpen(false);
-      setNewUser({ username: '', password: '', permissions: ['DASHBOARD'] });
+      setNewUser({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '' });
       fetchUsers();
       alert("Utente creato con successo!");
     } catch (error: any) {
@@ -4218,7 +4246,6 @@ function UserManagementView() {
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo utente?")) return;
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
@@ -4244,6 +4271,7 @@ function UserManagementView() {
   const openEditModal = (user: User) => {
     setEditingUser(user);
     setEditPermissions([...user.permissions]);
+    setEditTutorId(user.tutorId || '');
     setIsEditModalOpen(true);
   };
 
@@ -4252,7 +4280,7 @@ function UserManagementView() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ permissions: editPermissions })
+        .update({ permissions: editPermissions, tutor_id: editTutorId || null })
         .eq('id', editingUser.id);
 
       if (error) throw error;
@@ -4303,8 +4331,10 @@ function UserManagementView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users.map(user => (
-          <Card key={user.id} className="p-6 relative">
+        {users.map(user => {
+          const linkedTutor = tutors.find(t => t.id === user.tutorId);
+          return (
+          <Card key={user.id} className="p-6 relative cursor-pointer hover:shadow-xl transition-shadow" onClick={() => openEditModal(user)}>
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center">
                 <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold mr-3">
@@ -4315,42 +4345,46 @@ function UserManagementView() {
                   <span className="text-xs text-slate-500">ID: {user.id}</span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              {user.username !== 'Admin' && (
                 <button
-                  onClick={() => openEditModal(user)}
-                  className="text-slate-400 hover:text-teal-600 transition-colors"
-                  title="Modifica permessi"
+                  onClick={e => { e.stopPropagation(); setUserToDelete(user); }}
+                  className="text-slate-400 hover:text-red-500 transition-colors"
+                  title="Elimina utente"
                 >
-                  <Edit size={18} />
+                  <Trash2 size={18} />
                 </button>
-                {user.username !== 'Admin' && (
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="text-slate-400 hover:text-red-500 transition-colors"
-                    title="Elimina utente"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-400 uppercase">Permessi</p>
-              <div className="flex flex-wrap gap-2">
-                {user.permissions.includes('ALL') ? (
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold border border-purple-200 flex items-center">
-                    <Shield size={10} className="mr-1" /> ADMIN
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Permessi</p>
+                <div className="flex flex-wrap gap-2">
+                  {user.permissions.includes('ALL') ? (
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold border border-purple-200 flex items-center">
+                      <Shield size={10} className="mr-1" /> ADMIN
+                    </span>
+                  ) : (
+                    user.permissions.map(p => (
+                      <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{p}</span>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="border-t pt-2 flex items-center gap-2 text-sm">
+                <UserCheck size={14} className={user.tutorId ? 'text-teal-600 shrink-0' : 'text-slate-300 shrink-0'} />
+                {user.tutorId ? (
+                  <span className="text-slate-700">
+                    Tutor associato: <span className="font-semibold">{linkedTutor ? linkedTutor.name : 'non trovato'}</span>
                   </span>
                 ) : (
-                  user.permissions.map(p => (
-                    <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{p}</span>
-                  ))
+                  <span className="text-slate-400 italic">Nessun tutor associato</span>
                 )}
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* Create User Modal */}
@@ -4373,6 +4407,22 @@ function UserManagementView() {
               onChange={e => setNewUser({ ...newUser, password: e.target.value })}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor associato</label>
+            <select
+              value={newUser.tutorId}
+              onChange={e => setNewUser({ ...newUser, tutorId: e.target.value })}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+            >
+              <option value="">Nessun tutor associato</option>
+              {tutors.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrà solo i propri turni in Pianificazione e Consuntivo.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
@@ -4419,6 +4469,23 @@ function UserManagementView() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor associato</label>
+            <select
+              value={editTutorId}
+              onChange={e => setEditTutorId(e.target.value)}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+            >
+              <option value="">Nessun tutor associato</option>
+              {tutors.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">
+              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrà solo i propri turni in Pianificazione e Consuntivo.
+            </p>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
             <div className="space-y-2">
               <label className="flex items-center space-x-2">
@@ -4449,6 +4516,39 @@ function UserManagementView() {
           <div className="flex justify-end space-x-3 mt-6">
             <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
             <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Salva Modifiche</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Delete User Modal */}
+      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Elimina utente">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
+              <AlertTriangle size={20} className="text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.username}</strong>?
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                L'utente non potrà più accedere al sistema. L'operazione non può essere annullata.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setUserToDelete(null)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={() => { const id = userToDelete?.id; setUserToDelete(null); if (id) handleDeleteUser(id); }}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Si, elimina
+            </button>
           </div>
         </div>
       </Modal>

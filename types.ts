@@ -74,6 +74,7 @@ export interface User {
   id: string;
   username: string;
   permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
+  tutorId?: string | null; // tutor associato: se presente e senza 'ALL', vede solo i propri turni
 }
 
 export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'USER_MANAGEMENT';
