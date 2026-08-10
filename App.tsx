@@ -40,9 +40,12 @@ import {
   ChevronRight,
   ClipboardCheck,
   MousePointer2,
+  MessageCircle,
+  Send,
   Play
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User } from './types';
+import { toPng } from 'html-to-image';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { generateSmartSchedule, analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
@@ -675,6 +678,12 @@ function App() {
   const [calendarView, setCalendarView] = useState<'tutor' | 'youth'>('tutor');
   const [youthFilter, setYouthFilter] = useState<string>('all');
 
+  // WhatsApp share state
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [whatsAppPhone, setWhatsAppPhone] = useState('');
+  const [whatsAppError, setWhatsAppError] = useState('');
+  const [isWhatsAppSending, setIsWhatsAppSending] = useState(false);
+
   // Mobile Menu State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -959,6 +968,86 @@ function App() {
     setEditingShift(shift);
     setShiftModalMode(mode);
     setIsShiftModalOpen(true);
+  };
+
+  // Riepilogo testuale dei turni visibili (per WhatsApp)
+  const buildWeeklySummary = () => {
+    const isPlan = view === 'DASHBOARD';
+    const days = isPlan ? templateWeekDays : weekDays;
+    const labels = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+    const lines: string[] = [];
+    days.forEach((day, idx) => {
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayShifts = shifts.filter(s => {
+        if (calendarView === 'youth') {
+          if (youthFilter !== 'all' && s.youthId !== youthFilter) return false;
+        } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+        if (isPlan) return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === idx + 1;
+        if (!s.date || s.isTemplate) return false;
+        return (typeof s.date === 'string' ? s.date.split('T')[0] : '') === dateStr;
+      });
+      const sorted = [...dayShifts].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      if (sorted.length === 0) return;
+      const items = sorted.map(s => {
+        const tutor = tutors.find(t => t.id === s.tutorId);
+        const youth = youths.find(y => y.id === s.youthId);
+        return `${s.startTime}-${s.endTime} ${tutor?.name || '?'}${youth ? ` (${youth.name})` : ''}`;
+      });
+      lines.push(`${isPlan ? labels[idx] : `${labels[idx]} ${format(day, 'dd/MM')}`}: ${items.join(' · ')}`);
+    });
+    const selectedName = calendarView === 'youth'
+      ? (youths.find(y => y.id === youthFilter)?.name || 'il ragazzo')
+      : (tutors.find(t => t.id === tutorFilter)?.name || 'Tutti');
+    const header = `Turni settimanali - ${selectedName}${isPlan ? ' (settimana tipo)' : ` (${format(days[0], 'dd/MM')} - ${format(days[5], 'dd/MM')})`}`;
+    return [header, ...lines].join('\n');
+  };
+
+  const handleWhatsAppSend = async () => {
+    const digits = whatsAppPhone.replace(/\D/g, '');
+    if (digits.length < 9 || digits.length > 15) {
+      setWhatsAppError('Inserisci un numero di cellulare valido (es. 3331234567).');
+      return;
+    }
+    setIsWhatsAppSending(true);
+    setWhatsAppError('');
+    try {
+      const node = document.getElementById('weekly-matrix');
+      if (!node) throw new Error('Matrice non trovata');
+      const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'turni_settimanali.png', { type: 'image/png' });
+      const text = buildWeeklySummary();
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Turni settimanali', text });
+        setIsWhatsAppModalOpen(false);
+        setWhatsAppPhone('');
+      } else {
+        let copied = false;
+        if (navigator.clipboard && (navigator.clipboard as any).write) {
+          try {
+            await (navigator.clipboard as any).write([new ClipboardItem({ 'image/png': blob })]);
+            copied = true;
+          } catch {
+            copied = false;
+          }
+        }
+        const intl = digits.startsWith('39') ? digits : '39' + digits;
+        window.open(`https://wa.me/${intl}?text=${encodeURIComponent(text)}`, '_blank');
+        setIsWhatsAppModalOpen(false);
+        setWhatsAppPhone('');
+        if (copied) {
+          alert('Screenshot copiato negli appunti: incollalo (Ctrl+V) nella chat WhatsApp appena aperta e invia.');
+        } else {
+          alert('Apri la chat WhatsApp appena aperta e allega il file "turni_settimanali.png" scaricabile dal download.');
+        }
+      }
+    } catch (error) {
+      console.error("Errore invio WhatsApp:", error);
+      setWhatsAppError('Errore durante la generazione dell\'immagine. Riprova.');
+    } finally {
+      setIsWhatsAppSending(false);
+    }
   };
 
   const openNewTutorModal = () => {
@@ -2142,6 +2231,14 @@ function App() {
                   className="w-full sm:w-56"
                 />
               )}
+              <button
+                onClick={() => { setWhatsAppPhone(''); setWhatsAppError(''); setIsWhatsAppModalOpen(true); }}
+                title="Invia i turni visualizzati via WhatsApp"
+                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 shadow-md shadow-green-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+              >
+                <MessageCircle size={16} />
+                Invia su WhatsApp
+              </button>
               {isPlan && (
                 <button
                   onClick={async () => {
@@ -2309,7 +2406,7 @@ function App() {
         {/* Weekly Time Matrix */}
         <div className="flex-1 min-h-[240px] md:min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
           <div className="overflow-auto flex-1 min-h-0">
-            <table className="w-full min-w-[1000px] border-separate border-spacing-0">
+            <table id="weekly-matrix" className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
                   <th className="sticky left-0 top-0 z-40 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-16">
@@ -3000,6 +3097,55 @@ function App() {
       </div>
 
       {/* --- Modals --- */}
+
+      {/* WhatsApp Share Modal */}
+      <Modal isOpen={isWhatsAppModalOpen} onClose={() => { if (!isWhatsAppSending) setIsWhatsAppModalOpen(false); }} title="Invia i turni su WhatsApp">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-green-100 rounded-full flex-shrink-0 mt-0.5">
+              <MessageCircle size={20} className="text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Verrà inviato lo <strong>screenshot dei turni attualmente visualizzati</strong> insieme a un riepilogo testuale.
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Suggerimento: seleziona prima la vista <strong>Ragazzo</strong> e il ragazzo interessato, così la settimana mostrata sarà solo la sua.
+              </p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Numero di cellulare</label>
+            <input
+              type="tel"
+              className={fieldCls}
+              placeholder="333 1234567"
+              value={whatsAppPhone}
+              autoFocus
+              onChange={e => { setWhatsAppPhone(e.target.value); setWhatsAppError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !isWhatsAppSending) handleWhatsAppSend(); }}
+            />
+            {whatsAppError && <p className="text-xs text-red-600 mt-1.5">{whatsAppError}</p>}
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setIsWhatsAppModalOpen(false)}
+              disabled={isWhatsAppSending}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              Annulla
+            </button>
+            <button
+              onClick={handleWhatsAppSend}
+              disabled={isWhatsAppSending}
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Send size={14} />}
+              Invia
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Confirm Delete Youth Modal */}
       <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo">
