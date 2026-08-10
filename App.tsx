@@ -1007,8 +1007,9 @@ function App() {
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], 'turni_settimanali.png', { type: 'image/png' });
       const text = buildWeeklySummary();
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Turni settimanali', text });
       } else {
         let copied = false;
@@ -1020,12 +1021,16 @@ function App() {
             copied = false;
           }
         }
-        window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}&app_absent=1`, '_blank');
-        if (copied) {
-          alert('Screenshot copiato negli appunti: apri la chat in WhatsApp Web e incollalo (Ctrl+V) per inviarlo.');
-        } else {
-          alert('WhatsApp Web è stato aperto: allega manualmente il file "turni_settimanali.png" alla chat scelta.');
+        if (!copied) {
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = 'turni_settimanali.png';
+          link.click();
         }
+        window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+        alert(copied
+          ? 'Screenshot copiato negli appunti: in WhatsApp Web scegli la chat e premi Ctrl+V per incollare e inviare.'
+          : 'Il file turni_settimanali.png è stato scaricato: in WhatsApp Web scegli la chat e allega il file.');
       }
     } catch (error) {
       console.error("Errore invio WhatsApp:", error);
