@@ -60,8 +60,10 @@ const waHref = (phone: string) => {
   return `https://wa.me/${digits}`;
 };
 
-const shiftYouthIds = (s: Shift): string[] =>
-  s.youthIds && s.youthIds.length > 0 ? s.youthIds : (s.youthId ? [s.youthId] : []);
+const shiftYouthIds = (s: Shift | null | undefined): string[] => {
+  if (!s) return [];
+  return s.youthIds && s.youthIds.length > 0 ? s.youthIds : (s.youthId ? [s.youthId] : []);
+};
 
 const WhatsAppIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
