@@ -60,6 +60,9 @@ const waHref = (phone: string) => {
   return `https://wa.me/${digits}`;
 };
 
+const shiftYouthIds = (s: Shift): string[] =>
+  s.youthIds && s.youthIds.length > 0 ? s.youthIds : (s.youthId ? [s.youthId] : []);
+
 const WhatsAppIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
@@ -628,6 +631,7 @@ function App() {
           ...shift,
           tutorId: shift.tutor_id,
           youthId: shift.youth_id,
+          youthIds: Array.isArray(shift.youth_ids) && shift.youth_ids.length > 0 ? shift.youth_ids : (shift.youth_id ? [shift.youth_id] : []),
           startTime: shift.start_time,
           endTime: shift.end_time,
           status: shift.status || 'pianificato',
@@ -659,6 +663,7 @@ function App() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Partial<Shift> | null>(null);
   const [shiftModalMode, setShiftModalMode] = useState<'plan' | 'validate'>('validate');
+  const [shiftYouthPicker, setShiftYouthPicker] = useState('');
 
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
@@ -856,7 +861,7 @@ function App() {
       const { error } = await supabase.from('youths').delete().eq('id', id);
       if (error) throw error;
       setYouths(youths.filter(y => y.id !== id));
-      setShifts(shifts.filter(s => s.youthId !== id));
+      setShifts(shifts.filter(s => shiftYouthIds(s).every(sid => sid !== id)));
     } catch (error) {
       console.error("Error deleting youth:", error);
       alert("Errore nell'eliminazione del ragazzo");
@@ -875,8 +880,30 @@ function App() {
     setNewYouth({ ...newYouth, contacts: (newYouth.contacts || []).filter(c => c.id !== cid) });
   };
 
+  const addEditingYouth = (youthId: string) => {
+    if (!youthId) return;
+    const current = editingShift?.youthIds && editingShift.youthIds.length > 0
+      ? editingShift.youthIds
+      : (editingShift?.youthId ? [editingShift.youthId] : []);
+    if (current.includes(youthId)) return;
+    const next = [...current, youthId];
+    setEditingShift({ ...editingShift, youthId: next[0], youthIds: next });
+    setShiftYouthPicker('');
+  };
+
+  const removeEditingYouth = (youthId: string) => {
+    const current = editingShift?.youthIds && editingShift.youthIds.length > 0
+      ? editingShift.youthIds
+      : (editingShift?.youthId ? [editingShift.youthId] : []);
+    const next = current.filter(id => id !== youthId);
+    setEditingShift({ ...editingShift, youthId: next[0] || '', youthIds: next });
+  };
+
   const handleSaveShift = async () => {
-    if (!editingShift?.tutorId || !editingShift?.youthId || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
+    const youthIds = editingShift?.youthIds && editingShift.youthIds.length > 0
+      ? editingShift.youthIds
+      : (editingShift?.youthId ? [editingShift.youthId] : []);
+    if (!editingShift?.tutorId || youthIds.length === 0 || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
     const isPlan = shiftModalMode === 'plan';
     const templateWeekday = isPlan
@@ -887,7 +914,8 @@ function App() {
       const shiftData = {
         id: editingShift.id || Math.random().toString(36).slice(2, 11),
         tutor_id: editingShift.tutorId,
-        youth_id: editingShift.youthId,
+        youth_id: youthIds[0] || null,
+        youth_ids: youthIds,
         date: editingShift.date,
         start_time: editingShift.startTime,
         end_time: editingShift.endTime,
@@ -908,6 +936,7 @@ function App() {
         ...shiftData,
         tutorId: shiftData.tutor_id,
         youthId: shiftData.youth_id,
+        youthIds: shiftData.youth_ids,
         startTime: shiftData.start_time,
         endTime: shiftData.end_time,
         status: shiftData.status,
@@ -926,6 +955,7 @@ function App() {
       }
       setIsShiftModalOpen(false);
       setEditingShift(null);
+      setShiftYouthPicker('');
 
       if (isPlan) {
         if (editingShift.id) {
@@ -988,6 +1018,7 @@ function App() {
     setEditingShift({
       tutorId: tutorId || '',
       youthId: youthId || '',
+      youthIds: youthId ? [youthId] : [],
       date: dateStr || format(new Date(), 'yyyy-MM-dd'),
       startTime: startTime || '15:00',
       endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
@@ -1002,6 +1033,7 @@ function App() {
     setEditingShift({
       tutorId: '',
       youthId: youthId || '',
+      youthIds: youthId ? [youthId] : [],
       date: format(addDays(TEMPLATE_ANCHOR, weekday - 1), 'yyyy-MM-dd'),
       templateWeekday: weekday,
       isTemplate: true,
@@ -1028,7 +1060,7 @@ function App() {
       const dateStr = format(day, 'yyyy-MM-dd');
       const dayShifts = visibleShifts.filter(s => {
         if (calendarView === 'youth') {
-          if (youthFilter !== 'all' && s.youthId !== youthFilter) return false;
+          if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
         } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
         if (isPlan) return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === idx + 1;
         if (!s.date || s.isTemplate) return false;
@@ -1038,8 +1070,8 @@ function App() {
       if (sorted.length === 0) return;
       const items = sorted.map(s => {
         const tutor = tutors.find(t => t.id === s.tutorId);
-        const youth = youths.find(y => y.id === s.youthId);
-        return `${s.startTime}-${s.endTime} ${tutor?.name || '?'}${youth ? ` (${youth.name})` : ''}`;
+        const shiftYouths = shiftYouthIds(s).map(id => youths.find(y => y.id === id)).filter(Boolean) as Youth[];
+        return `${s.startTime}-${s.endTime} ${tutor?.name || '?'}${shiftYouths.length > 0 ? ` (${shiftYouths.map(y => y.name).join(', ')})` : ''}`;
       });
       lines.push(`${isPlan ? labels[idx] : `${labels[idx]} ${format(day, 'dd/MM')}`}: ${items.join(' · ')}`);
     });
@@ -1133,6 +1165,7 @@ function App() {
         id: s.id,
         tutor_id: s.tutorId,
         youth_id: s.youthId,
+        youth_ids: [s.youthId],
         date: s.date,
         start_time: s.startTime,
         end_time: s.endTime,
@@ -1150,6 +1183,7 @@ function App() {
         id: s.id,
         tutorId: s.tutor_id,
         youthId: s.youth_id,
+        youthIds: s.youth_ids,
         date: s.date,
         startTime: s.start_time,
         endTime: s.end_time,
@@ -1191,6 +1225,7 @@ function App() {
       id: Math.random().toString(36).slice(2, 11),
       tutor_id: t.tutorId,
       youth_id: t.youthId,
+      youth_ids: shiftYouthIds(t),
       date: weekDateStrs[Math.min(Math.max(((t.templateWeekday || 1) - 1), 0), 5)],
       start_time: t.startTime,
       end_time: t.endTime,
@@ -1208,6 +1243,7 @@ function App() {
         id: r.id,
         tutorId: r.tutor_id,
         youthId: r.youth_id,
+        youthIds: r.youth_ids,
         date: r.date,
         startTime: r.start_time,
         endTime: r.end_time,
@@ -1243,7 +1279,7 @@ function App() {
     if (occurrences.length === 0) return;
 
     const wd = Math.min(Math.max((template.templateWeekday || weekdayOf(template.date)) - 1, 0), 5);
-    const byId: Record<string, { date: string; start_time: string; end_time: string; activity: string; tutor_id: string; youth_id: string }> = {};
+    const byId: Record<string, { date: string; start_time: string; end_time: string; activity: string; tutor_id: string; youth_id: string; youth_ids: string[] }> = {};
     for (const s of occurrences) {
       const weekStart = startOfWeek(parseISO(s.date), { weekStartsOn: 1 });
       byId[s.id] = {
@@ -1253,6 +1289,7 @@ function App() {
         activity: template.activity || '',
         tutor_id: template.tutorId,
         youth_id: template.youthId,
+        youth_ids: shiftYouthIds(template),
       };
     }
 
@@ -1265,6 +1302,7 @@ function App() {
           activity: u.activity,
           tutor_id: u.tutor_id,
           youth_id: u.youth_id,
+          youth_ids: u.youth_ids,
         }).eq('id', id);
         if (error) throw error;
       }
@@ -1279,6 +1317,7 @@ function App() {
           activity: u.activity,
           tutorId: u.tutor_id,
           youthId: u.youth_id,
+          youthIds: u.youth_ids,
         };
       }));
     } catch (error) {
@@ -1327,6 +1366,7 @@ function App() {
         id: Math.random().toString(36).slice(2, 11),
         tutor_id: template.tutorId,
         youth_id: template.youthId,
+        youth_ids: shiftYouthIds(template),
         date,
         start_time: template.startTime,
         end_time: template.endTime,
@@ -1343,6 +1383,7 @@ function App() {
           id: row.id,
           tutorId: row.tutor_id,
           youthId: row.youth_id,
+          youthIds: row.youth_ids,
           date: row.date,
           startTime: row.start_time,
           endTime: row.end_time,
@@ -2538,7 +2579,7 @@ function App() {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayShifts = visibleShifts.filter(s => {
                       if (calendarView === 'youth') {
-                        if (youthFilter !== 'all' && s.youthId !== youthFilter) return false;
+                        if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
                       } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
                       if (isPlan) {
                         return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
@@ -2777,6 +2818,11 @@ function App() {
                                               <span className={`truncate font-semibold text-slate-600 pointer-events-none ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {youth?.name || 'Sconosciuto'}
                                               </span>
+                                              {shiftYouthIds(shift).length > 1 && (
+                                                <span className="shrink-0 rounded bg-white/80 border border-slate-300 px-1 py-px text-[10px] font-bold text-slate-600 leading-tight">
+                                                  +{shiftYouthIds(shift).length - 1}
+                                                </span>
+                                              )}
                                             </div>
 
                                             {shift.activity && (
@@ -2893,8 +2939,8 @@ function App() {
     // Validato (consuntivo) = solo turni effettuati (effettivi), cancellati = 0, non ancora validati = 0.
     const buildSummary = (person: { id: string; name?: string; maxHoursPerWeek?: number; requiredHoursPerWeek?: number }, type: 'TUTOR' | 'YOUTH') => {
       const targetHours = type === 'TUTOR' ? person.maxHoursPerWeek || 0 : person.requiredHoursPerWeek || 0;
-      const personShifts = filteredShifts.filter(s => s.tutorId === person.id || s.youthId === person.id);
-      const personTpl = templateShifts.filter(s => s.tutorId === person.id || s.youthId === person.id);
+      const personShifts = filteredShifts.filter(s => s.tutorId === person.id || shiftYouthIds(s).includes(person.id));
+      const personTpl = templateShifts.filter(s => s.tutorId === person.id || shiftYouthIds(s).includes(person.id));
 
       const monthlyHours: Record<string, number> = {};
       const weeklyHours: Record<string, number> = {};
@@ -3341,11 +3387,11 @@ function App() {
                   {editingShift?.tutorId ? (tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor') : 'Nuovo Turno'}
                 </h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {editingShift?.youthId && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
-                      {youths.find(y => y.id === editingShift.youthId)?.name || 'Ragazzo'}
+                  {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map(yid => (
+                    <span key={yid} className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                      {youths.find(y => y.id === yid)?.name || 'Ragazzo'}
                     </span>
-                  )}
+                  ))}
                   {editingShift?.startTime && (
                     <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold tabular-nums">
                       {editingShift.startTime}–{editingShift.endTime}
@@ -3375,14 +3421,64 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzo/a <span className="text-red-500">*</span></label>
-                <PersonCombo
-                  options={youths}
-                  value={editingShift?.youthId || ''}
-                  onChange={id => setEditingShift({ ...editingShift, youthId: id })}
-                  placeholder="Seleziona Ragazzo/a"
-                  colorOf={id => getYouthColor(id, youths)}
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzi/e <span className="text-red-500">*</span></label>
+                <div className="space-y-2">
+                  {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map((yid, yi) => {
+                    const y = youths.find(yy => yy.id === yid);
+                    return (
+                      <div key={yid} className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <PersonCombo
+                            options={youths}
+                            value={yid}
+                            onChange={id => {
+                              const current = editingShift?.youthIds && editingShift.youthIds.length > 0
+                                ? editingShift.youthIds
+                                : (editingShift?.youthId ? [editingShift.youthId] : []);
+                              const next = current.map((cid, i) => i === yi ? id : cid);
+                              setEditingShift({ ...editingShift, youthId: next[0], youthIds: next });
+                            }}
+                            placeholder="Seleziona Ragazzo/a"
+                            colorOf={id => getYouthColor(id, youths)}
+                          />
+                        </div>
+                        {yi === 0 && (
+                          <span className="shrink-0 rounded bg-teal-100 text-teal-700 px-1.5 py-0.5 text-[10px] font-bold uppercase">Principale</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeEditingYouth(yid)}
+                          className="shrink-0 p-1.5 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Rimuovi ragazzo/a"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {youths.some(y => !shiftYouthIds(editingShift as Shift).includes(y.id)) && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <PersonCombo
+                          options={youths.filter(y => !shiftYouthIds(editingShift as Shift).includes(y.id))}
+                          value={shiftYouthPicker}
+                          onChange={id => setShiftYouthPicker(id)}
+                          placeholder="Aggiungi un altro ragazzo/a…"
+                          colorOf={id => getYouthColor(id, youths)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addEditingYouth(shiftYouthPicker)}
+                        disabled={!shiftYouthPicker}
+                        className="shrink-0 p-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 transition-colors"
+                        title="Aggiungi ragazzo/a"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
               {shiftModalMode === 'plan' ? (
                 <div>

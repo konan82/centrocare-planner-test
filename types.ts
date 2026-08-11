@@ -59,6 +59,7 @@ export interface Shift {
   id: string;
   tutorId: string;
   youthId: string;
+  youthIds?: string[]; // più ragazzi/e per lo stesso turno
   date: string; // ISO Date string YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
