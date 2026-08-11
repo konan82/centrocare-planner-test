@@ -675,6 +675,8 @@ function App() {
   // AI State
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [showConfirmValidateAll, setShowConfirmValidateAll] = useState(false);
+  const [isValidatingAll, setIsValidatingAll] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ConflictAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -952,6 +954,33 @@ function App() {
     } catch (error) {
       console.error("Error deleting shift:", error);
       alert("Errore nell'eliminazione del turno");
+    }
+  };
+
+  const handleValidateAllConfirmed = async () => {
+    setShowConfirmValidateAll(false);
+    if (tutorFilter === 'all' || !tutorFilter) return;
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const ids = visibleShifts
+      .filter(s => !s.isTemplate && s.tutorId === tutorFilter && (s.status || 'pianificato') === 'pianificato')
+      .filter(s => {
+        const d = parseISO(typeof s.date === 'string' ? s.date.split('T')[0] : s.date);
+        return d >= weekStart && d <= weekEnd;
+      })
+      .map(s => s.id);
+    if (ids.length === 0) return;
+
+    try {
+      setIsValidatingAll(true);
+      const { error } = await supabase.from('shifts').update({ status: 'effettuato' }).in('id', ids);
+      if (error) throw error;
+      setShifts(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: 'effettuato' } : s));
+    } catch (error) {
+      console.error("Error validating all shifts:", error);
+      alert("Errore nella validazione dei turni");
+    } finally {
+      setIsValidatingAll(false);
     }
   };
 
@@ -2280,6 +2309,17 @@ function App() {
                 {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
                 {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
               </button>
+              {!isPlan && tutorFilter !== 'all' && tutorFilter && (
+                <button
+                  onClick={() => setShowConfirmValidateAll(true)}
+                  disabled={isValidatingAll}
+                  title="Valida tutti i turni non validati del tutor filtrato per questa settimana"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg disabled:opacity-50"
+                >
+                  {isValidatingAll ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <CheckCircle2 size={16} />}
+                  {isValidatingAll ? 'Valido...' : 'Valida Tutti'}
+                </button>
+              )}
               {isPlan && (
                 <button
                   onClick={async () => {
@@ -3249,6 +3289,38 @@ function App() {
               className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
               Si, cancella e rigenera
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showConfirmValidateAll} onClose={() => setShowConfirmValidateAll(false)} title="Conferma validazione turni">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-emerald-100 rounded-full flex-shrink-0 mt-0.5">
+              <CheckCircle2 size={20} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-700">
+                Vuoi <strong>validare tutti i turni</strong> di <strong>{tutors.find(t => t.id === tutorFilter)?.name || 'questo tutor'}</strong> per la settimana selezionata?
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Verranno contrassegnati come validati solo i turni non ancora validati. I turni annullati resteranno annullati.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setShowConfirmValidateAll(false)}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              No, annulla
+            </button>
+            <button
+              onClick={handleValidateAllConfirmed}
+              className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              Si, valida tutti
             </button>
           </div>
         </div>
