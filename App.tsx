@@ -665,7 +665,6 @@ function App() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Partial<Shift> | null>(null);
   const [shiftModalMode, setShiftModalMode] = useState<'plan' | 'validate'>('validate');
-  const [shiftYouthPicker, setShiftYouthPicker] = useState('');
 
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
@@ -890,7 +889,6 @@ function App() {
     if (current.includes(youthId)) return;
     const next = [...current, youthId];
     setEditingShift({ ...editingShift, youthId: next[0], youthIds: next });
-    setShiftYouthPicker('');
   };
 
   const removeEditingYouth = (youthId: string) => {
@@ -957,7 +955,6 @@ function App() {
       }
       setIsShiftModalOpen(false);
       setEditingShift(null);
-      setShiftYouthPicker('');
 
       if (isPlan) {
         if (editingShift.id) {
@@ -2722,7 +2719,6 @@ function App() {
                                     const effettuato = shiftStatus === 'effettuato';
                                     const shiftLocked = effettuato || shiftStatus === 'cancellato';
                                     const tutor = tutors.find(t => t.id === shift.tutorId);
-                                    const youth = youths.find(y => y.id === shift.youthId);
                                     const isDragging = draggedShiftId === shift.id;
                                     const tColor = getTutorColor(shift.tutorId, tutors);
                                     const yColor = getYouthColor(shift.youthId, youths);
@@ -2815,16 +2811,19 @@ function App() {
                                               </div>
                                             )}
 
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                              <span className={`h-2 w-2 rounded-full ${yColor.badge} shrink-0`}></span>
-                                              <span className={`truncate font-semibold text-slate-600 pointer-events-none ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
-                                                {youth?.name || 'Sconosciuto'}
-                                              </span>
-                                              {shiftYouthIds(shift).length > 1 && (
-                                                <span className="shrink-0 rounded bg-white/80 border border-slate-300 px-1 py-px text-[10px] font-bold text-slate-600 leading-tight">
-                                                  +{shiftYouthIds(shift).length - 1}
-                                                </span>
-                                              )}
+                                            <div className="flex flex-col gap-1 min-w-0">
+                                              {shiftYouthIds(shift).map(yid => {
+                                                const yy = youths.find(y => y.id === yid);
+                                                const yc = getYouthColor(yid, youths);
+                                                return (
+                                                  <div key={yid} className="flex items-center gap-1.5 min-w-0">
+                                                    <span className={`h-2 w-2 rounded-full ${yc.badge} shrink-0`}></span>
+                                                    <span className={`truncate font-semibold text-slate-600 pointer-events-none ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
+                                                      {yy?.name || 'Sconosciuto'}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              })}
                                             </div>
 
                                             {shift.activity && (
@@ -3389,11 +3388,14 @@ function App() {
                   {editingShift?.tutorId ? (tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor') : 'Nuovo Turno'}
                 </h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                  {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map(yid => (
-                    <span key={yid} className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
-                      {youths.find(y => y.id === yid)?.name || 'Ragazzo'}
-                    </span>
-                  ))}
+                  {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map(yid => {
+                    const hc = getYouthColor(yid, youths);
+                    return (
+                      <span key={yid} className={`px-2 py-0.5 rounded-full ${hc.bg} ${hc.text} text-xs font-semibold`}>
+                        {youths.find(y => y.id === yid)?.name || 'Ragazzo'}
+                      </span>
+                    );
+                  })}
                   {editingShift?.startTime && (
                     <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold tabular-nums">
                       {editingShift.startTime}–{editingShift.endTime}
@@ -3463,21 +3465,13 @@ function App() {
                       <div className="flex-1">
                         <PersonCombo
                           options={youths.filter(y => !shiftYouthIds(editingShift as Shift).includes(y.id))}
-                          value={shiftYouthPicker}
-                          onChange={id => setShiftYouthPicker(id)}
+                          value=""
+                          onChange={id => addEditingYouth(id)}
                           placeholder="Aggiungi un altro ragazzo/a…"
                           colorOf={id => getYouthColor(id, youths)}
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => addEditingYouth(shiftYouthPicker)}
-                        disabled={!shiftYouthPicker}
-                        className="shrink-0 p-2 rounded-md bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 transition-colors"
-                        title="Aggiungi ragazzo/a"
-                      >
-                        <Plus size={14} />
-                      </button>
+                      <span className="shrink-0 text-[11px] text-slate-400 italic">si aggiunge alla selezione</span>
                     </div>
                   )}
                 </div>
