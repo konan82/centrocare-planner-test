@@ -3729,24 +3729,24 @@ function App() {
                   <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                     <th className="text-left py-2.5 pr-3 font-bold sticky left-0 bg-slate-50 z-20" rowSpan={2}>Tutor \ Ragazzo</th>
                     {cols.map(y => (
-                      <th key={y.id} colSpan={2} className="px-2 py-1.5 font-bold text-center">
+                      <th key={y.id} colSpan={2} className="px-2 py-1.5 font-bold text-center border-l-2 border-slate-200">
                         <span className="flex items-center justify-center gap-1.5 min-w-0">
                           <span className={`h-4 w-4 rounded-full ${getYouthColor(y.id, youths).bg} ${getYouthColor(y.id, youths).text} text-[9px] font-bold flex items-center justify-center`}>{getInitials(y.name)}</span>
                           <span className="truncate max-w-[8rem]">{y.name}</span>
                         </span>
                       </th>
                     ))}
-                    <th colSpan={2} className="px-3 py-1.5 font-bold text-center text-slate-600">Totale</th>
+                    <th colSpan={2} className="px-3 py-1.5 font-bold text-center text-slate-600 border-l-2 border-slate-200">Totale</th>
                   </tr>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-400">
                     {cols.map(y => (
                       <React.Fragment key={y.id}>
-                        <th className="px-1 py-1 font-semibold text-right text-slate-400">Pian</th>
-                        <th className="px-1 py-1 font-semibold text-right text-slate-400">Eseg</th>
+                        <th className="px-1 py-1 font-semibold text-center text-slate-400 border-l-2 border-slate-200">Pian</th>
+                        <th className="px-1 py-1 font-semibold text-center text-slate-400">Eseg</th>
                       </React.Fragment>
                     ))}
-                    <th className="px-2 py-1 font-semibold text-right text-slate-500">Pian</th>
-                    <th className="px-2 py-1 font-semibold text-right text-slate-500">Eseg</th>
+                    <th className="px-2 py-1 font-semibold text-center text-slate-500 border-l-2 border-slate-200">Pian</th>
+                    <th className="px-2 py-1 font-semibold text-center text-slate-500">Eseg</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -3766,13 +3766,13 @@ function App() {
                           const execColor = c.executed === 0 ? 'text-red-500' : delta > 0.005 ? 'text-emerald-600' : delta < -0.005 ? 'text-amber-600' : 'text-slate-700';
                           return (
                             <React.Fragment key={y.id}>
-                              <td className="text-right px-1 py-2 tabular-nums text-slate-400">{c.planned.toFixed(1)}h</td>
-                              <td className={`text-right px-1 py-2 tabular-nums font-semibold ${execColor}`}>{c.executed.toFixed(1)}h</td>
+                              <td className="text-center px-1 py-2 tabular-nums text-slate-400 border-l-2 border-slate-200">{c.planned.toFixed(1)}h</td>
+                              <td className={`text-center px-1 py-2 tabular-nums font-semibold ${execColor}`}>{c.executed.toFixed(1)}h</td>
                             </React.Fragment>
                           );
                         })}
-                        <td className="text-right px-2 py-2 tabular-nums text-slate-500 font-semibold">{rt.planned.toFixed(1)}h</td>
-                        <td className="text-right px-2 py-2 tabular-nums text-teal-700 font-bold">{rt.executed.toFixed(1)}h</td>
+                        <td className="text-center px-2 py-2 tabular-nums text-slate-500 font-semibold border-l-2 border-slate-200">{rt.planned.toFixed(1)}h</td>
+                        <td className="text-center px-2 py-2 tabular-nums text-teal-700 font-bold">{rt.executed.toFixed(1)}h</td>
                       </tr>
                     );
                   })}
@@ -3782,12 +3782,12 @@ function App() {
                     <td className="py-3 pr-3 text-slate-700 sticky left-0 bg-gradient-to-r from-slate-50 to-white z-10">Totale</td>
                     {colTot.map(y => (
                       <React.Fragment key={y.id}>
-                        <td className="text-right px-1 py-3 tabular-nums text-slate-500">{y.planned.toFixed(1)}h</td>
-                        <td className="text-right px-1 py-3 tabular-nums text-teal-700">{y.executed.toFixed(1)}h</td>
+                        <td className="text-center px-1 py-3 tabular-nums text-slate-500 border-l-2 border-slate-200">{y.planned.toFixed(1)}h</td>
+                        <td className="text-center px-1 py-3 tabular-nums text-teal-700">{y.executed.toFixed(1)}h</td>
                       </React.Fragment>
                     ))}
-                    <td className="text-right px-2 py-3 tabular-nums text-slate-500">{grandPlan.toFixed(1)}h</td>
-                    <td className="text-right px-2 py-3 tabular-nums text-teal-700">{grandExec.toFixed(1)}h</td>
+                    <td className="text-center px-2 py-3 tabular-nums text-slate-500 border-l-2 border-slate-200">{grandPlan.toFixed(1)}h</td>
+                    <td className="text-center px-2 py-3 tabular-nums text-teal-700">{grandExec.toFixed(1)}h</td>
                   </tr>
                 </tfoot>
               </table>
