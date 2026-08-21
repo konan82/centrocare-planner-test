@@ -94,7 +94,7 @@ const ROLE_STYLES: Record<string, { badge: string; dot: string }> = {
 };
 const ROLE_DEFAULT = { badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
 
-const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore'];
+const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore', 'Amministrativo', 'Presidente', 'Vice Presidente'];
 
 // Settimana tipo: date di riferimento LUN-SAB (2026-08-03 era un Lunedì)
 const TEMPLATE_ANCHOR = parseISO('2026-08-03');
@@ -3771,26 +3771,6 @@ function App() {
                   {TUTOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Anni di esperienza</label>
-                <input
-                  type="number"
-                  className={fieldCls}
-                  min={0}
-                  value={newTutor.yearsExperience ?? ''}
-                  onChange={e => setNewTutor({ ...newTutor, yearsExperience: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Qualifiche / Titoli</label>
-                <input
-                  type="text"
-                  className={fieldCls}
-                  placeholder="Laurea, corsi, abilitazioni..."
-                  value={newTutor.qualifications || ''}
-                  onChange={e => setNewTutor({ ...newTutor, qualifications: e.target.value })}
-                />
-              </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
                 <input
@@ -3834,15 +3814,6 @@ function App() {
                     </button>
                   ))}
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
-                <input
-                  type="date"
-                  className={fieldCls}
-                  value={newTutor.entryDate || ''}
-                  onChange={e => setNewTutor({ ...newTutor, entryDate: e.target.value || null })}
-                />
               </div>
               <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
                 <span className="text-sm font-medium text-slate-700 block mb-2">Giorni NON disponibili</span>
