@@ -828,7 +828,7 @@ function App() {
   const [payMonth, setPayMonth] = useState(() => startOfMonth(new Date()));
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
-  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'singleHours' | 'doubleHours' | 'subSingle' | 'subDouble' | 'total'; dir: 'asc' | 'desc' }>({ key: 'tutor', dir: 'asc' });
+  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'singleHours' | 'doubleHours' | 'subSingle' | 'subDouble' | 'total' | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' });
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3092,7 +3092,7 @@ function App() {
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
     const ratesDirty = payRatesDraft.rateSingle !== payRates.rateSingle || payRatesDraft.rateDouble !== payRates.rateDouble;
 
-    const sortedRows = [...rows].sort((a, b) => {
+    const sortedRows = !paySort.key ? rows : [...rows].sort((a, b) => {
       const dir = paySort.dir === 'asc' ? 1 : -1;
       if (paySort.key === 'tutor') return dir * (a.tutor.name || '').localeCompare(b.tutor.name || '', 'it');
       return dir * ((a as any)[paySort.key] - (b as any)[paySort.key]);
