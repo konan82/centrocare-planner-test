@@ -828,6 +828,7 @@ function App() {
   const [payMonth, setPayMonth] = useState(() => startOfMonth(new Date()));
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
+  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'singleHours' | 'doubleHours' | 'subSingle' | 'subDouble' | 'total'; dir: 'asc' | 'desc' }>({ key: 'tutor', dir: 'asc' });
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3091,6 +3092,32 @@ function App() {
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
     const ratesDirty = payRatesDraft.rateSingle !== payRates.rateSingle || payRatesDraft.rateDouble !== payRates.rateDouble;
 
+    const sortedRows = [...rows].sort((a, b) => {
+      const dir = paySort.dir === 'asc' ? 1 : -1;
+      if (paySort.key === 'tutor') return dir * (a.tutor.name || '').localeCompare(b.tutor.name || '', 'it');
+      return dir * ((a as any)[paySort.key] - (b as any)[paySort.key]);
+    });
+
+    const togglePaySort = (key: typeof paySort.key) =>
+      setPaySort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+
+    const renderPayTh = (key: typeof paySort.key, label: string, align: 'left' | 'right') => {
+      const active = paySort.key === key;
+      const Arrow = paySort.dir === 'asc' ? ArrowUp : ArrowDown;
+      return (
+        <th className={`${align === 'left' ? 'text-left py-2.5 pr-3' : 'text-right py-2.5 px-3'} font-bold`}>
+          <button
+            type="button"
+            onClick={() => togglePaySort(key)}
+            className={`inline-flex items-center gap-1 uppercase tracking-wide transition-colors ${active ? 'text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            {label}
+            <Arrow size={12} className={active ? 'opacity-100' : 'opacity-0'} />
+          </button>
+        </th>
+      );
+    };
+
     return (
       <div className="space-y-8">
         <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -3178,20 +3205,20 @@ function App() {
         </Card>
 
         <Card className="p-6">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                  <th className="text-left py-2.5 pr-3 font-bold">Tutor</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Ore Singolo</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Ore Doppio</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Subtot. Singolo</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Subtot. Doppio</th>
-                  <th className="text-right py-2.5 pl-3 font-bold">Totale</th>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                  {renderPayTh('tutor', 'Tutor', 'left')}
+                  {renderPayTh('singleHours', 'Ore Singolo', 'right')}
+                  {renderPayTh('doubleHours', 'Ore Doppio', 'right')}
+                  {renderPayTh('subSingle', 'Subtot. Singolo', 'right')}
+                  {renderPayTh('subDouble', 'Subtot. Doppio', 'right')}
+                  {renderPayTh('total', 'Totale', 'right')}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map(r => (
+                {sortedRows.map(r => (
                   <tr key={r.tutor.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-2.5 pr-3">
                       <span className="flex items-center gap-2.5 min-w-0">
