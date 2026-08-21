@@ -3164,13 +3164,12 @@ function App() {
       });
 
       const base = (wSingle * rs + wDouble * rd) * weeks;
-      return { tutor: t, wSingle, wDouble, base, total: base };
+      return { tutor: t, wSingle, wDouble, base };
     });
 
     const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
     const totWDouble = rows.reduce((a, r) => a + r.wDouble, 0);
     const totBase = rows.reduce((a, r) => a + r.base, 0);
-    const totTotal = rows.reduce((a, r) => a + r.total, 0);
 
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
     const ratesDirty =
@@ -3247,58 +3246,68 @@ function App() {
           </div>
         </div>
 
-        <Card className="p-6">
-          <h3 className="font-semibold text-slate-700 mb-4 flex items-center">
-            <Wallet size={16} className="mr-2 text-lime-600" /> Parametri di calcolo
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Paga oraria Turno Singolo (€/h)</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
-                value={payRatesDraft.rateSingle || ''}
-                onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Paga oraria Turno Doppio (€/h)</label>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
-                value={payRatesDraft.rateDouble || ''}
-                onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Settimane per mese</label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                step={0.01}
-                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
-                value={payRatesDraft.weeksPerMonth || ''}
-                onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSavePayRates}
-                disabled={paySaving || !ratesDirty}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-lime-600 text-white text-sm font-bold shadow-md hover:bg-lime-700 disabled:opacity-40 active:scale-95 transition-all"
-              >
-                <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva parametri'}
-              </button>
-              {paySavedFlash && (
-                <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
-                  <CheckCircle2 size={15} /> Salvate
-                </span>
-              )}
+        <Card className="p-0 overflow-hidden border-lime-200 shadow-lg">
+          <div className="bg-gradient-to-r from-lime-500 to-emerald-500 px-6 py-3">
+            <h3 className="font-bold text-white flex items-center text-base">
+              <Wallet size={18} className="mr-2" /> Parametri di calcolo
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[170px]">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Turno Singolo (€/h)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">€</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className="w-full pl-7 pr-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
+                    value={payRatesDraft.rateSingle || ''}
+                    onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 min-w-[170px]">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Turno Doppio (€/h)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">€</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className="w-full pl-7 pr-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
+                    value={payRatesDraft.rateDouble || ''}
+                    onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 min-w-[130px]">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Settimane / mese</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.01}
+                  className="w-full px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
+                  value={payRatesDraft.weeksPerMonth || ''}
+                  onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                />
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={handleSavePayRates}
+                  disabled={paySaving || !ratesDirty}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-lime-600 to-emerald-600 text-white text-sm font-bold shadow-md hover:from-lime-700 hover:to-emerald-700 disabled:opacity-40 active:scale-95 transition-all"
+                >
+                  <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva parametri'}
+                </button>
+                {paySavedFlash && (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
+                    <CheckCircle2 size={15} /> Salvate
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </Card>
@@ -3308,13 +3317,12 @@ function App() {
           <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
             <table className="w-auto max-w-full text-sm whitespace-nowrap">
               <thead className="sticky top-0 z-10">
-                <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                  {renderPayTh('tutor', 'Tutor', 'left')}
-                  {renderPayTh('wSingle', 'Ore Sett. Singolo', 'right')}
-                  {renderPayTh('wDouble', 'Ore Sett. Doppio', 'right')}
-                  {renderPayTh('base', 'Compenso Mensile', 'right')}
-                  {renderPayTh('total', 'Totale', 'right')}
-                </tr>
+                 <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                   {renderPayTh('tutor', 'Tutor', 'left')}
+                   {renderPayTh('wSingle', 'Ore Sett. Singolo', 'right')}
+                   {renderPayTh('wDouble', 'Ore Sett. Doppio', 'right')}
+                   <th className="text-right py-2.5 px-3 font-bold text-teal-700">Compenso Mensile</th>
+                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sortedRows.map(r => (
@@ -3329,12 +3337,11 @@ function App() {
                       </td>
                       <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.wSingle.toFixed(1)}h</td>
                       <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.wDouble.toFixed(1)}h</td>
-                      <td className="text-right py-2.5 px-3 tabular-nums text-slate-700">{eur(r.base)}</td>
-                      <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.total)}</td>
+                      <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.base)}</td>
                     </tr>
                 ))}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} className="py-6 text-center text-slate-400 italic">Nessun tutor in anagrafica</td></tr>
+                  <tr><td colSpan={4} className="py-6 text-center text-slate-400 italic">Nessun tutor in anagrafica</td></tr>
                 )}
               </tbody>
               {rows.length > 0 && (
@@ -3343,8 +3350,7 @@ function App() {
                     <td className="py-3 pr-3 text-slate-700">Totale compenso</td>
                     <td className="text-right py-3 px-3 tabular-nums text-slate-600">{totWSingle.toFixed(1)}h</td>
                     <td className="text-right py-3 px-3 tabular-nums text-violet-600">{totWDouble.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-slate-700">{eur(totBase)}</td>
-                    <td className="text-right py-3 pl-3 tabular-nums text-teal-700">{eur(totTotal)}</td>
+                    <td className="text-right py-3 pl-3 tabular-nums font-bold text-teal-700">{eur(totBase)}</td>
                   </tr>
                 </tfoot>
               )}
