@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Info,
   TrendingUp,
+  TrendingDown,
   IdCard,
   Phone,
   HeartPulse,
@@ -109,9 +110,9 @@ const weekdayOf = (dateStr?: string | null) => {
   return ((d.getDay() + 6) % 7) + 1;
 };
 
-// Ore consuntivo (validato): solo i turni effettuati contano; cancellati = 0; pianificati (non ancora validati) = 0
+// Ore consuntivo: ogni turno copiato dalla pianificazione vale come svolto (orari effettivi se presenti); solo i cancellati valgono 0
 const getValidatedHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
-  if ((s.status || 'pianificato') !== 'effettuato') return 0;
+  if ((s.status || 'pianificato') === 'cancellato') return 0;
   return getEffectiveHours(s);
 };
 
@@ -787,8 +788,6 @@ function App() {
   // AI State
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
-  const [showConfirmValidateAll, setShowConfirmValidateAll] = useState(false);
-  const [isValidatingAll, setIsValidatingAll] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ConflictAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -1104,33 +1103,6 @@ function App() {
     }
   };
 
-  const handleValidateAllConfirmed = async () => {
-    setShowConfirmValidateAll(false);
-    if (tutorFilter === 'all' || !tutorFilter) return;
-    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-    const ids = visibleShifts
-      .filter(s => !s.isTemplate && s.tutorId === tutorFilter && (s.status || 'pianificato') === 'pianificato')
-      .filter(s => {
-        const d = parseISO(typeof s.date === 'string' ? s.date.split('T')[0] : s.date);
-        return d >= weekStart && d <= weekEnd;
-      })
-      .map(s => s.id);
-    if (ids.length === 0) return;
-
-    try {
-      setIsValidatingAll(true);
-      const { error } = await supabase.from('shifts').update({ status: 'effettuato' }).in('id', ids);
-      if (error) throw error;
-      setShifts(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: 'effettuato' } : s));
-    } catch (error) {
-      console.error("Error validating all shifts:", error);
-      alert("Errore nella validazione dei turni");
-    } finally {
-      setIsValidatingAll(false);
-    }
-  };
-
   const openNewShiftModal = (tutorId?: string, dateStr?: string, startTime?: string, youthId?: string) => {
     setEditingShift({
       tutorId: tutorId || '',
@@ -1384,14 +1356,15 @@ function App() {
   }, [view, currentDate]);
 
   // Sincronizza i turni già copiati in validazione con un template modificato,
-  // ma SOLO per i giorni da oggi in poi e solo se non ancora validati/cancellati.
+  // ma SOLO per i giorni da oggi in poi, non cancellati e senza modifiche manuali al consuntivo.
   const syncTemplateOccurrences = async (template: Shift) => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const occurrences = shifts.filter(s =>
       !s.isTemplate &&
       s.templateShiftId === template.id &&
       s.date >= todayStr &&
-      (s.status || 'pianificato') === 'pianificato'
+      (s.status || 'pianificato') === 'pianificato' &&
+      !s.actualStartTime && !s.actualEndTime
     );
     if (occurrences.length === 0) return;
 
@@ -1443,14 +1416,15 @@ function App() {
     }
   };
 
-  // Rimuove da validazione i turni futuri (non ancora validati) quando un template viene eliminato
+  // Rimuove da validazione i turni futuri (non cancellati e senza modifiche manuali) quando un template viene eliminato
   const deleteTemplateOccurrences = async (templateId: string) => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const toDelete = shifts.filter(s =>
       !s.isTemplate &&
       s.templateShiftId === templateId &&
       s.date >= todayStr &&
-      (s.status || 'pianificato') === 'pianificato'
+      (s.status || 'pianificato') === 'pianificato' &&
+      !s.actualStartTime && !s.actualEndTime
     );
     if (toDelete.length === 0) return;
     const ids = toDelete.map(s => s.id);
@@ -1520,7 +1494,7 @@ function App() {
   // --- Drag and Drop Handlers ---
   const handleDragStart = (e: React.DragEvent, shiftId: string) => {
     const s = shifts.find(x => x.id === shiftId);
-    if (s && (s.status === 'effettuato' || s.status === 'cancellato')) {
+    if (s && s.status === 'cancellato') {
       e.preventDefault();
       return;
     }
@@ -1551,8 +1525,10 @@ function App() {
     if (shiftId) {
       const shiftToUpdate = shifts.find(s => s.id === shiftId);
       if (shiftToUpdate) {
-        const [sh, sm] = (shiftToUpdate.startTime || '15:00').split(':').map(Number);
-        const [eh, em] = (shiftToUpdate.endTime || '17:00').split(':').map(Number);
+        const effS = !shiftToUpdate.isTemplate && shiftToUpdate.actualStartTime ? shiftToUpdate.actualStartTime : shiftToUpdate.startTime;
+        const effE = !shiftToUpdate.isTemplate && shiftToUpdate.actualEndTime ? shiftToUpdate.actualEndTime : shiftToUpdate.endTime;
+        const [sh, sm] = (effS || '15:00').split(':').map(Number);
+        const [eh, em] = (effE || '17:00').split(':').map(Number);
         const durationMin = (eh * 60 + em) - (sh * 60 + sm);
         const newStartMin = minutes;
         const newEndMin = newStartMin + (durationMin > 0 ? durationMin : 120);
@@ -1571,16 +1547,14 @@ function App() {
         };
         if (shiftToUpdate.isTemplate) {
           dbUpdate.template_weekday = weekdayOf(dateStr);
-        } else if ((shiftToUpdate.status || 'pianificato') === 'effettuato') {
+        } else {
+          // Consuntivo: si spostano data e orari effettivi, il pianificato resta come riferimento per il delta
+          delete dbUpdate.start_time;
+          delete dbUpdate.end_time;
           dbUpdate.actual_start_time = newStartTime;
           dbUpdate.actual_end_time = newEndTime;
           updatedShift.actualStartTime = newStartTime;
           updatedShift.actualEndTime = newEndTime;
-        } else {
-          dbUpdate.actual_start_time = null;
-          dbUpdate.actual_end_time = null;
-          updatedShift.actualStartTime = null;
-          updatedShift.actualEndTime = null;
         }
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
@@ -2472,15 +2446,9 @@ function App() {
                 {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
               </button>
               {!isPlan && tutorFilter !== 'all' && tutorFilter && (
-                <button
-                  onClick={() => setShowConfirmValidateAll(true)}
-                  disabled={isValidatingAll}
-                  title="Valida tutti i turni non validati del tutor filtrato per questa settimana"
-                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl hover:from-emerald-600 hover:to-green-600 shadow-md shadow-emerald-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg disabled:opacity-50"
-                >
-                  {isValidatingAll ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <CheckCircle2 size={16} />}
-                  {isValidatingAll ? 'Valido...' : 'Valida Tutti'}
-                </button>
+                <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
+                  Trascina o apri un turno per registrare il consuntivo
+                </div>
               )}
               {isPlan && (
                 <button
@@ -2712,8 +2680,10 @@ function App() {
 
                     const placed = dayShifts
                       .map(s => {
-                        const [sh, sm] = (s.startTime || '0:0').split(':').map(Number);
-                        const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+                        const effStart = !isPlan && !s.isTemplate && s.actualStartTime ? s.actualStartTime : s.startTime;
+                        const effEnd = !isPlan && !s.isTemplate && s.actualEndTime ? s.actualEndTime : s.endTime;
+                        const [sh, sm] = (effStart || '0:0').split(':').map(Number);
+                        const [eh, em] = (effEnd || '0:0').split(':').map(Number);
                         const startMin = sh * 60 + sm;
                         const endMin = Math.max(startMin + SLOT, eh * 60 + em);
                         let slotIdx = Math.round((startMin - DAY_START) / SLOT);
@@ -2838,8 +2808,7 @@ function App() {
                                   {layout.placed.map((p, idx) => {
                                     const shift = p.shift;
                                     const shiftStatus = shift.status || 'pianificato';
-                                    const effettuato = shiftStatus === 'effettuato';
-                                    const shiftLocked = effettuato || shiftStatus === 'cancellato';
+                                    const shiftLocked = shiftStatus === 'cancellato';
                                     const tutor = tutors.find(t => t.id === shift.tutorId);
                                     const isDragging = draggedShiftId === shift.id;
                                     const tColor = getTutorColor(shift.tutorId, tutors);
@@ -2848,14 +2817,11 @@ function App() {
                                     const wPct = 100 / (layout.clusterMaxCol[layout.clusterOf[idx]] + 1);
 
                                     const isValidate = mode === 'validate';
-                                    const approved = isValidate && effettuato;
-                                    const daValidare = isValidate && !effettuato && shiftStatus !== 'cancellato';
-                                    const chipBg = approved ? 'bg-emerald-100' : daValidare ? 'bg-amber-50' : yColor.bg;
-                                    const chipBorder = approved
-                                      ? 'border-emerald-400 border-l-4 border-l-emerald-600'
-                                      : daValidare
-                                        ? 'border-amber-300 border-dashed border-l-4 border-l-amber-400'
-                                        : `${yColor.border} border-l-4 ${tColor.border}`;
+                                    const hasVariazione = !shift.isTemplate &&
+                                      ((shift.actualStartTime && shift.actualStartTime !== shift.startTime) ||
+                                       (shift.actualEndTime && shift.actualEndTime !== shift.endTime));
+                                    const chipBg = yColor.bg;
+                                    const chipBorder = `${yColor.border} border-l-4 ${tColor.border}`;
 
                                     return (
                                       <div
@@ -2875,14 +2841,6 @@ function App() {
                                           width: `calc(${wPct}% - 2px)`,
                                         }}
                                       >
-                                        {effettuato && (
-                                          <div className="absolute inset-0 bg-emerald-300/40 pointer-events-none z-0"></div>
-                                        )}
-                                        {approved && (
-                                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 overflow-hidden rotate-[-20deg]">
-                                            <CheckCircle2 size={60} className="text-emerald-600/35" strokeWidth={2.5} />
-                                          </div>
-                                        )}
                                         <div className="flex h-full flex-col min-w-0 relative z-10">
                                           <div className="flex items-center gap-1.5 shrink-0">
                                             <span className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm`}>
@@ -2891,14 +2849,6 @@ function App() {
                                             <span className={`truncate font-bold text-slate-800 pointer-events-none text-[14px] leading-tight ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                               {tutor?.name || 'Sconosciuto'}
                                             </span>
-                                            {approved && (
-                                              <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-px rounded bg-emerald-600 text-white text-[10px] font-bold uppercase">
-                                                <CheckCircle2 size={11} /> Validato
-                                              </span>
-                                            )}
-                                            {daValidare && (
-                                              <span className="shrink-0 px-1.5 py-px rounded bg-amber-200 text-amber-800 text-[10px] font-bold uppercase">Da validare</span>
-                                            )}
                                             {shiftStatus === 'cancellato' && (
                                               <span className="shrink-0 px-1.5 py-px rounded bg-red-100 text-red-600 text-[10px] font-bold uppercase">Annullato</span>
                                             )}
@@ -2922,13 +2872,13 @@ function App() {
                                               </span>
                                             </div>
 
-                                            {shiftStatus === 'effettuato' && shift.actualStartTime && (
+                                            {isValidate && hasVariazione && (
                                               <div className="flex items-center gap-1 min-w-0">
                                                 <span className="shrink-0 rounded bg-emerald-200/90 border border-emerald-400 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-emerald-800 leading-tight">
                                                   Effett.
                                                 </span>
                                                 <span className="rounded bg-white/70 px-1.5 py-px text-[13px] font-bold text-emerald-800 tabular-nums pointer-events-none truncate">
-                                                  {shift.actualStartTime}–{shift.actualEndTime}
+                                                  {shift.actualStartTime || shift.startTime}–{shift.actualEndTime || shift.endTime}
                                                 </span>
                                               </div>
                                             )}
@@ -2963,7 +2913,8 @@ function App() {
                                             e.preventDefault();
                                             e.stopPropagation();
                                             e.currentTarget.setPointerCapture(e.pointerId);
-                                            const [eh, em] = (shift.endTime || '0:0').split(':').map(Number);
+                                            const effE = !shift.isTemplate && shift.actualEndTime ? shift.actualEndTime : shift.endTime;
+                                            const [eh, em] = (effE || '0:0').split(':').map(Number);
                                             resizeRef.current = { shiftId: shift.id, startEndMin: eh * 60 + em, startY: e.clientY, endMin: null };
                                             setResizingShiftId(shift.id);
                                           }}
@@ -2972,13 +2923,14 @@ function App() {
                                             if (!r || r.shiftId !== shift.id) return;
                                             e.preventDefault();
                                             const deltaSlots = Math.round((e.clientY - r.startY) / ROW_H);
-                                            const [sh, sm] = (shift.startTime || '0:0').split(':').map(Number);
+                                            const effS = !shift.isTemplate && shift.actualStartTime ? shift.actualStartTime : shift.startTime;
+                                            const [sh, sm] = (effS || '0:0').split(':').map(Number);
                                             const startMin = sh * 60 + sm;
                                             const newEndMin = Math.max(startMin + SLOT, Math.min(r.startEndMin + deltaSlots * SLOT, DAY_END));
                                             if (r.endMin !== newEndMin) {
                                               r.endMin = newEndMin;
                                               const nEnd = fmt(newEndMin);
-                                              setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
+                                              setShifts(prev => prev.map(s => s.id === shift.id ? (!shift.isTemplate ? { ...s, actualEndTime: nEnd } : { ...s, endTime: nEnd }) : s));
                                             }
                                           }}
                                           onPointerUp={(e) => {
@@ -2990,13 +2942,10 @@ function App() {
                                             resizeRef.current = null;
                                             setResizingShiftId(null);
                                             const nEnd = fmt(endMin);
-                                            setShifts(prev => prev.map(s => s.id === shift.id ? { ...s, endTime: nEnd } : s));
-                                            const dbResize: Record<string, any> = { end_time: nEnd };
-                                            if (!shift.isTemplate && (shift.status || 'pianificato') === 'effettuato') {
-                                              dbResize.actual_end_time = nEnd;
-                                            } else if (!shift.isTemplate) {
-                                              dbResize.actual_end_time = null;
-                                            }
+                                            setShifts(prev => prev.map(s => s.id === shift.id ? (!shift.isTemplate ? { ...s, actualEndTime: nEnd } : { ...s, endTime: nEnd }) : s));
+                                            const dbResize: Record<string, any> = shift.isTemplate
+                                              ? { end_time: nEnd }
+                                              : { actual_end_time: nEnd };
                                             supabase.from('shifts').update(dbResize).eq('id', shift.id)
                                               .then(async ({ error }) => {
                                                 if (error) {
@@ -3113,8 +3062,6 @@ function App() {
           }
           return;
         }
-
-        if (status !== 'effettuato') return;
 
         const actualH = getEffectiveHours(s);
         if (actualH > 0) perYouth[yid].erogate += actualH;
@@ -3538,7 +3485,7 @@ function App() {
     const templateShifts = shifts.filter(s => s.isTemplate && s.startTime && s.endTime);
 
     // Pianificato = ore del template (settimana tipo) per ogni giorno nel periodo.
-    // Validato (consuntivo) = solo turni effettuati (effettivi), cancellati = 0, non ancora validati = 0.
+    // Validato (consuntivo) = tutti i turni non annullati (orari effettivi se presenti), cancellati = 0.
     const buildSummary = (person: { id: string; name?: string; maxHoursPerWeek?: number; requiredHoursPerWeek?: number }, type: 'TUTOR' | 'YOUTH') => {
       const targetHours = type === 'TUTOR' ? person.maxHoursPerWeek || 0 : person.requiredHoursPerWeek || 0;
       const personShifts = filteredShifts.filter(s => s.tutorId === person.id || shiftYouthIds(s).includes(person.id));
@@ -3957,38 +3904,6 @@ function App() {
         </div>
       </Modal>
 
-      <Modal isOpen={showConfirmValidateAll} onClose={() => setShowConfirmValidateAll(false)} title="Conferma validazione turni">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-emerald-100 rounded-full flex-shrink-0 mt-0.5">
-              <CheckCircle2 size={20} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-700">
-                Vuoi <strong>validare tutti i turni</strong> di <strong>{tutors.find(t => t.id === tutorFilter)?.name || 'questo tutor'}</strong> per la settimana selezionata?
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Verranno contrassegnati come validati solo i turni non ancora validati. I turni annullati resteranno annullati.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => setShowConfirmValidateAll(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              No, annulla
-            </button>
-            <button
-              onClick={handleValidateAllConfirmed}
-              className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              Si, valida tutti
-            </button>
-          </div>
-        </div>
-      </Modal>
-
       {/* Shift Modal */}
       <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"} size="lg">
         <div className="space-y-4">
@@ -4020,8 +3935,8 @@ function App() {
                   {(editingShift?.status || 'pianificato') === 'cancellato' && (
                     <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Annullato</span>
                   )}
-                  {(editingShift?.status || 'pianificato') === 'effettuato' && (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Effettuato</span>
+                  {shiftModalMode === 'validate' && editingShift?.id && (editingShift?.status || 'pianificato') !== 'cancellato' && (
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">Svolto come pianificato</span>
                   )}
                 </div>
               </div>
@@ -4157,108 +4072,107 @@ function App() {
             {shiftModalMode === 'validate' && (
               <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
                 <MousePointer2 size={14} />
-                Gli orari si modificano <strong>trascinando il box</strong> direttamente sul calendario.
+                Orari pianificati di riferimento: modifica gli orari effettivi qui o <strong>trascinando il box</strong> sul calendario · le differenze finiscono in Recuperi &amp; Monte Ore
               </div>
             )}
           </YouthSection>
 
           {editingShift?.id && shiftModalMode === 'validate' && (
             <YouthSection icon={<CheckCircle size={16} />} title="Consuntivo" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Esito del turno</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(() => {
-                      const st = editingShift.status || 'pianificato';
-                      const effOn = st === 'effettuato';
-                      const cancOn = st === 'cancellato';
-                      return (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const turningOn = !effOn;
-                              setEditingShift({
-                                ...editingShift,
-                                status: turningOn ? 'effettuato' : 'pianificato',
-                                actualStartTime: turningOn ? editingShift.startTime : editingShift.actualStartTime,
-                                actualEndTime: turningOn ? editingShift.endTime : editingShift.actualEndTime,
-                              });
-                            }}
-                            className={`rounded-xl border-2 px-4 py-3 text-left transition ${
-                              effOn
-                                ? 'border-emerald-500 bg-emerald-500 text-white shadow-md'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50'
-                            } ${cancOn ? 'opacity-40' : ''}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold flex items-center gap-2">
-                                <span className={`w-6 h-6 rounded-md flex items-center justify-center ${effOn ? 'bg-white/20' : 'bg-emerald-100 text-emerald-600'}`}>
-                                  {effOn ? <Check size={14} /> : <Play size={14} />}
-                                </span>
-                                Effettuato
-                              </span>
-                              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${effOn ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>
-                                {effOn ? 'ON' : 'OFF'}
-                              </span>
-                            </div>
-                            <p className={`text-xs mt-1.5 leading-snug ${effOn ? 'text-white/85' : 'text-slate-400'}`}>
-                              {effOn ? (
-                                <>
-                                  Rapportato ed eseguito · <strong>{getValidatedHours(editingShift)}h</strong> nel monte ore
-                                  <span className="block mt-1 rounded-lg bg-white/15 px-2 py-1 tabular-nums">
-                                    Inizio <strong>{editingShift.actualStartTime || editingShift.startTime}</strong> · Fine <strong>{editingShift.actualEndTime || editingShift.endTime}</strong>
-                                  </span>
-                                </>
-                              ) : (
-                                'Ancora non eseguito · 0h nel monte ore'
-                              )}
-                            </p>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const turningOn = !cancOn;
-                              setEditingShift({ ...editingShift, status: turningOn ? 'cancellato' : 'pianificato' });
-                            }}
-                            className={`rounded-xl border-2 px-4 py-3 text-left transition ${
-                              cancOn
-                                ? 'border-red-500 bg-red-500 text-white shadow-md'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50'
-                            } ${effOn ? 'opacity-40' : ''}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold flex items-center gap-2">
-                                <span className={`w-6 h-6 rounded-md flex items-center justify-center ${cancOn ? 'bg-white/20' : 'bg-red-100 text-red-600'}`}>
-                                  <X size={14} />
-                                </span>
-                                Cancellato
-                              </span>
-                              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cancOn ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>
-                                {cancOn ? 'ON' : 'OFF'}
-                              </span>
-                            </div>
-                            <p className={`text-xs mt-1.5 leading-snug ${cancOn ? 'text-white/85' : 'text-slate-400'}`}>
-                              {cancOn ? 'Turno saltato · non conteggiato, box in grigio' : 'Turno attivo'}
-                            </p>
-                          </button>
-                        </>
-                      );
-                    })()}
+              {(() => {
+                const st = editingShift.status || 'pianificato';
+                const cancOn = st === 'cancellato';
+                const effStart = editingShift.actualStartTime || editingShift.startTime;
+                const effEnd = editingShift.actualEndTime || editingShift.endTime;
+                const plannedMin = (() => {
+                  const [sh, sm] = (editingShift.startTime || '0:0').split(':').map(Number);
+                  const [eh, em] = (editingShift.endTime || '0:0').split(':').map(Number);
+                  return (eh * 60 + em) - (sh * 60 + sm);
+                })();
+                const effMin = (() => {
+                  const [sh, sm] = (effStart || '0:0').split(':').map(Number);
+                  const [eh, em] = (effEnd || '0:0').split(':').map(Number);
+                  return (eh * 60 + em) - (sh * 60 + sm);
+                })();
+                const deltaH = cancOn ? -plannedMin / 60 : (effMin - plannedMin) / 60;
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Inizio effettivo</label>
+                      <input
+                        type="time"
+                        className={fieldCls}
+                        value={effStart}
+                        onChange={e => setEditingShift({ ...editingShift, actualStartTime: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Fine effettiva</label>
+                      <input
+                        type="time"
+                        className={fieldCls}
+                        value={effEnd}
+                        onChange={e => setEditingShift({ ...editingShift, actualEndTime: e.target.value })}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const turningOn = !cancOn;
+                          setEditingShift({
+                            ...editingShift,
+                            status: turningOn ? 'cancellato' : 'pianificato',
+                            actualStartTime: turningOn ? null : (editingShift.actualStartTime ?? editingShift.startTime),
+                            actualEndTime: turningOn ? null : (editingShift.actualEndTime ?? editingShift.endTime),
+                          });
+                        }}
+                        className={`w-full rounded-xl border-2 px-4 py-3 text-left transition ${
+                          cancOn
+                            ? 'border-red-500 bg-red-500 text-white shadow-md'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-red-300 hover:bg-red-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold flex items-center gap-2">
+                            <span className={`w-6 h-6 rounded-md flex items-center justify-center ${cancOn ? 'bg-white/20' : 'bg-red-100 text-red-600'}`}>
+                              <X size={14} />
+                            </span>
+                            Annulla turno
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cancOn ? 'bg-white/25' : 'bg-slate-100 text-slate-500'}`}>
+                            {cancOn ? 'ON' : 'OFF'}
+                          </span>
+                        </div>
+                        <p className={`text-xs mt-1.5 leading-snug ${cancOn ? 'text-white/85' : 'text-slate-400'}`}>
+                          {cancOn
+                            ? 'Turno annullato · le ore pianificate vanno in Recuperi del ragazzo'
+                            : 'Es. mancanza tutor · il turno non è svolto e genera ore da recuperare'}
+                        </p>
+                      </button>
+                    </div>
+                    {!cancOn && Math.abs(deltaH) > 0.005 && (
+                      <div className={`sm:col-span-2 rounded-lg border px-3 py-2 text-xs flex items-center gap-2 ${
+                        deltaH > 0
+                          ? 'bg-violet-50 border-violet-200 text-violet-700'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      }`}>
+                        {deltaH > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        Delta vs pianificato: <strong>{deltaH > 0 ? '+' : ''}{deltaH.toFixed(1)}h</strong>
+                        {deltaH > 0 ? ' → ore extra scalate dal monte ore' : ' → ore da recuperare per il ragazzo'}
+                      </div>
+                    )}
                   </div>
-                  {((editingShift.status || 'pianificato') === 'pianificato') && (
-                    <p className="mt-2 text-xs text-slate-400">In attesa di esecuzione: non conteggiato nel monte ore finché non premi <strong>Effettuato</strong>.</p>
-                  )}
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
-                  <textarea
-                    className={fieldCls + " min-h-[60px]"}
-                    placeholder="Come è andato il turno, variazioni, note..."
-                    value={editingShift.actualNotes || ''}
-                    onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
-                  />
-                </div>
+                );
+              })()}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
+                <textarea
+                  className={fieldCls + " min-h-[60px]"}
+                  placeholder="Come è andato il turno, variazioni, note..."
+                  value={editingShift.actualNotes || ''}
+                  onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
+                />
               </div>
             </YouthSection>
           )}
