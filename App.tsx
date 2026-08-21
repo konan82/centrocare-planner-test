@@ -5,7 +5,7 @@ import {
   UserCheck,
   Plus,
   Trash2,
-  BrainCircuit,
+  CalendarPlus,
   AlertTriangle,
   Menu,
   X,
@@ -50,9 +50,9 @@ import {
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
-import { generateSmartSchedule, analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
+import { analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
-import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek } from 'date-fns';
+import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const waHref = (phone: string) => {
@@ -786,10 +786,11 @@ function App() {
   const [youthTutorFilter, setYouthTutorFilter] = useState('tutti');
 
   // AI State
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ConflictAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Copia pianificazione su mese
+  const [replicateMonth, setReplicateMonth] = useState(() => format(new Date(), 'yyyy-MM'));
 
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
@@ -1233,61 +1234,86 @@ function App() {
     setIsYouthModalOpen(true);
   }
 
-  const handleGenerateSchedule = async (clearWeek: boolean) => {
-    setShowConfirmClear(false);
-    setIsGenerating(true);
+  // Copia i turni della pianificazione (settimana tipo) su tutti i giorni del mese scelto (idempotente)
+  const handleReplicateMonth = async () => {
+    if (!replicateMonth) return;
+    const templateShifts = shifts.filter(s => s.isTemplate);
+    if (templateShifts.length === 0) {
+      alert("Nessuna pianificazione settimanale da copiare: crea prima i turni nella settimana tipo.");
+      return;
+    }
+
+    const monthStart = `${replicateMonth}-01`;
+    const monthEnd = format(endOfMonth(parseISO(monthStart)), 'yyyy-MM-dd');
+
+    // Giorni del mese
+    const days: string[] = [];
+    for (let d = parseISO(monthStart); format(d, 'yyyy-MM-dd') <= monthEnd; d = addDays(d, 1)) {
+      const wd = getDay(d); // 0=dom ... 6=sab
+      if (wd >= 1 && wd <= 6) days.push(format(d, 'yyyy-MM-dd'));
+    }
+    if (days.length === 0) {
+      alert("Nessun giorno valido nel mese selezionato.");
+      return;
+    }
+
+    // Escludi occorrenze già presenti (stesso template + data)
+    const existingKeys = new Set(
+      shifts.filter(s => !s.isTemplate).map(s => `${s.templateShiftId}|${s.date}`)
+    );
+
+    const rows = templateShifts.flatMap(t => (
+      days
+        .filter(date => {
+          const wd = getDay(parseISO(date));
+          return Math.min(Math.max(((t.templateWeekday || weekdayOf(t.date)) - 1), 0), 5) + 1 === wd;
+        })
+        .filter(date => !existingKeys.has(`${t.id}|${date}`))
+        .map(date => ({
+          id: Math.random().toString(36).slice(2, 11),
+          tutor_id: t.tutorId,
+          youth_id: t.youthId,
+          youth_ids: shiftYouthIds(t),
+          date,
+          start_time: t.startTime,
+          end_time: t.endTime,
+          activity: t.activity || '',
+          status: 'pianificato',
+          is_template: false,
+          template_weekday: null,
+          template_shift_id: t.id,
+        }))
+    ));
+
+    if (rows.length === 0) {
+      alert("Tutti i turni di questo mese sono già stati copiati dalla pianificazione.");
+      return;
+    }
+
+    if (!confirm(`Copiare ${rows.length} turni della settimana tipo nel mese selezionato?`)) return;
+
     try {
-      const startDateStr = format(TEMPLATE_ANCHOR, 'yyyy-MM-dd');
-
-      if (clearWeek) {
-        const { error: delErr } = await supabase
-          .from('shifts')
-          .delete()
-          .eq('is_template', true);
-        if (delErr) throw delErr;
-        setShifts(prev => prev.filter(s => !s.isTemplate));
-      }
-
-      const newShifts = await generateSmartSchedule(tutors, youths, startDateStr);
-
-      const shiftsToSave = newShifts.map(s => ({
-        id: s.id,
-        tutor_id: s.tutorId,
-        youth_id: s.youthId,
-        youth_ids: [s.youthId],
-        date: s.date,
-        start_time: s.startTime,
-        end_time: s.endTime,
-        activity: s.activity || '',
-        is_template: true,
-        template_weekday: weekdayOf(s.date),
+      const { error } = await supabase.from('shifts').insert(rows);
+      if (error) throw error;
+      const normalized = rows.map(r => ({
+        id: r.id,
+        tutorId: r.tutor_id,
+        youthId: r.youth_id,
+        youthIds: r.youth_ids,
+        date: r.date,
+        startTime: r.start_time,
+        endTime: r.end_time,
+        activity: r.activity,
+        status: r.status,
+        isTemplate: r.is_template,
+        templateWeekday: null as unknown as number,
+        templateShiftId: r.template_shift_id,
       }));
-
-      if (shiftsToSave.length > 0) {
-        const { error } = await supabase.from('shifts').upsert(shiftsToSave);
-        if (error) throw error;
-      }
-
-      const templateShifts = shiftsToSave.map(s => ({
-        id: s.id,
-        tutorId: s.tutor_id,
-        youthId: s.youth_id,
-        youthIds: s.youth_ids,
-        date: s.date,
-        startTime: s.start_time,
-        endTime: s.end_time,
-        activity: s.activity,
-        status: 'pianificato',
-        isTemplate: true,
-        templateWeekday: s.template_weekday,
-        templateShiftId: null,
-      }));
-      setShifts(prev => [...prev.filter(s => !s.isTemplate), ...templateShifts]);
+      setShifts(prev => [...prev, ...normalized]);
+      alert(`Fatto: ${rows.length} turni copiati nel mese selezionato.`);
     } catch (error) {
-      console.error(error);
-      alert("Errore durante la generazione dei turni. Verifica la chiave API.");
-    } finally {
-      setIsGenerating(false);
+      console.error("Error replicating month:", error);
+      alert("Errore durante la copia della pianificazione sul mese");
     }
   };
 
@@ -2481,14 +2507,23 @@ function App() {
                 </button>
               )}
               {isPlan && (
-                <button
-                  onClick={() => setShowConfirmClear(true)}
-                  disabled={isGenerating}
-                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl hover:from-teal-600 hover:to-emerald-600 shadow-md shadow-teal-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
-                >
-                  {isGenerating ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <BrainCircuit size={16} />}
-                  AI Auto-Planner
-                </button>
+                <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-teal-200 bg-white p-1 shadow-sm">
+                  <input
+                    type="month"
+                    value={replicateMonth}
+                    onChange={e => setReplicateMonth(e.target.value)}
+                    title="Mese su cui copiare la pianificazione settimanale"
+                    className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  />
+                  <button
+                    onClick={handleReplicateMonth}
+                    title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
+                    className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg hover:from-teal-600 hover:to-emerald-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                  >
+                    <CalendarPlus size={16} />
+                    Copia su tutto il mese
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -3866,39 +3901,6 @@ function App() {
               className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
               Si, elimina
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Confirm Clear Week Modal */}
-      <Modal isOpen={showConfirmClear} onClose={() => setShowConfirmClear(false)} title="Conferma generazione turni">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-amber-100 rounded-full flex-shrink-0 mt-0.5">
-              <AlertTriangle size={20} className="text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-700">
-                Vuoi <strong>cancellare i turni della pianificazione</strong> prima di generare la nuova settimana tipo con l'AI?
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Verrà sostituita solo la pianificazione (settimana tipo). I turni già validati non verranno toccati.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={() => handleGenerateSchedule(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              No, sovrapponi
-            </button>
-            <button
-              onClick={() => handleGenerateSchedule(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Si, cancella e rigenera
             </button>
           </div>
         </div>
