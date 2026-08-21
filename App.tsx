@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Calendar as CalendarIcon,
@@ -44,8 +44,7 @@ import {
   MousePointer2,
   MessageCircle,
   Play,
-  Wallet,
-  Repeat
+  Wallet
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
@@ -844,9 +843,6 @@ function App() {
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
   const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'total' | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' });
-
-  // Recuperi & Monte Ore State
-  const [recMonth, setRecMonth] = useState(() => startOfMonth(new Date()));
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -1701,7 +1697,6 @@ function App() {
       { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
-      { view: 'RECOVERY', perm: 'SUMMARY', label: 'Recuperi & Monte Ore', icon: Repeat, chipText: 'text-orange-600' },
       { view: 'PAYROLL', perm: 'SUMMARY', label: 'Calcolo Paga', icon: Wallet, chipText: 'text-lime-600' },
     ];
     const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
@@ -1868,7 +1863,6 @@ function App() {
       : view === 'TUTORS' ? 'Gestione Tutor'
       : view === 'YOUTHS' ? 'Anagrafica Ragazzi'
       : view === 'SUMMARY' ? 'Riepilogo Ore'
-      : view === 'RECOVERY' ? 'Recuperi & Monte Ore'
       : view === 'PAYROLL' ? 'Calcolo Paga'
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : 'CentroCare';
@@ -3143,233 +3137,6 @@ function App() {
     }
   };
 
-  const renderRecovery = () => {
-    const getH = (start: string, end: string) => {
-      const [sh, sm] = (start || '0:00').split(':').map(Number);
-      const [eh, em] = (end || '0:0').split(':').map(Number);
-      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
-    };
-
-    const monthStart = format(recMonth, 'yyyy-MM-dd');
-    const monthEnd = format(endOfMonth(recMonth), 'yyyy-MM-dd');
-
-    type RecDetail = {
-      youthId: string;
-      date: string;
-      tutorName: string;
-      planned: number;
-      actual: number | null;
-      delta: number;
-      kind: 'Annullato' | 'Allungato' | 'Ridotto';
-    };
-
-    const perYouth: Record<string, { erogate: number; recuperi: number; extra: number }> = {};
-    youths.forEach(y => { perYouth[y.id] = { erogate: 0, recuperi: 0, extra: 0 }; });
-    const details: RecDetail[] = [];
-
-    shifts.forEach(s => {
-      if (s.isTemplate || !s.date) return;
-      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
-      if (d < monthStart || d > monthEnd) return;
-      const status = s.status || 'pianificato';
-      const plannedH = getH(s.startTime, s.endTime);
-      const tutorName = tutors.find(t => t.id === s.tutorId)?.name || '?';
-
-      shiftYouthIds(s).forEach(yid => {
-        if (!perYouth[yid]) return;
-
-        if (status === 'cancellato') {
-          if (plannedH > 0) {
-            perYouth[yid].recuperi += plannedH;
-            details.push({ youthId: yid, date: d, tutorName, planned: plannedH, actual: null, delta: plannedH, kind: 'Annullato' });
-          }
-          return;
-        }
-
-        const actualH = getEffectiveHours(s);
-        if (actualH > 0) perYouth[yid].erogate += actualH;
-        const delta = actualH - plannedH;
-        if (delta > 0.005) {
-          perYouth[yid].extra += delta;
-          details.push({ youthId: yid, date: d, tutorName, planned: plannedH, actual: actualH, delta, kind: 'Allungato' });
-        } else if (delta < -0.005) {
-          perYouth[yid].recuperi += -delta;
-          details.push({ youthId: yid, date: d, tutorName, planned: plannedH, actual: actualH, delta, kind: 'Ridotto' });
-        }
-      });
-    });
-
-    const rows = youths
-      .map(y => {
-        const v = perYouth[y.id] || { erogate: 0, recuperi: 0, extra: 0 };
-        return { youth: y, ...v, saldo: v.recuperi - v.extra };
-      })
-      .sort((a, b) => (a.youth.name || '').localeCompare(b.youth.name || '', 'it'));
-
-    const totErogate = rows.reduce((a, r) => a + r.erogate, 0);
-    const totRecuperi = rows.reduce((a, r) => a + r.recuperi, 0);
-    const totExtra = rows.reduce((a, r) => a + r.extra, 0);
-    const totSaldo = totRecuperi - totExtra;
-
-    details.sort((a, b) => a.date.localeCompare(b.date));
-
-    const saldoBadge = (v: number) => Math.abs(v) < 0.005
-      ? 'bg-slate-200/70 text-slate-600'
-      : v > 0
-        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-        : 'bg-red-50 text-red-600 ring-1 ring-red-200';
-
-    return (
-      <div className="space-y-8">
-        <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">Recuperi &amp; Monte Ore</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button
-                onClick={() => setRecMonth(addMonths(recMonth, -1))}
-                title="Mese precedente"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={() => setRecMonth(startOfMonth(new Date()))}
-                title="Torna al mese corrente"
-                className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
-                  isSameMonth(recMonth, new Date())
-                    ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
-                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <span className="flex items-center gap-1.5 md:gap-2">
-                  <CalendarIcon size={14} className="text-teal-600 shrink-0" />
-                  <span className="tracking-tight whitespace-nowrap capitalize">
-                    {format(recMonth, 'MMMM yyyy', { locale: it })}
-                  </span>
-                </span>
-              </button>
-              <button
-                onClick={() => setRecMonth(addMonths(recMonth, 1))}
-                title="Mese successivo"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <Card className="p-6">
-          <h3 className="font-semibold text-slate-700 mb-4">Saldo monte ore per ragazzo</h3>
-          <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
-            <table className="w-auto max-w-full text-sm whitespace-nowrap">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                  <th className="text-left py-2.5 pr-3 font-bold">Ragazzo/a</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Ore Erogate</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Recuperi</th>
-                  <th className="text-right py-2.5 px-3 font-bold">Ore Extra</th>
-                  <th className="text-right py-2.5 pl-3 font-bold">Saldo Monte Ore</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rows.map(r => (
-                  <tr key={r.youth.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 pr-3">
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <span className={`h-7 w-7 shrink-0 rounded-full ${getYouthColor(r.youth.id, youths).bg} ${getYouthColor(r.youth.id, youths).text} text-[11px] font-bold flex items-center justify-center`}>
-                          {getInitials(r.youth.name)}
-                        </span>
-                        <span className="font-semibold text-slate-700 truncate">{r.youth.name}</span>
-                      </span>
-                    </td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.erogate.toFixed(1)}h</td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-emerald-700">{r.recuperi.toFixed(1)}h</td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.extra.toFixed(1)}h</td>
-                    <td className="text-right py-2.5 pl-3">
-                      <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${saldoBadge(r.saldo)}`}>
-                        {r.saldo > 0 ? '+' : ''}{r.saldo.toFixed(1)}h
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr><td colSpan={5} className="py-6 text-center text-slate-400 italic">Nessun ragazzo in anagrafica</td></tr>
-                )}
-              </tbody>
-              {rows.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
-                    <td className="py-3 pr-3 text-slate-700">Totale</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{totErogate.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-emerald-700">{totRecuperi.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{totExtra.toFixed(1)}h</td>
-                    <td className="text-right py-3 pl-3">
-                      <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${saldoBadge(totSaldo)}`}>
-                        {totSaldo > 0 ? '+' : ''}{totSaldo.toFixed(1)}h
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-          <p className="mt-3 text-[11px] text-slate-400">
-            Saldo positivo = ore da recuperare al ragazzo (turni annullati o ridotti) · Saldo negativo = ore extra fatte in più del pianificato (da scalare dal monte ore)
-          </p>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="font-semibold text-slate-700 mb-4">Dettaglio variazioni del mese</h3>
-          {details.length === 0 ? (
-            <p className="text-sm text-slate-400 italic">Nessuna variazione: tutti i turni svolti corrispondono al pianificato.</p>
-          ) : (
-            <div className="overflow-x-auto max-h-[50vh] overflow-y-auto rounded-lg border border-slate-100">
-              <table className="w-auto max-w-full text-sm whitespace-nowrap">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                    <th className="text-left py-2.5 pr-3 font-bold">Data</th>
-                    <th className="text-left py-2.5 px-3 font-bold">Ragazzo/a</th>
-                    <th className="text-left py-2.5 px-3 font-bold">Tutor</th>
-                    <th className="text-center py-2.5 px-3 font-bold">Tipo</th>
-                    <th className="text-right py-2.5 px-3 font-bold">Pianificato</th>
-                    <th className="text-right py-2.5 px-3 font-bold">Svolto</th>
-                    <th className="text-right py-2.5 pl-3 font-bold">Delta</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {details.map((d, i) => {
-                    const kindCls = d.kind === 'Annullato'
-                      ? 'bg-red-100 text-red-700'
-                      : d.kind === 'Allungato'
-                        ? 'bg-violet-100 text-violet-700'
-                        : 'bg-amber-100 text-amber-700';
-                    return (
-                      <tr key={`${d.youthId}-${d.date}-${i}`} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 pr-3 capitalize text-slate-600">{format(parseISO(d.date), 'EEE dd/MM', { locale: it })}</td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-700">{youths.find(y => y.id === d.youthId)?.name || '?'}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{d.tutorName}</td>
-                        <td className="text-center py-2.5 px-3">
-                          <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${kindCls}`}>{d.kind}</span>
-                        </td>
-                        <td className="text-right py-2.5 px-3 tabular-nums text-slate-500">{d.planned.toFixed(1)}h</td>
-                        <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{d.actual === null ? '—' : `${d.actual.toFixed(1)}h`}</td>
-                        <td className={`text-right py-2.5 pl-3 tabular-nums font-bold ${d.delta > 0 ? 'text-violet-600' : 'text-emerald-700'}`}>
-                          {d.delta > 0 ? '+' : ''}{d.delta.toFixed(1)}h
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      </div>
-    );
-  };
 
   const renderPayroll = () => {
     const getH = (start: string, end: string) => {
@@ -3584,7 +3351,7 @@ function App() {
             </table>
           </div>
           <p className="mt-3 text-[11px] text-slate-400">
-            Base = ore settimanali della settimana tipo (Pianificazione Turni) × {weeks} settimane × paga oraria · Le differenze del consuntivo sono gestite nella sezione Recuperi &amp; Monte Ore
+            Base = ore settimanali della settimana tipo (Pianificazione Turni) × {weeks} settimane × paga oraria
           </p>
         </Card>
       </div>
@@ -3878,7 +3645,6 @@ function App() {
             {view === 'TUTORS' && renderTutorsList()}
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}
-            {view === 'RECOVERY' && renderRecovery()}
             {view === 'PAYROLL' && renderPayroll()}
             {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} />}
           </div>
@@ -4121,7 +3887,7 @@ function App() {
             {shiftModalMode === 'validate' && (
               <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
                 <MousePointer2 size={14} />
-                Orari pianificati di riferimento: modifica gli orari effettivi qui o <strong>trascinando il box</strong> sul calendario · le differenze finiscono in Recuperi &amp; Monte Ore
+                Orari pianificati di riferimento: modifica gli orari effettivi qui o <strong>trascinando il box</strong> sul calendario · le differenze rispetto al pianificato sono riportate nel Riepilogo Ore (colonna Extra/Rec.)
               </div>
             )}
           </YouthSection>
@@ -4195,7 +3961,7 @@ function App() {
                         </div>
                         <p className={`text-xs mt-1.5 leading-snug ${cancOn ? 'text-white/85' : 'text-slate-400'}`}>
                           {cancOn
-                            ? 'Turno annullato · le ore pianificate vanno in Recuperi del ragazzo'
+                            ? 'Turno annullato · le ore pianificate risultano come da recuperare nel Riepilogo Ore'
                             : 'Es. mancanza tutor · il turno non è svolto e genera ore da recuperare'}
                         </p>
                       </button>
