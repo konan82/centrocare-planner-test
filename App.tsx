@@ -3040,6 +3040,8 @@ function App() {
       const weeklyHours: Record<string, number> = {};
       const plannedMonthlyHours: Record<string, number> = {};
       const plannedWeeklyHours: Record<string, number> = {};
+      const singleMonthlyHours: Record<string, number> = {};
+      const doubleMonthlyHours: Record<string, number> = {};
 
       const startD = parseISO(summaryStartDate);
       const endD = parseISO(summaryEndDate);
@@ -3061,6 +3063,15 @@ function App() {
             }
           }
 
+          personShifts
+            .filter(s => s.date === dateStr && s.startTime && s.endTime)
+            .forEach(s => {
+              const h = getValidatedHours(s);
+              if (h <= 0) return;
+              const rec = shiftYouthIds(s).length >= 2 ? doubleMonthlyHours : singleMonthlyHours;
+              rec[monthKey] = (rec[monthKey] || 0) + h;
+            });
+
           const validated = personShifts
             .filter(s => s.date === dateStr && s.startTime && s.endTime)
             .reduce((acc, s) => acc + getValidatedHours(s), 0);
@@ -3079,6 +3090,8 @@ function App() {
         weeklyHours,
         plannedMonthlyHours,
         plannedWeeklyHours,
+        singleMonthlyHours,
+        doubleMonthlyHours,
         type
       };
     };
@@ -3178,11 +3191,11 @@ function App() {
                   const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string, flashNegative = false) => (
                     rows.length > 0 ? (
                       <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                        <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <div className="grid grid-cols-[1fr_3.5rem_4rem_4.75rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                           <span>Periodo</span>
                           <span className="text-right">Pianif.</span>
                           <span className="text-right">Effett.</span>
-                          <span className="text-right">Delta</span>
+                          <span className="text-center">Delta</span>
                         </div>
                         <div className="divide-y divide-slate-100">
                           {rows.map(r => {
@@ -3194,7 +3207,7 @@ function App() {
                                 : 'bg-red-50 text-red-600 ring-1 ring-red-200';
                             const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
                             return (
-                              <div key={r.label} className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
+                              <div key={r.label} className={`grid grid-cols-[1fr_3.5rem_4rem_4.75rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
                                 <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
                                 <span className="text-right text-sm text-slate-500 tabular-nums">{r.planned.toFixed(1)}h</span>
                                 <span className={`text-right text-sm font-bold tabular-nums ${doneTxt}`}>
@@ -3202,7 +3215,7 @@ function App() {
                                   {r.over && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
                                   {r.under && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
                                 </span>
-                                <span className={`text-right text-xs font-bold px-2 py-1 rounded-full tabular-nums min-w-[64px] text-center ${deltaBadge}`}>
+                                <span className={`text-xs font-bold px-1 py-1 rounded-full tabular-nums text-center ${deltaBadge}`}>
                                   {Math.abs(delta) < 0.005 ? '0.0' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}`}h
                                 </span>
                               </div>
@@ -3252,30 +3265,20 @@ function App() {
               {(() => {
                 const sumHours = (rec: Record<string, number>) =>
                   Object.values(rec || {}).reduce((acc: number, v) => acc + (Number(v) || 0), 0);
-                const totalDone = sumHours(data.monthlyHours);
-                const totalPlanned = sumHours(data.plannedMonthlyHours);
-                const delta = totalDone - totalPlanned;
-                const deltaBadge = Math.abs(delta) < 0.005
-                  ? 'bg-slate-200/70 text-slate-600'
-                  : delta > 0
-                    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                    : 'bg-red-50 text-red-600 ring-1 ring-red-200';
+                const totalSingle = sumHours(data.singleMonthlyHours);
+                const totalDouble = sumHours(data.doubleMonthlyHours);
                 return (
                   <div className="mt-6 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white shadow-sm overflow-hidden">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 items-stretch">
-                      <div className="px-4 py-3 border-b sm:border-b-0 border-slate-200 sm:border-r">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Pianificato</span>
-                        <span className="block mt-1 text-lg font-bold text-slate-700 tabular-nums">{totalPlanned.toFixed(1)}h</span>
+                    <div className="grid grid-cols-2 items-stretch">
+                      <div className="px-4 py-3 border-slate-200 sm:border-r">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Turno Singolo</span>
+                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalSingle.toFixed(1)}h</span>
+                        <span className="block text-[11px] text-slate-400 font-medium">un solo ragazzo nel turno</span>
                       </div>
-                      <div className="px-4 py-3 border-b sm:border-b-0 border-slate-200 sm:border-r">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Effettuato</span>
-                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalDone.toFixed(1)}h</span>
-                      </div>
-                      <div className="px-4 py-3 col-span-2 sm:col-span-1 flex flex-col justify-center">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Delta</span>
-                        <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full font-bold tabular-nums self-start ${deltaBadge}`}>
-                          {Math.abs(delta) < 0.005 ? '0.0' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}`}h
-                        </span>
+                      <div className="px-4 py-3">
+                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Turno Doppio</span>
+                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalDouble.toFixed(1)}h</span>
+                        <span className="block text-[11px] text-slate-400 font-medium">due o più ragazzi nel turno</span>
                       </div>
                     </div>
                   </div>
