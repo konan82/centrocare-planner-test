@@ -792,6 +792,9 @@ function App() {
   // Copia pianificazione su mese
   const [replicateMonth, setReplicateMonth] = useState(() => format(new Date(), 'yyyy-MM'));
 
+  // Cancella turni consuntivo per mese
+  const [clearMonth, setClearMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
   const [dragOverCoords, setDragOverCoords] = useState<{ dateStr: string, minutes: number } | null>(null);
@@ -1322,6 +1325,30 @@ function App() {
     const report = analyzeConflicts(tutors, shifts.filter(s => s.isTemplate));
     setAnalysisResult(report);
     setIsAnalyzing(false);
+  };
+
+  // Cancella tutti i turni di consuntivo (non template) del mese scelto
+  const handleClearMonthShifts = async () => {
+    if (!clearMonth) return;
+    const monthStart = `${clearMonth}-01`;
+    const monthEnd = format(endOfMonth(parseISO(monthStart)), 'yyyy-MM-dd');
+    const toDelete = shifts.filter(s => !s.isTemplate && s.date && s.date >= monthStart && s.date <= monthEnd);
+    if (toDelete.length === 0) {
+      alert("Nessun turno da cancellare nel mese selezionato.");
+      return;
+    }
+    if (!confirm(`Cancellare ${toDelete.length} turni del mese selezionato dal consuntivo? L'azione non può essere annullata.`)) return;
+    try {
+      const ids = toDelete.map(s => s.id);
+      const { error } = await supabase.from('shifts').delete().in('id', ids);
+      if (error) throw error;
+      const idSet = new Set(ids);
+      setShifts(prev => prev.filter(s => !idSet.has(s.id)));
+      alert(`Fatto: ${ids.length} turni cancellati dal consuntivo del mese selezionato.`);
+    } catch (error) {
+      console.error("Error clearing month shifts:", error);
+      alert("Errore durante la cancellazione dei turni del mese");
+    }
   };
 
   // Copia i turni della pianificazione (template) nella settimana reale indicata (idempotente)
@@ -2474,6 +2501,25 @@ function App() {
               {!isPlan && tutorFilter !== 'all' && tutorFilter && (
                 <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
                   Trascina o apri un turno per registrare il consuntivo
+                </div>
+              )}
+              {!isPlan && (
+                <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-red-200 bg-white p-1 shadow-sm">
+                  <input
+                    type="month"
+                    value={clearMonth}
+                    onChange={e => setClearMonth(e.target.value)}
+                    title="Mese di cui cancellare tutti i turni del consuntivo"
+                    className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300"
+                  />
+                  <button
+                    onClick={handleClearMonthShifts}
+                    title="Cancella tutti i turni del consuntivo nel mese selezionato"
+                    className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-lg hover:from-red-600 hover:to-rose-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                  >
+                    <Trash2 size={16} />
+                    Cancella tutto il mese
+                  </button>
                 </div>
               )}
               {isPlan && (
