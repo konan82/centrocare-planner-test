@@ -3724,7 +3724,7 @@ function App() {
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[68vh] overflow-y-auto">
-              <table className="w-full text-sm border-collapse">
+              <table className="w-auto max-w-full text-sm border-collapse whitespace-nowrap">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                     <th className="text-left py-2.5 pr-3 font-bold sticky left-0 bg-slate-50 z-20" rowSpan={2}>Ragazzo \ Tutor</th>
