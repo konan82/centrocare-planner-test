@@ -3604,12 +3604,8 @@ function App() {
     const monthStart = format(startOfMonth(summaryMonth), 'yyyy-MM-dd');
     const monthEnd = format(endOfMonth(summaryMonth), 'yyyy-MM-dd');
 
-    // Template del mese (Pianificazione Turni): sorgente delle ore PIAN
-    const monthTemplates = shifts.filter(s => {
-      if (!s.isTemplate || !s.date) return false;
-      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
-      return d >= monthStart && d <= monthEnd;
-    });
+    // Template (settimana tipo): sorgente delle ore PIAN, espanse su tutto il mese per giorno della settimana
+    const allTemplates = shifts.filter(s => s.isTemplate && !!s.date);
     // Occorrenze del mese (consuntivo): sorgente delle ore EROGATE
     const monthShifts = shifts.filter(s => {
       if (s.isTemplate || !s.date) return false;
@@ -3617,10 +3613,20 @@ function App() {
       return d >= monthStart && d <= monthEnd;
     });
 
-    // Tutor e ragazzi da mostrare (pianificazione o consuntivo del mese)
+    // Quante volte un template ricorre nel mese (giorni con lo stesso weekday)
+    const templateMonthlyCount = (t: Shift) => {
+      const wd = Math.min(Math.max((t.templateWeekday || weekdayOf(t.date)) - 1, 0), 5) + 1; // 1=Lun..6=Sab
+      let count = 0;
+      for (let d = parseISO(monthStart); format(d, 'yyyy-MM-dd') <= monthEnd; d = addDays(d, 1)) {
+        if (getDay(d) === wd) count++;
+      }
+      return count;
+    };
+
+    // Tutor e ragazzi da mostrare (settimana tipo o consuntivo del mese)
     const presentTutors = new Set<string>();
     const presentYouths = new Set<string>();
-    [...monthTemplates, ...monthShifts].forEach(s => {
+    [...allTemplates, ...monthShifts].forEach(s => {
       presentTutors.add(s.tutorId);
       shiftYouthIds(s).forEach(yid => presentYouths.add(yid));
     });
@@ -3631,11 +3637,11 @@ function App() {
     const cell: Record<string, Record<string, { planned: number; executed: number }>> = {};
     rows.forEach(t => { cell[t.id] = {}; cols.forEach(y => { cell[t.id][y.id] = { planned: 0, executed: 0 }; }); });
 
-    // Pian: da Pianificazione Turni (template) sull'intero mese
-    monthTemplates.forEach(s => {
+    // Pian: settimana tipo espansa su tutto il mese
+    allTemplates.forEach(s => {
       const tId = s.tutorId;
       if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
-      const planned = getHours(s.startTime, s.endTime);
+      const planned = getHours(s.startTime, s.endTime) * templateMonthlyCount(s);
       shiftYouthIds(s).forEach(yId => {
         if (summaryYouthFilter !== 'all' && yId !== summaryYouthFilter) return;
         if (!cell[tId]) cell[tId] = {};
@@ -3643,7 +3649,7 @@ function App() {
         cell[tId][yId].planned += planned;
       });
     });
-    // Erogate: da Consuntivo Turni (occorrenze)
+    // Erogate: da Consuntivo Turni (occorrenze del mese)
     monthShifts.forEach(s => {
       const tId = s.tutorId;
       if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
