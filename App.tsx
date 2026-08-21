@@ -3729,30 +3729,33 @@ function App() {
                   <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                     <th className="text-left py-2.5 pr-3 font-bold sticky left-0 bg-slate-50 z-20" rowSpan={2}>Ragazzo \ Tutor</th>
                     {rows.map(t => (
-                      <th key={t.id} colSpan={2} className="px-2 py-1.5 font-bold text-center border-l-2 border-slate-200">
+                      <th key={t.id} colSpan={3} className="px-2 py-1.5 font-bold text-center border-l-2 border-slate-200">
                         <span className="flex items-center justify-center gap-1.5 min-w-0">
                           <span className={`h-4 w-4 rounded-full ${getTutorColor(t.id, tutors).bg} ${getTutorColor(t.id, tutors).text} text-[9px] font-bold flex items-center justify-center`}>{getInitials(t.name)}</span>
                           <span className="truncate max-w-[8rem]">{t.name}</span>
                         </span>
                       </th>
                     ))}
-                    <th colSpan={2} className="px-3 py-1.5 font-bold text-center text-slate-600 border-l-2 border-slate-200">Totale</th>
+                    <th colSpan={3} className="px-3 py-1.5 font-bold text-center text-slate-600 border-l-2 border-slate-200">Totale</th>
                   </tr>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-400">
                     {rows.map(t => (
                       <React.Fragment key={t.id}>
                         <th className="px-1 py-1 font-semibold text-center text-slate-400 border-l-2 border-slate-200">Pian</th>
-                        <th className="px-1 py-1 font-semibold text-center text-slate-400">Eseg</th>
+                        <th className="px-1 py-1 font-semibold text-center text-slate-400">Erogate</th>
+                        <th className="px-1 py-1 font-semibold text-center text-slate-400">Extra/Rec.</th>
                       </React.Fragment>
                     ))}
                     <th className="px-2 py-1 font-semibold text-center text-slate-500 border-l-2 border-slate-200">Pian</th>
-                    <th className="px-2 py-1 font-semibold text-center text-slate-500">Eseg</th>
+                    <th className="px-2 py-1 font-semibold text-center text-slate-500">Erogate</th>
+                    <th className="px-2 py-1 font-semibold text-center text-slate-500">Extra/Rec.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cols.map((y, ri) => {
+                  {cols.map((y) => {
                     const rtPlanned = rows.reduce((a, t) => a + cell[t.id][y.id].planned, 0);
                     const rtExecuted = rows.reduce((a, t) => a + cell[t.id][y.id].executed, 0);
+                    const rtSaldo = rtExecuted - rtPlanned;
                     return (
                       <tr key={y.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2.5 pr-3 sticky left-0 bg-white z-10">
@@ -3763,17 +3766,21 @@ function App() {
                         </td>
                         {rows.map(t => {
                           const c = cell[t.id][y.id];
-                          const delta = c.executed - c.planned;
-                          const execColor = delta > 0.005 ? 'text-emerald-600' : delta < -0.005 ? 'text-red-500' : 'text-slate-700';
+                          const saldo = c.executed - c.planned;
+                          const erogColor = saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-700';
+                          const saldoColor = saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-400';
+                          const saldoText = saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : '–';
                           return (
                             <React.Fragment key={t.id}>
                               <td className="text-center px-1 py-2 tabular-nums text-slate-400 border-l-2 border-slate-200">{c.planned.toFixed(1)}h</td>
-                              <td className={`text-center px-1 py-2 tabular-nums font-semibold ${execColor}`}>{c.executed.toFixed(1)}h</td>
+                              <td className={`text-center px-1 py-2 tabular-nums font-semibold ${erogColor}`}>{c.executed.toFixed(1)}h</td>
+                              <td className={`text-center px-1 py-2 tabular-nums font-semibold ${saldoColor}`}>{saldoText}</td>
                             </React.Fragment>
                           );
                         })}
                         <td className="text-center px-2 py-2 tabular-nums text-slate-500 font-semibold border-l-2 border-slate-200">{rtPlanned.toFixed(1)}h</td>
                         <td className="text-center px-2 py-2 tabular-nums text-teal-700 font-bold">{rtExecuted.toFixed(1)}h</td>
+                        <td className={`text-center px-2 py-2 tabular-nums font-bold ${rtSaldo > 0.005 ? 'text-emerald-600' : rtSaldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{rtSaldo > 0.005 ? `+${rtSaldo.toFixed(1)}h` : rtSaldo < -0.005 ? `${(-rtSaldo).toFixed(1)}h` : '–'}</td>
                       </tr>
                     );
                   })}
@@ -3781,21 +3788,26 @@ function App() {
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
                     <td className="py-3 pr-3 text-slate-700 sticky left-0 bg-gradient-to-r from-slate-50 to-white z-10">Totale</td>
-                    {rows.map((t, ti) => (
-                      <React.Fragment key={t.id}>
-                        <td className="text-center px-1 py-3 tabular-nums text-slate-500 border-l-2 border-slate-200">{rowTot[ti].planned.toFixed(1)}h</td>
-                        <td className="text-center px-1 py-3 tabular-nums text-teal-700">{rowTot[ti].executed.toFixed(1)}h</td>
-                      </React.Fragment>
-                    ))}
+                    {rows.map((t, ti) => {
+                      const saldo = rowTot[ti].executed - rowTot[ti].planned;
+                      return (
+                        <React.Fragment key={t.id}>
+                          <td className="text-center px-1 py-3 tabular-nums text-slate-500 border-l-2 border-slate-200">{rowTot[ti].planned.toFixed(1)}h</td>
+                          <td className="text-center px-1 py-3 tabular-nums text-teal-700">{rowTot[ti].executed.toFixed(1)}h</td>
+                          <td className={`text-center px-1 py-3 tabular-nums ${saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : '–'}</td>
+                        </React.Fragment>
+                      );
+                    })}
                     <td className="text-center px-2 py-3 tabular-nums text-slate-500 border-l-2 border-slate-200">{grandPlan.toFixed(1)}h</td>
                     <td className="text-center px-2 py-3 tabular-nums text-teal-700">{grandExec.toFixed(1)}h</td>
+                    {(() => { const g = grandExec - grandPlan; return (<td className={`text-center px-2 py-3 tabular-nums ${g > 0.005 ? 'text-emerald-600' : g < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{g > 0.005 ? `+${g.toFixed(1)}h` : g < -0.005 ? `${(-g).toFixed(1)}h` : '–'}</td>); })()}
                   </tr>
                 </tfoot>
               </table>
             </div>
           )}
           <p className="mt-3 px-4 pb-4 text-[11px] text-slate-400">
-            <span className="text-slate-400 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-teal-700 font-semibold">Eseg</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">rosso</span> = ore in meno rispetto al pianificato (assenze/riduzioni) · <span className="text-emerald-600 font-semibold">verde</span> = ore in più
+            <span className="text-slate-400 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-teal-700 font-semibold">Erogate</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">Extra/Rec. rosso</span> = ore in meno rispetto al pianificato (da recuperare, es. assenze/riduzioni) · <span className="text-emerald-600 font-semibold">verde</span> = ore in più (extra scalate dal monte ore del ragazzo)
           </p>
         </Card>
       </div>
