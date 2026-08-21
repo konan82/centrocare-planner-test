@@ -3207,7 +3207,7 @@ function App() {
 
         <Card className="p-6">
           <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
-            <table className="w-full text-sm">
+            <table className="w-auto max-w-full text-sm whitespace-nowrap">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                   {renderPayTh('tutor', 'Tutor', 'left')}
