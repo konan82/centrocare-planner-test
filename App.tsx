@@ -657,12 +657,13 @@ function App() {
       setLoadError(null);
 
       try {
-        const [t, y, s, yt, ps] = await Promise.all([
+        const [t, y, s, yt, ps, cm] = await Promise.all([
           supabase.from('tutors').select('*'),
           supabase.from('youths').select('*'),
           supabase.from('shifts').select('*'),
           supabase.from('youth_tutors').select('*'),
-          supabase.from('pay_settings').select('*').eq('id', 'global').maybeSingle()
+          supabase.from('pay_settings').select('*').eq('id', 'global').maybeSingle(),
+          supabase.from('cleared_months').select('month')
         ]);
 
         if (t.error) throw t.error;
@@ -670,6 +671,9 @@ function App() {
         if (s.error) throw s.error;
         if (yt.error) throw yt.error;
         if (ps.error) console.warn('pay_settings non disponibile:', ps.error.message);
+        if (cm.error) console.warn('cleared_months non disponibile:', cm.error.message);
+
+        setClearedMonths(new Set((cm.data || []).map((r: any) => r.month as string)));
 
         if (ps?.data) {
           const rates = {
@@ -794,6 +798,9 @@ function App() {
 
   // Cancella turni consuntivo per mese
   const [clearMonth, setClearMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+
+  // Mesi del consuntivo cancellati: la copia automatica della settimana tipo salta questi mesi
+  const [clearedMonths, setClearedMonths] = useState<Set<string>>(new Set());
 
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
@@ -1342,6 +1349,10 @@ function App() {
       const ids = toDelete.map(s => s.id);
       const { error } = await supabase.from('shifts').delete().in('id', ids);
       if (error) throw error;
+      // Registra il mese come cancellato: la copia automatica della settimana tipo lo salterà
+      const { error: cmErr } = await supabase.from('cleared_months').upsert({ month: clearMonth });
+      if (cmErr) console.warn('cleared_months non aggiornabile:', cmErr.message);
+      setClearedMonths(prev => new Set(prev).add(clearMonth));
       const idSet = new Set(ids);
       setShifts(prev => prev.filter(s => !idSet.has(s.id)));
       alert(`Fatto: ${ids.length} turni cancellati dal consuntivo del mese selezionato.`);
@@ -1356,7 +1367,8 @@ function App() {
     const templateShifts = shifts.filter(s => s.isTemplate);
     if (templateShifts.length === 0) return;
 
-    const weekDateStrs = Array.from({ length: 6 }).map((_, i) => format(addDays(weekStart, i), 'yyyy-MM-dd'));
+    const weekDateStrs = Array.from({ length: 6 }).map((_, i) => format(addDays(weekStart, i), 'yyyy-MM-dd'))
+      .filter(date => !clearedMonths.has(date.slice(0, 7)));
     const existing = shifts.filter(s => !s.isTemplate && weekDateStrs.includes(s.date));
     const existingTemplateIds = new Set(existing.map(s => s.templateShiftId).filter(Boolean) as string[]);
 
@@ -1504,6 +1516,7 @@ function App() {
     const wd = Math.min(Math.max((template.templateWeekday || weekdayOf(template.date)) - 1, 0), 5);
     for (const ws of weekStarts) {
       const date = format(addDays(parseISO(ws), wd), 'yyyy-MM-dd');
+      if (clearedMonths.has(date.slice(0, 7))) continue;
       const exists = shifts.some(s => !s.isTemplate && s.templateShiftId === template.id && s.date === date);
       if (exists) continue;
       const row = {
