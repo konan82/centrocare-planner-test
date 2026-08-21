@@ -3416,18 +3416,24 @@ function App() {
         cell[tId][yId].planned += planned;
       });
     });
-    // Erogate: da Consuntivo Turni (occorrenze del mese)
+    // Erogate = Pian + variazioni registrate nel consuntivo (annullamenti / orari effettivi).
+    // Se un turno non è stato toccato nel consuntivo, Erogate = Pian (non serve salvarlo).
+    const adjusted: Record<string, Record<string, number>> = {};
+    rows.forEach(t => { adjusted[t.id] = {}; cols.forEach(y => { adjusted[t.id][y.id] = 0; }); });
     monthShifts.forEach(s => {
       const tId = s.tutorId;
       if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
-      const executed = getEffectiveHours(s); // 0 se annullato, effettivo/altrimenti pianificato
+      const plannedOcc = getHours(s.startTime, s.endTime);
+      const executedOcc = getEffectiveHours(s); // 0 se annullato, effettivo/altrimenti pianificato
+      const adj = executedOcc - plannedOcc;
       shiftYouthIds(s).forEach(yId => {
         if (summaryYouthFilter !== 'all' && yId !== summaryYouthFilter) return;
-        if (!cell[tId]) cell[tId] = {};
-        if (!cell[tId][yId]) cell[tId][yId] = { planned: 0, executed: 0 };
-        cell[tId][yId].executed += executed;
+        adjusted[tId][yId] += adj;
       });
     });
+    rows.forEach(t => cols.forEach(y => {
+      cell[t.id][y.id].executed = cell[t.id][y.id].planned + adjusted[t.id][y.id];
+    }));
 
     const rowTot = rows.map(t => {
       let p = 0, e = 0;
