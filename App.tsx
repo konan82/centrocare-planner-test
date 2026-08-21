@@ -3042,6 +3042,8 @@ function App() {
       const plannedWeeklyHours: Record<string, number> = {};
       const singleMonthlyHours: Record<string, number> = {};
       const doubleMonthlyHours: Record<string, number> = {};
+      const singleWeeklyHours: Record<string, number> = {};
+      const doubleWeeklyHours: Record<string, number> = {};
 
       const startD = parseISO(summaryStartDate);
       const endD = parseISO(summaryEndDate);
@@ -3068,8 +3070,11 @@ function App() {
             .forEach(s => {
               const h = getValidatedHours(s);
               if (h <= 0) return;
-              const rec = shiftYouthIds(s).length >= 2 ? doubleMonthlyHours : singleMonthlyHours;
-              rec[monthKey] = (rec[monthKey] || 0) + h;
+              const isDouble = shiftYouthIds(s).length >= 2;
+              const recM = isDouble ? doubleMonthlyHours : singleMonthlyHours;
+              const recW = isDouble ? doubleWeeklyHours : singleWeeklyHours;
+              recM[monthKey] = (recM[monthKey] || 0) + h;
+              recW[weekKey] = (recW[weekKey] || 0) + h;
             });
 
           const validated = personShifts
@@ -3092,6 +3097,8 @@ function App() {
         plannedWeeklyHours,
         singleMonthlyHours,
         doubleMonthlyHours,
+        singleWeeklyHours,
+        doubleWeeklyHours,
         type
       };
     };
@@ -3188,35 +3195,28 @@ function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {(() => {
                   const doneColor = data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700';
-                  const renderGrid = (rows: { label: string; planned: number; done: number; over?: boolean; under?: boolean }[], emptyMsg: string, flashNegative = false) => (
+                  const renderGrid = (rows: { label: string; single: number; double: number; over?: boolean; under?: boolean }[], emptyMsg: string) => (
                     rows.length > 0 ? (
                       <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                        <div className="grid grid-cols-[1fr_3.5rem_4rem_4.75rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                        <div className="grid grid-cols-[1fr_4rem_4rem_4rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                           <span>Periodo</span>
-                          <span className="text-right">Pianif.</span>
-                          <span className="text-right">Effett.</span>
-                          <span className="text-center">Delta</span>
+                          <span className="text-right">Singolo</span>
+                          <span className="text-right">Doppio</span>
+                          <span className="text-center">Tot.</span>
                         </div>
                         <div className="divide-y divide-slate-100">
                           {rows.map(r => {
-                            const delta = r.done - r.planned;
-                            const deltaBadge = Math.abs(delta) < 0.005
-                              ? 'bg-slate-200/70 text-slate-600'
-                              : delta > 0
-                                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                                : 'bg-red-50 text-red-600 ring-1 ring-red-200';
+                            const tot = r.single + r.double;
                             const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
                             return (
-                              <div key={r.label} className={`grid grid-cols-[1fr_3.5rem_4rem_4.75rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors ${flashNegative && delta < -0.005 ? 'animate-row-flash' : ''}`}>
+                              <div key={r.label} className="grid grid-cols-[1fr_4rem_4rem_4rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors">
                                 <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
-                                <span className="text-right text-sm text-slate-500 tabular-nums">{r.planned.toFixed(1)}h</span>
-                                <span className={`text-right text-sm font-bold tabular-nums ${doneTxt}`}>
-                                  {r.done.toFixed(1)}h
+                                <span className="text-right text-sm text-slate-500 tabular-nums">{r.single.toFixed(1)}h</span>
+                                <span className="text-right text-sm text-violet-600 tabular-nums">{r.double.toFixed(1)}h</span>
+                                <span className={`text-sm font-bold tabular-nums text-center ${doneTxt}`}>
+                                  {tot.toFixed(1)}h
                                   {r.over && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
                                   {r.under && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
-                                </span>
-                                <span className={`text-xs font-bold px-1 py-1 rounded-full tabular-nums text-center ${deltaBadge}`}>
-                                  {Math.abs(delta) < 0.005 ? '0.0' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}`}h
                                 </span>
                               </div>
                             );
@@ -3228,20 +3228,30 @@ function App() {
                     )
                   );
 
-                  const monthRows = Array.from(new Set([...Object.keys(data.monthlyHours), ...Object.keys(data.plannedMonthlyHours)]))
-                    .map(month => ({
-                      label: month,
-                      planned: Number(data.plannedMonthlyHours[month] || 0),
-                      done: Number(data.monthlyHours[month] || 0),
-                    }));
-                  const weekRows = Array.from(new Set([...Object.keys(data.weeklyHours), ...Object.keys(data.plannedWeeklyHours)]))
-                    .map(week => ({
+                  const monthKeys = Array.from(new Set([
+                    ...Object.keys(data.singleMonthlyHours || {}),
+                    ...Object.keys(data.doubleMonthlyHours || {}),
+                  ]));
+                  const monthRows = monthKeys.map(month => ({
+                    label: month,
+                    single: Number(data.singleMonthlyHours?.[month] || 0),
+                    double: Number(data.doubleMonthlyHours?.[month] || 0),
+                  }));
+                  const weekKeys = Array.from(new Set([
+                    ...Object.keys(data.singleWeeklyHours || {}),
+                    ...Object.keys(data.doubleWeeklyHours || {}),
+                  ]));
+                  const weekRows = weekKeys.map(week => {
+                    const single = Number(data.singleWeeklyHours?.[week] || 0);
+                    const double = Number(data.doubleWeeklyHours?.[week] || 0);
+                    return {
                       label: week,
-                      planned: Number(data.plannedWeeklyHours[week] || 0),
-                      done: Number(data.weeklyHours[week] || 0),
-                      over: data.type === 'TUTOR' && Number(data.weeklyHours[week] || 0) > data.targetHours,
-                      under: data.type === 'YOUTH' && Number(data.weeklyHours[week] || 0) < data.targetHours,
-                    }));
+                      single,
+                      double,
+                      over: data.type === 'TUTOR' && (single + double) > data.targetHours,
+                      under: data.type === 'YOUTH' && (single + double) < data.targetHours,
+                    };
+                  });
 
                   return (
                     <>
@@ -3255,7 +3265,7 @@ function App() {
                         <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
                           <Clock size={16} className="mr-2" /> Per Settimana
                         </h4>
-                        {renderGrid(weekRows, 'Nessun dato settimanale', true)}
+                        {renderGrid(weekRows, 'Nessun dato settimanale')}
                       </div>
                     </>
                   );
