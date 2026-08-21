@@ -3764,7 +3764,7 @@ function App() {
                         {rows.map(t => {
                           const c = cell[t.id][y.id];
                           const delta = c.executed - c.planned;
-                          const execColor = c.executed === 0 ? 'text-red-500' : delta > 0.005 ? 'text-emerald-600' : delta < -0.005 ? 'text-amber-600' : 'text-slate-700';
+                          const execColor = delta > 0.005 ? 'text-emerald-600' : delta < -0.005 ? 'text-red-500' : 'text-slate-700';
                           return (
                             <React.Fragment key={t.id}>
                               <td className="text-center px-1 py-2 tabular-nums text-slate-400 border-l-2 border-slate-200">{c.planned.toFixed(1)}h</td>
@@ -3795,7 +3795,7 @@ function App() {
             </div>
           )}
           <p className="mt-3 px-4 pb-4 text-[11px] text-slate-400">
-            <span className="text-slate-400 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-teal-700 font-semibold">Eseg</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">rosso</span> = nessuna ora eseguita · <span className="text-emerald-600 font-semibold">verde</span> = ore in più · <span className="text-amber-600 font-semibold">ambra</span> = ore in meno
+            <span className="text-slate-400 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-teal-700 font-semibold">Eseg</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">rosso</span> = ore in meno rispetto al pianificato (assenze/riduzioni) · <span className="text-emerald-600 font-semibold">verde</span> = ore in più
           </p>
         </Card>
       </div>
