@@ -9,6 +9,7 @@ export interface Tutor {
   name: string;
   specialties: string[]; // e.g., "Autismo", "Logopedia"
   maxHoursPerWeek: number;
+  minHoursPerWeek?: number;
   unavailableDays: number[]; // 0 = Sunday, 1 = Monday, etc.
   notes: string;
   phone?: string;

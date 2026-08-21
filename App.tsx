@@ -435,6 +435,97 @@ const PersonMultiCombo: React.FC<PersonMultiComboProps> = ({ options, values, on
   );
 };
 
+// --- DualRangeSlider: slider a doppia impugnatura (min/max) ---
+const DualRangeSlider: React.FC<{
+  min: number;
+  max: number;
+  valueMin: number;
+  valueMax: number;
+  onChange: (vmin: number, vmax: number) => void;
+}> = ({ min, max, valueMin, valueMax, onChange }) => {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [drag, setDrag] = useState<'min' | 'max' | null>(null);
+
+  const pct = (v: number) => ((v - min) / (max - min)) * 100;
+
+  const valueFromClientX = (clientX: number) => {
+    const el = trackRef.current;
+    if (!el) return min;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return Math.round(min + ratio * (max - min));
+  };
+
+  React.useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => {
+      const v = valueFromClientX(e.clientX);
+      if (drag === 'min') onChange(Math.min(Math.max(v, min), valueMax), valueMax);
+      else onChange(valueMin, Math.max(Math.min(v, max), valueMin));
+    };
+    const up = () => setDrag(null);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+  }, [drag, valueMin, valueMax, min, max]);
+
+  const startDrag = (which: 'min' | 'max') => (e: React.PointerEvent) => {
+    e.preventDefault();
+    setDrag(which);
+  };
+
+  const onTrackPointerDown = (e: React.PointerEvent) => {
+    const v = valueFromClientX(e.clientX);
+    const which = Math.abs(v - valueMin) <= Math.abs(v - valueMax) ? 'min' : 'max';
+    if (which === 'min') onChange(Math.min(Math.max(v, min), valueMax), valueMax);
+    else onChange(valueMin, Math.max(Math.min(v, max), valueMin));
+    setDrag(which);
+  };
+
+  const handleCls = "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-5 w-5 rounded-full bg-white border-2 border-teal-600 shadow-md cursor-grab active:cursor-grabbing hover:scale-110 transition-transform touch-none";
+
+  return (
+    <div className="pt-7 pb-6 select-none">
+      <div ref={trackRef} className="relative h-2 rounded-full bg-slate-200 cursor-pointer touch-none" onPointerDown={onTrackPointerDown}>
+        <div
+          className="absolute h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500"
+          style={{ left: `${pct(valueMin)}%`, width: `${pct(valueMax) - pct(valueMin)}%` }}
+        ></div>
+        <div
+          className={handleCls}
+          style={{ left: `${pct(valueMin)}%` }}
+          onPointerDown={startDrag('min')}
+        >
+          {drag === 'min' && (
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold tabular-nums whitespace-nowrap">
+              Min {valueMin}h
+            </span>
+          )}
+        </div>
+        <div
+          className={handleCls}
+          style={{ left: `${pct(valueMax)}%` }}
+          onPointerDown={startDrag('max')}
+        >
+          {drag === 'max' && (
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold tabular-nums whitespace-nowrap">
+              Max {valueMax}h
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-2 text-[11px] font-semibold tabular-nums">
+        <span className="text-teal-700">Min: {valueMin}h</span>
+        <span className="text-slate-400 font-medium">scala {min}–{max} h</span>
+        <span className="text-emerald-700">Max: {valueMax}h</span>
+      </div>
+    </div>
+  );
+};
+
 // --- Error Boundary ---
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
   constructor(props: any) {
@@ -586,6 +677,7 @@ function App() {
           specialties: tutor.specialties || [],
           unavailableDays: tutor.unavailable_days || [],
           maxHoursPerWeek: tutor.max_hours_per_week,
+          minHoursPerWeek: tutor.min_hours_per_week ?? null,
           phone: tutor.phone || '',
           email: tutor.email || '',
           birthDate: tutor.birth_date || undefined,
@@ -744,6 +836,7 @@ function App() {
         name: newTutor.name,
         specialties: newTutor.specialties || [],
         max_hours_per_week: newTutor.maxHoursPerWeek ?? 20,
+        min_hours_per_week: newTutor.minHoursPerWeek ?? 1,
         unavailable_days: newTutor.unavailableDays || [],
         notes: newTutor.notes || '',
         phone: newTutor.phone || '',
@@ -761,9 +854,9 @@ function App() {
       if (error) throw error;
 
       if (newTutor.id) {
-        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
+        setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, minHoursPerWeek: tutorData.min_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
       } else {
-        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience }]);
+        setTutors([...tutors, { ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, minHoursPerWeek: tutorData.min_hours_per_week, unavailableDays: tutorData.unavailable_days, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience }]);
       }
       setIsTutorModalOpen(false);
       setNewTutor({});
@@ -3782,13 +3875,13 @@ function App() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Max / Settimana</label>
-                <input
-                  type="number"
-                  className={fieldCls}
-                  min={0}
-                  value={newTutor.maxHoursPerWeek ?? ''}
-                  onChange={e => setNewTutor({ ...newTutor, maxHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Settimanali (min – max)</label>
+                <DualRangeSlider
+                  min={1}
+                  max={60}
+                  valueMin={newTutor.minHoursPerWeek ?? 1}
+                  valueMax={newTutor.maxHoursPerWeek ?? 20}
+                  onChange={(vmin, vmax) => setNewTutor({ ...newTutor, minHoursPerWeek: vmin, maxHoursPerWeek: vmax })}
                 />
               </div>
             </div>
