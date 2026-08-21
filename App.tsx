@@ -816,8 +816,7 @@ function App() {
   const [tutorStatusFilter, setTutorStatusFilter] = useState<'tutti' | 'attivo' | 'pausa' | 'archiviato'>('tutti');
   const [tutorRoleFilter, setTutorRoleFilter] = useState('tutti');
 
-  // Calendar view state: vista per tutor oppure per ragazzo
-  const [calendarView, setCalendarView] = useState<'tutor' | 'youth'>('tutor');
+  // Calendar filter state: filtri simultanei tutor + ragazzo
   const [youthFilter, setYouthFilter] = useState<string>('all');
 
   // WhatsApp share state
@@ -1155,9 +1154,8 @@ function App() {
     days.forEach((day, idx) => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const dayShifts = visibleShifts.filter(s => {
-        if (calendarView === 'youth') {
-          if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
-        } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+        if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+        if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
         if (isPlan) return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === idx + 1;
         if (!s.date || s.isTemplate) return false;
         return (typeof s.date === 'string' ? s.date.split('T')[0] : '') === dateStr;
@@ -1171,9 +1169,10 @@ function App() {
       });
       lines.push(`${isPlan ? labels[idx] : `${labels[idx]} ${format(day, 'dd/MM')}`}: ${items.join(' · ')}`);
     });
-    const selectedName = calendarView === 'youth'
-      ? (youths.find(y => y.id === youthFilter)?.name || 'il ragazzo')
-      : (tutors.find(t => t.id === tutorFilter)?.name || 'Tutti');
+    const selParts: string[] = [];
+    if (tutorFilter !== 'all') selParts.push(tutors.find(t => t.id === tutorFilter)?.name || 'Tutor');
+    if (youthFilter !== 'all') selParts.push(youths.find(y => y.id === youthFilter)?.name || 'Ragazzo');
+    const selectedName = selParts.length ? selParts.join(' · ') : 'Tutti';
     const header = `Turni settimanali - ${selectedName}${isPlan ? ' (settimana tipo)' : ` (${format(days[0], 'dd/MM')} - ${format(days[5], 'dd/MM')})`}`;
     return [header, ...lines].join('\n');
   };
@@ -1676,7 +1675,6 @@ function App() {
 
   useEffect(() => {
     if (restrictedUserTutorId) {
-      setCalendarView('tutor');
       setTutorFilter(restrictedUserTutorId);
     }
   }, [restrictedUserTutorId]);
@@ -2459,61 +2457,36 @@ function App() {
             </div>
 
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 shrink-0 self-start sm:self-auto">
-                <button
-                  onClick={() => setCalendarView('tutor')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                    calendarView === 'tutor'
-                      ? 'bg-white text-teal-700 shadow-sm ring-1 ring-slate-200'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Users size={14} /> Tutor
-                  </span>
-                </button>
-                <button
-                  onClick={() => setCalendarView('youth')}
-                  className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                    calendarView === 'youth'
-                      ? 'bg-white text-teal-700 shadow-sm ring-1 ring-slate-200'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <UserCheck size={14} /> Ragazzo
-                  </span>
-                </button>
-              </div>
               {restrictedUserTutorId ? (
                 <span className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
                   <UserCheck size={15} />
                   Solo i tuoi turni
                 </span>
-              ) : calendarView === 'youth' ? (
-                <PersonCombo
-                  options={youths}
-                  value={youthFilter}
-                  onChange={setYouthFilter}
-                  placeholder="Tutti i ragazzi"
-                  colorOf={id => getYouthColor(id, youths)}
-                  allowAll
-                  allLabel="Tutti i ragazzi"
-                  allValue="all"
-                  className="w-full sm:w-56"
-                />
               ) : (
-                <PersonCombo
-                  options={tutors}
-                  value={tutorFilter}
-                  onChange={setTutorFilter}
-                  placeholder="Tutti"
-                  colorOf={id => getTutorColor(id, tutors)}
-                  allowAll
-                  allLabel="Tutti"
-                  allValue="all"
-                  className="w-full sm:w-56"
-                />
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <PersonCombo
+                    options={tutors}
+                    value={tutorFilter}
+                    onChange={setTutorFilter}
+                    placeholder="Tutti i tutor"
+                    colorOf={id => getTutorColor(id, tutors)}
+                    allowAll
+                    allLabel="Tutti i tutor"
+                    allValue="all"
+                    className="w-full sm:w-56"
+                  />
+                  <PersonCombo
+                    options={youths}
+                    value={youthFilter}
+                    onChange={setYouthFilter}
+                    placeholder="Tutti i ragazzi"
+                    colorOf={id => getYouthColor(id, youths)}
+                    allowAll
+                    allLabel="Tutti i ragazzi"
+                    allValue="all"
+                    className="w-full sm:w-56"
+                  />
+                </div>
               )}
               <button
                 onClick={handleWhatsAppSend}
@@ -2784,9 +2757,8 @@ function App() {
                   const dayLayouts = calendarDays.map((day, dayIdx) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const dayShifts = visibleShifts.filter(s => {
-                      if (calendarView === 'youth') {
-                        if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
-                      } else if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+                      if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+                      if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
                       if (isPlan) {
                         return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
                       }
@@ -2886,12 +2858,12 @@ function App() {
                               onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
                               onClick={() => isPlan
-                                ? openNewTemplateShiftModal(i + 1, slotLabel, calendarView === 'youth' && youthFilter !== 'all' ? youthFilter : '')
+                                ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '')
                                 : openNewShiftModal(
-                                    calendarView === 'tutor' && tutorFilter !== 'all' ? tutorFilter : '',
+                                    tutorFilter !== 'all' ? tutorFilter : '',
                                     layout.dateStr,
                                     slotLabel,
-                                    calendarView === 'youth' && youthFilter !== 'all' ? youthFilter : ''
+                                    youthFilter !== 'all' ? youthFilter : ''
                                   )}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 isBand ? 'bg-slate-50/40' : 'bg-white'
@@ -2904,12 +2876,12 @@ function App() {
                               {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); isPlan
-                                    ? openNewTemplateShiftModal(i + 1, slotLabel, calendarView === 'youth' && youthFilter !== 'all' ? youthFilter : '')
+                                    ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '')
                                     : openNewShiftModal(
-                                        calendarView === 'tutor' && tutorFilter !== 'all' ? tutorFilter : '',
+                                        tutorFilter !== 'all' ? tutorFilter : '',
                                         layout.dateStr,
                                         slotLabel,
-                                        calendarView === 'youth' && youthFilter !== 'all' ? youthFilter : ''
+                                        youthFilter !== 'all' ? youthFilter : ''
                                       ); }}
                                   className="absolute top-0.5 right-0.5 z-20 w-5 h-5 rounded-md bg-white/95 border border-slate-200 text-slate-400 hover:text-teal-600 hover:border-teal-300 shadow-sm flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity"
                                 >
