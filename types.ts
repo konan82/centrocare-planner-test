@@ -81,4 +81,9 @@ export interface User {
   tutorId?: string | null; // tutor associato: se presente e senza 'ALL', vede solo i propri turni
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'USER_MANAGEMENT';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT';
+
+export interface PaySettings {
+  rateSingle: number;
+  rateDouble: number;
+}

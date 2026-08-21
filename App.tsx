@@ -42,9 +42,10 @@ import {
   ClipboardCheck,
   MousePointer2,
   MessageCircle,
-  Play
+  Play,
+  Wallet
 } from 'lucide-react';
-import { Tutor, Youth, Shift, ViewState, User } from './types';
+import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { generateSmartSchedule, analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
@@ -654,17 +655,25 @@ function App() {
       setLoadError(null);
 
       try {
-        const [t, y, s, yt] = await Promise.all([
+        const [t, y, s, yt, ps] = await Promise.all([
           supabase.from('tutors').select('*'),
           supabase.from('youths').select('*'),
           supabase.from('shifts').select('*'),
-          supabase.from('youth_tutors').select('*')
+          supabase.from('youth_tutors').select('*'),
+          supabase.from('pay_settings').select('*').eq('id', 'global').maybeSingle()
         ]);
 
         if (t.error) throw t.error;
         if (y.error) throw y.error;
         if (s.error) throw s.error;
         if (yt.error) throw yt.error;
+        if (ps.error) console.warn('pay_settings non disponibile:', ps.error.message);
+
+        if (ps?.data) {
+          const rates = { rateSingle: Number(ps.data.rate_single) || 0, rateDouble: Number(ps.data.rate_double) || 0 };
+          setPayRates(rates);
+          setPayRatesDraft(rates);
+        }
 
         const tutorsByYouth: Record<string, string[]> = {};
         (yt.data || []).forEach((row: any) => {
@@ -812,6 +821,13 @@ function App() {
   const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
   const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
+
+  // Payroll (Calcolo Paga) State
+  const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0 });
+  const [payRatesDraft, setPayRatesDraft] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0 });
+  const [payMonth, setPayMonth] = useState(() => startOfMonth(new Date()));
+  const [paySaving, setPaySaving] = useState(false);
+  const [paySavedFlash, setPaySavedFlash] = useState(false);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -1617,6 +1633,7 @@ function App() {
       { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
+      { view: 'PAYROLL', perm: 'SUMMARY', label: 'Calcolo Paga', icon: Wallet, chipText: 'text-lime-600' },
     ];
     const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
 
@@ -1782,6 +1799,7 @@ function App() {
       : view === 'TUTORS' ? 'Gestione Tutor'
       : view === 'YOUTHS' ? 'Anagrafica Ragazzi'
       : view === 'SUMMARY' ? 'Riepilogo Ore'
+      : view === 'PAYROLL' ? 'Calcolo Paga'
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : 'CentroCare';
     return (
@@ -3013,6 +3031,209 @@ function App() {
     );
   };
 
+  const handleSavePayRates = async () => {
+    setPaySaving(true);
+    try {
+      const { error } = await supabase
+        .from('pay_settings')
+        .upsert({
+          id: 'global',
+          rate_single: payRatesDraft.rateSingle || 0,
+          rate_double: payRatesDraft.rateDouble || 0,
+          updated_at: new Date().toISOString(),
+        });
+      if (error) throw error;
+      const saved = { rateSingle: payRatesDraft.rateSingle || 0, rateDouble: payRatesDraft.rateDouble || 0 };
+      setPayRates(saved);
+      setPaySavedFlash(true);
+      setTimeout(() => setPaySavedFlash(false), 2000);
+    } catch (error) {
+      console.error("Error saving pay rates:", error);
+      alert("Errore nel salvataggio delle tariffe orarie");
+    } finally {
+      setPaySaving(false);
+    }
+  };
+
+  const renderPayroll = () => {
+    const getH = (start: string, end: string) => {
+      const [sh, sm] = (start || '0:00').split(':').map(Number);
+      const [eh, em] = (end || '0:0').split(':').map(Number);
+      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+    };
+
+    const monthStart = format(payMonth, 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(payMonth), 'yyyy-MM-dd');
+
+    const rows = tutors.map(t => {
+      let singleHours = 0;
+      let doubleHours = 0;
+      shifts.forEach(s => {
+        if (s.isTemplate || !s.date || s.tutorId !== t.id) return;
+        const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+        if (d < monthStart || d > monthEnd) return;
+        const h = getValidatedHours(s);
+        if (h <= 0) return;
+        if (shiftYouthIds(s).length >= 2) doubleHours += h;
+        else singleHours += h;
+      });
+      const subSingle = singleHours * (payRates.rateSingle || 0);
+      const subDouble = doubleHours * (payRates.rateDouble || 0);
+      return { tutor: t, singleHours, doubleHours, subSingle, subDouble, total: subSingle + subDouble };
+    });
+
+    const totSingleHours = rows.reduce((a, r) => a + r.singleHours, 0);
+    const totDoubleHours = rows.reduce((a, r) => a + r.doubleHours, 0);
+    const totSubSingle = rows.reduce((a, r) => a + r.subSingle, 0);
+    const totSubDouble = rows.reduce((a, r) => a + r.subDouble, 0);
+    const totTotal = totSubSingle + totSubDouble;
+
+    const eur = (v: number) => `€ ${v.toFixed(2)}`;
+    const ratesDirty = payRatesDraft.rateSingle !== payRates.rateSingle || payRatesDraft.rateDouble !== payRates.rateDouble;
+
+    return (
+      <div className="space-y-8">
+        <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold text-slate-800">Calcolo Paga</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={() => setPayMonth(addMonths(payMonth, -1))}
+                title="Mese precedente"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => setPayMonth(startOfMonth(new Date()))}
+                title="Torna al mese corrente"
+                className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                  isSameMonth(payMonth, new Date())
+                    ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5 md:gap-2">
+                  <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                  <span className="tracking-tight whitespace-nowrap capitalize">
+                    {format(payMonth, 'MMMM yyyy', { locale: it })}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => setPayMonth(addMonths(payMonth, 1))}
+                title="Mese successivo"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <Card className="p-6">
+          <h3 className="font-semibold text-slate-700 mb-4 flex items-center">
+            <Wallet size={16} className="mr-2 text-lime-600" /> Paga oraria
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Paga oraria Turno Singolo (€/h)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
+                value={payRatesDraft.rateSingle || ''}
+                onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Paga oraria Turno Doppio (€/h)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
+                value={payRatesDraft.rateDouble || ''}
+                onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSavePayRates}
+                disabled={paySaving || !ratesDirty}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-lime-600 text-white text-sm font-bold shadow-md hover:bg-lime-700 disabled:opacity-40 active:scale-95 transition-all"
+              >
+                <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva tariffe'}
+              </button>
+              {paySavedFlash && (
+                <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
+                  <CheckCircle2 size={15} /> Salvate
+                </span>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                  <th className="text-left py-2.5 pr-3 font-bold">Tutor</th>
+                  <th className="text-right py-2.5 px-3 font-bold">Ore Singolo</th>
+                  <th className="text-right py-2.5 px-3 font-bold">Ore Doppio</th>
+                  <th className="text-right py-2.5 px-3 font-bold">Subtot. Singolo</th>
+                  <th className="text-right py-2.5 px-3 font-bold">Subtot. Doppio</th>
+                  <th className="text-right py-2.5 pl-3 font-bold">Totale</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map(r => (
+                  <tr key={r.tutor.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-2.5 pr-3">
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
+                          {getInitials(r.tutor.name)}
+                        </span>
+                        <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
+                      </span>
+                    </td>
+                    <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.singleHours.toFixed(1)}h</td>
+                    <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.doubleHours.toFixed(1)}h</td>
+                    <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{eur(r.subSingle)}</td>
+                    <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{eur(r.subDouble)}</td>
+                    <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.total)}</td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic">Nessun tutor in anagrafica</td></tr>
+                )}
+              </tbody>
+              {rows.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
+                    <td className="py-3 pr-3 text-slate-700">Totale compenso</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{totSingleHours.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{totDoubleHours.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{eur(totSubSingle)}</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{eur(totSubDouble)}</td>
+                    <td className="text-right py-3 pl-3 tabular-nums text-teal-700">{eur(totTotal)}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          <p className="mt-3 text-[11px] text-slate-400">
+            Ore calcolate sui soli turni effettuati del mese selezionato · Tariffe applicate: singolo {eur(payRates.rateSingle || 0)}/h · doppio {eur(payRates.rateDouble || 0)}/h
+          </p>
+        </Card>
+      </div>
+    );
+  };
+
   const renderSummary = () => {
     // Helper to calculate hours from "HH:mm" - "HH:mm"
     const getHours = (start: string, end: string) => {
@@ -3341,6 +3562,7 @@ function App() {
             {view === 'TUTORS' && renderTutorsList()}
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}
+            {view === 'PAYROLL' && renderPayroll()}
             {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} />}
           </div>
         </main>
