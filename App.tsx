@@ -1334,6 +1334,25 @@ function App() {
     setIsAnalyzing(false);
   };
 
+  // Cancella TUTTI i turni di consuntivo (non template) in tutto il DB, indipendentemente dal mese
+  const handleClearAllConsuntivo = async () => {
+    const count = shifts.filter(s => !s.isTemplate).length;
+    if (count === 0) {
+      alert("Nessun turno di consuntivo da cancellare.");
+      return;
+    }
+    if (!confirm(`ATTENZIONE: cancellare TUTTI i ${count} turni del consuntivo in tutto il database, indipendentemente dal mese? L'azione non può essere annullata.`)) return;
+    try {
+      const { error } = await supabase.from('shifts').delete().eq('is_template', false);
+      if (error) throw error;
+      setShifts(prev => prev.filter(s => s.isTemplate));
+      alert(`Fatto: tutti i ${count} turni del consuntivo sono stati cancellati.`);
+    } catch (error) {
+      console.error("Error clearing all consuntivo shifts:", error);
+      alert("Errore durante la cancellazione di tutti i turni del consuntivo");
+    }
+  };
+
   // Cancella tutti i turni di consuntivo (non template) del mese scelto
   const handleClearMonthShifts = async () => {
     if (!clearMonth) return;
@@ -2583,6 +2602,16 @@ function App() {
                     Copia su tutto il mese
                   </button>
                 </div>
+              )}
+              {!isPlan && (
+                <button
+                  onClick={handleClearAllConsuntivo}
+                  title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-xl hover:from-rose-700 hover:to-red-800 shadow-md shadow-rose-300/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+                >
+                  <Trash2 size={16} />
+                  Reset consuntivo
+                </button>
               )}
             </div>
           </div>
