@@ -3604,17 +3604,23 @@ function App() {
     const monthStart = format(startOfMonth(summaryMonth), 'yyyy-MM-dd');
     const monthEnd = format(endOfMonth(summaryMonth), 'yyyy-MM-dd');
 
-    // Occorrenze del mese (consuntivo), non i template
+    // Template del mese (Pianificazione Turni): sorgente delle ore PIAN
+    const monthTemplates = shifts.filter(s => {
+      if (!s.isTemplate || !s.date) return false;
+      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+      return d >= monthStart && d <= monthEnd;
+    });
+    // Occorrenze del mese (consuntivo): sorgente delle ore EROGATE
     const monthShifts = shifts.filter(s => {
       if (s.isTemplate || !s.date) return false;
       const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
       return d >= monthStart && d <= monthEnd;
     });
 
-    // Tutor e ragazzi da mostrare (dalla matrice o filtrati)
+    // Tutor e ragazzi da mostrare (pianificazione o consuntivo del mese)
     const presentTutors = new Set<string>();
     const presentYouths = new Set<string>();
-    monthShifts.forEach(s => {
+    [...monthTemplates, ...monthShifts].forEach(s => {
       presentTutors.add(s.tutorId);
       shiftYouthIds(s).forEach(yid => presentYouths.add(yid));
     });
@@ -3624,16 +3630,28 @@ function App() {
     // Matrice: cell[tutorId][youthId] = { planned, executed }
     const cell: Record<string, Record<string, { planned: number; executed: number }>> = {};
     rows.forEach(t => { cell[t.id] = {}; cols.forEach(y => { cell[t.id][y.id] = { planned: 0, executed: 0 }; }); });
-    monthShifts.forEach(s => {
+
+    // Pian: da Pianificazione Turni (template) sull'intero mese
+    monthTemplates.forEach(s => {
       const tId = s.tutorId;
       if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
       const planned = getHours(s.startTime, s.endTime);
-      const executed = getEffectiveHours(s); // 0 se annullato, effettivo/altrimenti pianificato
       shiftYouthIds(s).forEach(yId => {
         if (summaryYouthFilter !== 'all' && yId !== summaryYouthFilter) return;
         if (!cell[tId]) cell[tId] = {};
         if (!cell[tId][yId]) cell[tId][yId] = { planned: 0, executed: 0 };
         cell[tId][yId].planned += planned;
+      });
+    });
+    // Erogate: da Consuntivo Turni (occorrenze)
+    monthShifts.forEach(s => {
+      const tId = s.tutorId;
+      if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
+      const executed = getEffectiveHours(s); // 0 se annullato, effettivo/altrimenti pianificato
+      shiftYouthIds(s).forEach(yId => {
+        if (summaryYouthFilter !== 'all' && yId !== summaryYouthFilter) return;
+        if (!cell[tId]) cell[tId] = {};
+        if (!cell[tId][yId]) cell[tId][yId] = { planned: 0, executed: 0 };
         cell[tId][yId].executed += executed;
       });
     });
