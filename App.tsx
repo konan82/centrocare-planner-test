@@ -670,7 +670,11 @@ function App() {
         if (ps.error) console.warn('pay_settings non disponibile:', ps.error.message);
 
         if (ps?.data) {
-          const rates = { rateSingle: Number(ps.data.rate_single) || 0, rateDouble: Number(ps.data.rate_double) || 0 };
+          const rates = {
+            rateSingle: Number(ps.data.rate_single) || 0,
+            rateDouble: Number(ps.data.rate_double) || 0,
+            weeksPerMonth: Number(ps.data.weeks_per_month) || 4,
+          };
           setPayRates(rates);
           setPayRatesDraft(rates);
         }
@@ -823,12 +827,13 @@ function App() {
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
 
   // Payroll (Calcolo Paga) State
-  const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0 });
-  const [payRatesDraft, setPayRatesDraft] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0 });
+  const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0, weeksPerMonth: 4 });
+  const [payRatesDraft, setPayRatesDraft] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0, weeksPerMonth: 4 });
   const [payMonth, setPayMonth] = useState(() => startOfMonth(new Date()));
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
-  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'singleHours' | 'doubleHours' | 'subSingle' | 'subDouble' | 'total' | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' });
+  const [payApplyVar, setPayApplyVar] = useState(false);
+  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'var' | 'total' | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' });
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3041,10 +3046,15 @@ function App() {
           id: 'global',
           rate_single: payRatesDraft.rateSingle || 0,
           rate_double: payRatesDraft.rateDouble || 0,
+          weeks_per_month: payRatesDraft.weeksPerMonth || 4,
           updated_at: new Date().toISOString(),
         });
       if (error) throw error;
-      const saved = { rateSingle: payRatesDraft.rateSingle || 0, rateDouble: payRatesDraft.rateDouble || 0 };
+      const saved = {
+        rateSingle: payRatesDraft.rateSingle || 0,
+        rateDouble: payRatesDraft.rateDouble || 0,
+        weeksPerMonth: payRatesDraft.weeksPerMonth || 4,
+      };
       setPayRates(saved);
       setPaySavedFlash(true);
       setTimeout(() => setPaySavedFlash(false), 2000);
@@ -3065,32 +3075,52 @@ function App() {
 
     const monthStart = format(payMonth, 'yyyy-MM-dd');
     const monthEnd = format(endOfMonth(payMonth), 'yyyy-MM-dd');
+    const weeks = payRates.weeksPerMonth || 4;
+    const rs = payRates.rateSingle || 0;
+    const rd = payRates.rateDouble || 0;
 
     const rows = tutors.map(t => {
-      let singleHours = 0;
-      let doubleHours = 0;
+      // Ore settimanali pianificate (settimana tipo), distinte per turno singolo/doppio
+      let wSingle = 0;
+      let wDouble = 0;
+      shifts.forEach(s => {
+        if (!s.isTemplate || s.tutorId !== t.id) return;
+        const h = getH(s.startTime, s.endTime);
+        if (h <= 0) return;
+        if (shiftYouthIds(s).length >= 2) wDouble += h;
+        else wSingle += h;
+      });
+
+      // Ore effettuate nel mese (consuntivo validato), per il calcolo delle variazioni
+      let aSingle = 0;
+      let aDouble = 0;
       shifts.forEach(s => {
         if (s.isTemplate || !s.date || s.tutorId !== t.id) return;
         const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
         if (d < monthStart || d > monthEnd) return;
         const h = getValidatedHours(s);
         if (h <= 0) return;
-        if (shiftYouthIds(s).length >= 2) doubleHours += h;
-        else singleHours += h;
+        if (shiftYouthIds(s).length >= 2) aDouble += h;
+        else aSingle += h;
       });
-      const subSingle = singleHours * (payRates.rateSingle || 0);
-      const subDouble = doubleHours * (payRates.rateDouble || 0);
-      return { tutor: t, singleHours, doubleHours, subSingle, subDouble, total: subSingle + subDouble };
+
+      const base = (wSingle * rs + wDouble * rd) * weeks;
+      const actualEur = aSingle * rs + aDouble * rd;
+      const variation = actualEur - base;
+      return { tutor: t, wSingle, wDouble, base, variation, total: base + (payApplyVar ? variation : 0) };
     });
 
-    const totSingleHours = rows.reduce((a, r) => a + r.singleHours, 0);
-    const totDoubleHours = rows.reduce((a, r) => a + r.doubleHours, 0);
-    const totSubSingle = rows.reduce((a, r) => a + r.subSingle, 0);
-    const totSubDouble = rows.reduce((a, r) => a + r.subDouble, 0);
-    const totTotal = totSubSingle + totSubDouble;
+    const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
+    const totWDouble = rows.reduce((a, r) => a + r.wDouble, 0);
+    const totBase = rows.reduce((a, r) => a + r.base, 0);
+    const totVar = rows.reduce((a, r) => a + r.variation, 0);
+    const totTotal = rows.reduce((a, r) => a + r.total, 0);
 
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
-    const ratesDirty = payRatesDraft.rateSingle !== payRates.rateSingle || payRatesDraft.rateDouble !== payRates.rateDouble;
+    const ratesDirty =
+      payRatesDraft.rateSingle !== payRates.rateSingle ||
+      payRatesDraft.rateDouble !== payRates.rateDouble ||
+      payRatesDraft.weeksPerMonth !== payRates.weeksPerMonth;
 
     const normName = (s?: string) => (s || '').replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ').trim().toLowerCase();
     const sortedRows = !paySort.key ? rows : [...rows].sort((a, b) => {
@@ -3163,9 +3193,9 @@ function App() {
 
         <Card className="p-6">
           <h3 className="font-semibold text-slate-700 mb-4 flex items-center">
-            <Wallet size={16} className="mr-2 text-lime-600" /> Paga oraria
+            <Wallet size={16} className="mr-2 text-lime-600" /> Parametri di calcolo
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Paga oraria Turno Singolo (€/h)</label>
               <input
@@ -3188,13 +3218,25 @@ function App() {
                 onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Settimane per mese</label>
+              <input
+                type="number"
+                min={1}
+                max={5}
+                step={0.01}
+                className="w-full px-3 py-2.5 bg-white rounded-xl border border-slate-200 shadow-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition text-sm font-medium text-slate-700 tabular-nums"
+                value={payRatesDraft.weeksPerMonth || ''}
+                onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+              />
+            </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={handleSavePayRates}
                 disabled={paySaving || !ratesDirty}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-lime-600 text-white text-sm font-bold shadow-md hover:bg-lime-700 disabled:opacity-40 active:scale-95 transition-all"
               >
-                <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva tariffe'}
+                <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva parametri'}
               </button>
               {paySavedFlash && (
                 <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
@@ -3206,36 +3248,59 @@ function App() {
         </Card>
 
         <Card className="p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 className="font-semibold text-slate-700">Compenso mensile · base pianificata × {weeks} settimane</h3>
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={payApplyVar}
+                onChange={e => setPayApplyVar(e.target.checked)}
+                className="h-4 w-4 accent-teal-600"
+              />
+              <span className="text-sm font-medium text-slate-600">Applica variazioni consuntivo al totale</span>
+            </label>
+          </div>
           <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
             <table className="w-auto max-w-full text-sm whitespace-nowrap">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                   {renderPayTh('tutor', 'Tutor', 'left')}
-                  {renderPayTh('singleHours', 'Ore Singolo', 'right')}
-                  {renderPayTh('doubleHours', 'Ore Doppio', 'right')}
-                  {renderPayTh('subSingle', 'Subtot. Singolo', 'right')}
-                  {renderPayTh('subDouble', 'Subtot. Doppio', 'right')}
+                  {renderPayTh('wSingle', 'Ore Sett. Singolo', 'right')}
+                  {renderPayTh('wDouble', 'Ore Sett. Doppio', 'right')}
+                  {renderPayTh('base', 'Compenso Mensile', 'right')}
+                  {renderPayTh('var', 'Var. Consuntivo', 'right')}
                   {renderPayTh('total', 'Totale', 'right')}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedRows.map(r => (
-                  <tr key={r.tutor.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 pr-3">
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
-                          {getInitials(r.tutor.name)}
+                {sortedRows.map(r => {
+                  const varBadge = Math.abs(r.variation) < 0.005
+                    ? 'bg-slate-200/70 text-slate-600'
+                    : r.variation > 0
+                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                      : 'bg-red-50 text-red-600 ring-1 ring-red-200';
+                  return (
+                    <tr key={r.tutor.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 pr-3">
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
+                            {getInitials(r.tutor.name)}
+                          </span>
+                          <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
                         </span>
-                        <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
-                      </span>
-                    </td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.singleHours.toFixed(1)}h</td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.doubleHours.toFixed(1)}h</td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{eur(r.subSingle)}</td>
-                    <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{eur(r.subDouble)}</td>
-                    <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.total)}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.wSingle.toFixed(1)}h</td>
+                      <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.wDouble.toFixed(1)}h</td>
+                      <td className="text-right py-2.5 px-3 tabular-nums text-slate-700">{eur(r.base)}</td>
+                      <td className="text-right py-2.5 px-3">
+                        <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${varBadge}`}>
+                          {Math.abs(r.variation) < 0.005 ? '±0,00' : `${r.variation > 0 ? '+' : ''}${eur(r.variation)}`}
+                        </span>
+                      </td>
+                      <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.total)}</td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic">Nessun tutor in anagrafica</td></tr>
                 )}
@@ -3244,10 +3309,14 @@ function App() {
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
                     <td className="py-3 pr-3 text-slate-700">Totale compenso</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{totSingleHours.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{totDoubleHours.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{eur(totSubSingle)}</td>
-                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{eur(totSubDouble)}</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-slate-600">{totWSingle.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-violet-600">{totWDouble.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-3 tabular-nums text-slate-700">{eur(totBase)}</td>
+                    <td className="text-right py-3 px-3 tabular-nums">
+                      <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full tabular-nums ${Math.abs(totVar) < 0.005 ? 'bg-slate-200/70 text-slate-600' : totVar > 0 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
+                        {Math.abs(totVar) < 0.005 ? '±0,00' : `${totVar > 0 ? '+' : ''}${eur(totVar)}`}
+                      </span>
+                    </td>
                     <td className="text-right py-3 pl-3 tabular-nums text-teal-700">{eur(totTotal)}</td>
                   </tr>
                 </tfoot>
@@ -3255,7 +3324,7 @@ function App() {
             </table>
           </div>
           <p className="mt-3 text-[11px] text-slate-400">
-            Ore calcolate sui soli turni effettuati del mese selezionato · Tariffe applicate: singolo {eur(payRates.rateSingle || 0)}/h · doppio {eur(payRates.rateDouble || 0)}/h
+            Base = ore settimanali della settimana tipo (Pianificazione Turni) × {weeks} settimane × paga oraria · Var. Consuntivo = differenza tra ore effettuate validate nel mese e base (informativa, incide sul totale solo con il toggle attivo)
           </p>
         </Card>
       </div>

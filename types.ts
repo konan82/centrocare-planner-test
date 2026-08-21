@@ -86,4 +86,5 @@ export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR'
 export interface PaySettings {
   rateSingle: number;
   rateDouble: number;
+  weeksPerMonth: number;
 }
