@@ -833,8 +833,8 @@ function App() {
   // Summary View State
   const [summaryStartDate, setSummaryStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [summaryEndDate, setSummaryEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [summaryViewMode, setSummaryViewMode] = useState<'TUTORS' | 'YOUTHS'>('TUTORS');
-  const [summaryPersonFilter, setSummaryPersonFilter] = useState<string>('all');
+  const [summaryTutorFilter, setSummaryTutorFilter] = useState<string>('all');
+  const [summaryYouthFilter, setSummaryYouthFilter] = useState<string>('all');
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
 
   // Payroll (Calcolo Paga) State
@@ -3599,129 +3599,89 @@ function App() {
       return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
     };
 
-    // Filter shifts based on selected date range (solo turni reali validabili, niente template)
-    const filteredShifts = shifts.filter(s => {
-      if (s.isTemplate || !s.date) return false;
-      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
-      return d >= summaryStartDate && d <= summaryEndDate;
-    });
-    const templateShifts = shifts.filter(s => s.isTemplate && s.startTime && s.endTime);
-
     // Pianificato = ore del template (settimana tipo) per ogni giorno nel periodo.
     // Validato (consuntivo) = tutti i turni non annullati (orari effettivi se presenti), cancellati = 0.
-    const buildSummary = (person: { id: string; name?: string; maxHoursPerWeek?: number; requiredHoursPerWeek?: number }, type: 'TUTOR' | 'YOUTH') => {
-      const targetHours = type === 'TUTOR' ? person.maxHoursPerWeek || 0 : person.requiredHoursPerWeek || 0;
-      const personShifts = filteredShifts.filter(s => s.tutorId === person.id || shiftYouthIds(s).includes(person.id));
-      const personTpl = templateShifts.filter(s => s.tutorId === person.id || shiftYouthIds(s).includes(person.id));
+    const monthStart = format(startOfMonth(summaryMonth), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(summaryMonth), 'yyyy-MM-dd');
 
-      const monthlyHours: Record<string, number> = {};
-      const weeklyHours: Record<string, number> = {};
-      const plannedMonthlyHours: Record<string, number> = {};
-      const plannedWeeklyHours: Record<string, number> = {};
-      const singleMonthlyHours: Record<string, number> = {};
-      const doubleMonthlyHours: Record<string, number> = {};
-      const singleWeeklyHours: Record<string, number> = {};
-      const doubleWeeklyHours: Record<string, number> = {};
+    // Occorrenze del mese (consuntivo), non i template
+    const monthShifts = shifts.filter(s => {
+      if (s.isTemplate || !s.date) return false;
+      const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+      return d >= monthStart && d <= monthEnd;
+    });
 
-      const startD = parseISO(summaryStartDate);
-      const endD = parseISO(summaryEndDate);
-      if (!isNaN(startD.getTime()) && !isNaN(endD.getTime())) {
-        for (let cursor = new Date(startD); cursor <= endD; cursor = addDays(cursor, 1)) {
-          const dateStr = format(cursor, 'yyyy-MM-dd');
-          const monthKey = format(cursor, 'MMMM yyyy', { locale: it });
-          const weekKey = `Settimana ${getISOWeek(cursor)} (${getYear(cursor)})`;
-          const dow = (cursor.getDay() + 6) % 7; // 0=LUN..6=SAB
+    // Tutor e ragazzi da mostrare (dalla matrice o filtrati)
+    const presentTutors = new Set<string>();
+    const presentYouths = new Set<string>();
+    monthShifts.forEach(s => {
+      presentTutors.add(s.tutorId);
+      shiftYouthIds(s).forEach(yid => presentYouths.add(yid));
+    });
+    const rows = summaryTutorFilter === 'all' ? tutors.filter(t => presentTutors.has(t.id)) : tutors.filter(t => t.id === summaryTutorFilter);
+    const cols = summaryYouthFilter === 'all' ? youths.filter(y => presentYouths.has(y.id)) : youths.filter(y => y.id === summaryYouthFilter);
 
-          if (dow < 6) {
-            const wd = dow + 1;
-            const planned = personTpl
-              .filter(s => (s.templateWeekday || weekdayOf(s.date)) === wd)
-              .reduce((acc, s) => acc + getHours(s.startTime, s.endTime), 0);
-            if (planned > 0) {
-              plannedMonthlyHours[monthKey] = (plannedMonthlyHours[monthKey] || 0) + planned;
-              plannedWeeklyHours[weekKey] = (plannedWeeklyHours[weekKey] || 0) + planned;
-            }
-          }
+    // Matrice: cell[tutorId][youthId] = { planned, executed }
+    const cell: Record<string, Record<string, { planned: number; executed: number }>> = {};
+    rows.forEach(t => { cell[t.id] = {}; cols.forEach(y => { cell[t.id][y.id] = { planned: 0, executed: 0 }; }); });
+    monthShifts.forEach(s => {
+      const tId = s.tutorId;
+      if (summaryTutorFilter !== 'all' && tId !== summaryTutorFilter) return;
+      const planned = getHours(s.startTime, s.endTime);
+      const executed = getEffectiveHours(s); // 0 se annullato, effettivo/altrimenti pianificato
+      shiftYouthIds(s).forEach(yId => {
+        if (summaryYouthFilter !== 'all' && yId !== summaryYouthFilter) return;
+        if (!cell[tId]) cell[tId] = {};
+        if (!cell[tId][yId]) cell[tId][yId] = { planned: 0, executed: 0 };
+        cell[tId][yId].planned += planned;
+        cell[tId][yId].executed += executed;
+      });
+    });
 
-          personShifts
-            .filter(s => s.date === dateStr && s.startTime && s.endTime)
-            .forEach(s => {
-              const h = getValidatedHours(s);
-              if (h <= 0) return;
-              const isDouble = shiftYouthIds(s).length >= 2;
-              const recM = isDouble ? doubleMonthlyHours : singleMonthlyHours;
-              const recW = isDouble ? doubleWeeklyHours : singleWeeklyHours;
-              recM[monthKey] = (recM[monthKey] || 0) + h;
-              recW[weekKey] = (recW[weekKey] || 0) + h;
-            });
-
-          const validated = personShifts
-            .filter(s => s.date === dateStr && s.startTime && s.endTime)
-            .reduce((acc, s) => acc + getValidatedHours(s), 0);
-          if (validated > 0) {
-            monthlyHours[monthKey] = (monthlyHours[monthKey] || 0) + validated;
-            weeklyHours[weekKey] = (weeklyHours[weekKey] || 0) + validated;
-          }
-        }
-      }
-
-      return {
-        id: person.id,
-        name: person.name || '?',
-        targetHours,
-        monthlyHours,
-        weeklyHours,
-        plannedMonthlyHours,
-        plannedWeeklyHours,
-        singleMonthlyHours,
-        doubleMonthlyHours,
-        singleWeeklyHours,
-        doubleWeeklyHours,
-        type
-      };
-    };
-
-    const summaryData = summaryViewMode === 'TUTORS'
-      ? tutors.map(t => buildSummary(t, 'TUTOR'))
-      : youths.map(y => buildSummary(y, 'YOUTH'));
-    const filteredSummary = summaryPersonFilter === 'all'
-      ? summaryData
-      : summaryData.filter(p => p.id === summaryPersonFilter);
+    const rowTot = rows.map(t => {
+      let p = 0, e = 0;
+      cols.forEach(y => { p += cell[t.id][y.id].planned; e += cell[t.id][y.id].executed; });
+      return { id: t.id, planned: p, executed: e };
+    });
+    const colTot = cols.map(y => {
+      let p = 0, e = 0;
+      rows.forEach(t => { p += cell[t.id][y.id].planned; e += cell[t.id][y.id].executed; });
+      return { id: y.id, planned: p, executed: e };
+    });
+    const grandPlan = rowTot.reduce((a, r) => a + r.planned, 0);
+    const grandExec = rowTot.reduce((a, r) => a + r.executed, 0);
 
     return (
       <div className="space-y-8">
         <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore</h2>
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button
-                onClick={() => { setSummaryViewMode('TUTORS'); setSummaryPersonFilter('all'); }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'TUTORS' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Tutor
-              </button>
-              <button
-                onClick={() => { setSummaryViewMode('YOUTHS'); setSummaryPersonFilter('all'); }}
-                className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${summaryViewMode === 'YOUTHS' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Ragazzi
-              </button>
-            </div>
+            <span className="hidden sm:block text-xs text-slate-400">Matrice Tutor × Ragazzo · pianificate vs eseguite (consuntivo)</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <PersonCombo
-              options={summaryViewMode === 'TUTORS' ? tutors : youths}
-              value={summaryPersonFilter}
-              onChange={setSummaryPersonFilter}
-              placeholder="Tutti..."
-              colorOf={id => summaryViewMode === 'TUTORS' ? getTutorColor(id, tutors) : getYouthColor(id, youths)}
+              options={tutors}
+              value={summaryTutorFilter}
+              onChange={setSummaryTutorFilter}
+              placeholder="Tutti i tutor"
+              colorOf={id => getTutorColor(id, tutors)}
               allowAll
-              allLabel="Tutti"
+              allLabel="Tutti i tutor"
               allValue="all"
-              className="w-full sm:w-56"
+              className="w-full sm:w-48"
             />
-            {/* Navigazione mese (stile Consuntivo Turni, ma per mesi) */}
+            <PersonCombo
+              options={youths}
+              value={summaryYouthFilter}
+              onChange={setSummaryYouthFilter}
+              placeholder="Tutti i ragazzi"
+              colorOf={id => getYouthColor(id, youths)}
+              allowAll
+              allLabel="Tutti i ragazzi"
+              allValue="all"
+              className="w-full sm:w-48"
+            />
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
@@ -3757,124 +3717,86 @@ function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {filteredSummary.map(data => (
-            <Card key={data.id} className={`p-6 ${data.type === 'YOUTH' ? 'border-l-4 border-l-amber-400' : ''}`}>
-              <div className="flex items-center mb-4 border-b pb-4">
-                <div className={`w-10 h-10 ${data.type === 'TUTOR' ? getTutorColor(data.id, tutors).bg : getYouthColor(data.id, youths).bg} ${data.type === 'TUTOR' ? getTutorColor(data.id, tutors).text : getYouthColor(data.id, youths).text} rounded-full flex items-center justify-center font-bold mr-3`}>
-                  {data.name?.charAt(0) || '?'}
-                </div>
-                <h3 className="text-xl font-bold text-slate-800">{data.name}</h3>
-                <span className="ml-auto text-sm text-slate-500">
-                  {data.type === 'TUTOR' ? 'Max' : 'Richiesto'}: {data.targetHours}h/sett
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {(() => {
-                  const doneColor = data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700';
-                  const renderGrid = (rows: { label: string; single: number; double: number; over?: boolean; under?: boolean }[], emptyMsg: string) => (
-                    rows.length > 0 ? (
-                      <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-                        <div className="grid grid-cols-[1fr_4rem_4rem_4rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                          <span>Periodo</span>
-                          <span className="text-right">Singolo</span>
-                          <span className="text-right">Doppio</span>
-                          <span className="text-center">Tot.</span>
-                        </div>
-                        <div className="divide-y divide-slate-100">
-                          {rows.map(r => {
-                            const tot = r.single + r.double;
-                            const doneTxt = r.over ? 'text-red-500' : r.under ? 'text-orange-500' : doneColor;
-                            return (
-                              <div key={r.label} className="grid grid-cols-[1fr_4rem_4rem_4rem] items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 hover:bg-slate-50 transition-colors">
-                                <span className="text-sm font-semibold text-slate-700 capitalize truncate">{r.label}</span>
-                                <span className="text-right text-sm text-slate-500 tabular-nums">{r.single.toFixed(1)}h</span>
-                                <span className="text-right text-sm text-violet-600 tabular-nums">{r.double.toFixed(1)}h</span>
-                                <span className={`text-sm font-bold tabular-nums text-center ${doneTxt}`}>
-                                  {tot.toFixed(1)}h
-                                  {r.over && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
-                                  {r.under && <AlertTriangle size={13} className="inline ml-1 align-[-2px]" />}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400 italic">{emptyMsg}</p>
-                    )
-                  );
-
-                  const monthKeys = Array.from(new Set([
-                    ...Object.keys(data.singleMonthlyHours || {}),
-                    ...Object.keys(data.doubleMonthlyHours || {}),
-                  ]));
-                  const monthRows = monthKeys.map(month => ({
-                    label: month,
-                    single: Number(data.singleMonthlyHours?.[month] || 0),
-                    double: Number(data.doubleMonthlyHours?.[month] || 0),
-                  }));
-                  const weekKeys = Array.from(new Set([
-                    ...Object.keys(data.singleWeeklyHours || {}),
-                    ...Object.keys(data.doubleWeeklyHours || {}),
-                  ]));
-                  const weekRows = weekKeys.map(week => {
-                    const single = Number(data.singleWeeklyHours?.[week] || 0);
-                    const double = Number(data.doubleWeeklyHours?.[week] || 0);
-                    return {
-                      label: week,
-                      single,
-                      double,
-                      over: data.type === 'TUTOR' && (single + double) > data.targetHours,
-                      under: data.type === 'YOUTH' && (single + double) < data.targetHours,
-                    };
-                  });
-
-                  return (
-                    <>
-                      <div>
-                        <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
-                          <CalendarIcon size={16} className="mr-2" /> Per Mese
-                        </h4>
-                        {renderGrid(monthRows, 'Nessun dato mensile')}
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-slate-600 mb-3 flex items-center">
-                          <Clock size={16} className="mr-2" /> Per Settimana
-                        </h4>
-                        {renderGrid(weekRows, 'Nessun dato settimanale')}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              {(() => {
-                const sumHours = (rec: Record<string, number>) =>
-                  Object.values(rec || {}).reduce((acc: number, v) => acc + (Number(v) || 0), 0);
-                const totalSingle = sumHours(data.singleMonthlyHours);
-                const totalDouble = sumHours(data.doubleMonthlyHours);
-                return (
-                  <div className="mt-6 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white shadow-sm overflow-hidden">
-                    <div className="grid grid-cols-2 items-stretch">
-                      <div className="px-4 py-3 border-slate-200 sm:border-r">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Turno Singolo</span>
-                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalSingle.toFixed(1)}h</span>
-                        <span className="block text-[11px] text-slate-400 font-medium">un solo ragazzo nel turno</span>
-                      </div>
-                      <div className="px-4 py-3">
-                        <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Turno Doppio</span>
-                        <span className={`block mt-1 text-lg font-bold tabular-nums ${data.type === 'TUTOR' ? 'text-teal-700' : 'text-amber-700'}`}>{totalDouble.toFixed(1)}h</span>
-                        <span className="block text-[11px] text-slate-400 font-medium">due o più ragazzi nel turno</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </Card>
-          ))}
-        </div>
+        <Card className="p-0 sm:p-4 overflow-hidden">
+          {rows.length === 0 || cols.length === 0 ? (
+            <div className="p-10 text-center text-slate-400 italic">
+              Nessun turno nel mese selezionato{summaryTutorFilter !== 'all' || summaryYouthFilter !== 'all' ? ' per i filtri scelti' : ''}.
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[68vh] overflow-y-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                    <th className="text-left py-2.5 pr-3 font-bold sticky left-0 bg-slate-50 z-20" rowSpan={2}>Tutor \ Ragazzo</th>
+                    {cols.map(y => (
+                      <th key={y.id} colSpan={2} className="px-2 py-1.5 font-bold text-center">
+                        <span className="flex items-center justify-center gap-1.5 min-w-0">
+                          <span className={`h-4 w-4 rounded-full ${getYouthColor(y.id, youths).bg} ${getYouthColor(y.id, youths).text} text-[9px] font-bold flex items-center justify-center`}>{getInitials(y.name)}</span>
+                          <span className="truncate max-w-[8rem]">{y.name}</span>
+                        </span>
+                      </th>
+                    ))}
+                    <th colSpan={2} className="px-3 py-1.5 font-bold text-center text-slate-600">Totale</th>
+                  </tr>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-400">
+                    {cols.map(y => (
+                      <React.Fragment key={y.id}>
+                        <th className="px-1 py-1 font-semibold text-right text-slate-400">Pian</th>
+                        <th className="px-1 py-1 font-semibold text-right text-slate-400">Eseg</th>
+                      </React.Fragment>
+                    ))}
+                    <th className="px-2 py-1 font-semibold text-right text-slate-500">Pian</th>
+                    <th className="px-2 py-1 font-semibold text-right text-slate-500">Eseg</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map((t, ri) => {
+                    const rt = rowTot[ri];
+                    return (
+                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 pr-3 sticky left-0 bg-white z-10">
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(t.id, tutors).bg} ${getTutorColor(t.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>{getInitials(t.name)}</span>
+                            <span className="font-semibold text-slate-700 truncate">{t.name}</span>
+                          </span>
+                        </td>
+                        {cols.map(y => {
+                          const c = cell[t.id][y.id];
+                          const delta = c.executed - c.planned;
+                          const execColor = c.executed === 0 ? 'text-red-500' : delta > 0.005 ? 'text-emerald-600' : delta < -0.005 ? 'text-amber-600' : 'text-slate-700';
+                          return (
+                            <React.Fragment key={y.id}>
+                              <td className="text-right px-1 py-2 tabular-nums text-slate-400">{c.planned.toFixed(1)}h</td>
+                              <td className={`text-right px-1 py-2 tabular-nums font-semibold ${execColor}`}>{c.executed.toFixed(1)}h</td>
+                            </React.Fragment>
+                          );
+                        })}
+                        <td className="text-right px-2 py-2 tabular-nums text-slate-500 font-semibold">{rt.planned.toFixed(1)}h</td>
+                        <td className="text-right px-2 py-2 tabular-nums text-teal-700 font-bold">{rt.executed.toFixed(1)}h</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
+                    <td className="py-3 pr-3 text-slate-700 sticky left-0 bg-gradient-to-r from-slate-50 to-white z-10">Totale</td>
+                    {colTot.map(y => (
+                      <React.Fragment key={y.id}>
+                        <td className="text-right px-1 py-3 tabular-nums text-slate-500">{y.planned.toFixed(1)}h</td>
+                        <td className="text-right px-1 py-3 tabular-nums text-teal-700">{y.executed.toFixed(1)}h</td>
+                      </React.Fragment>
+                    ))}
+                    <td className="text-right px-2 py-3 tabular-nums text-slate-500">{grandPlan.toFixed(1)}h</td>
+                    <td className="text-right px-2 py-3 tabular-nums text-teal-700">{grandExec.toFixed(1)}h</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+          <p className="mt-3 px-4 pb-4 text-[11px] text-slate-400">
+            <span className="text-slate-400 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-teal-700 font-semibold">Eseg</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">rosso</span> = nessuna ora eseguita · <span className="text-emerald-600 font-semibold">verde</span> = ore in più · <span className="text-amber-600 font-semibold">ambra</span> = ore in meno
+          </p>
+        </Card>
       </div>
     );
   };
