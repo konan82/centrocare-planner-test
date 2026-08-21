@@ -3092,9 +3092,10 @@ function App() {
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
     const ratesDirty = payRatesDraft.rateSingle !== payRates.rateSingle || payRatesDraft.rateDouble !== payRates.rateDouble;
 
+    const normName = (s?: string) => (s || '').replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ').trim().toLowerCase();
     const sortedRows = !paySort.key ? rows : [...rows].sort((a, b) => {
       const dir = paySort.dir === 'asc' ? 1 : -1;
-      if (paySort.key === 'tutor') return dir * (a.tutor.name || '').localeCompare(b.tutor.name || '', 'it');
+      if (paySort.key === 'tutor') return dir * normName(a.tutor.name).localeCompare(normName(b.tutor.name), 'it');
       return dir * ((a as any)[paySort.key] - (b as any)[paySort.key]);
     });
 
