@@ -47,7 +47,8 @@ import {
   Wallet,
   Sunrise,
   Sunset,
-  CalendarRange
+  CalendarRange,
+  CalendarClock
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
@@ -1324,6 +1325,77 @@ function App() {
     } catch (error) {
       console.error("Error replicating month:", error);
       alert("Errore durante la copia della pianificazione sul mese");
+    }
+  };
+
+  // Rigenera la "settimana tipo" (template) a partire dai turni di consuntivo esistenti,
+  // deduplicando per (giorno, tutor, ragazzi, orari, attività).
+  const handleRegenTemplates = async () => {
+    const occ = shifts.filter(s => !s.isTemplate && s.date);
+    if (occ.length === 0) {
+      alert("Nessun turno di consuntivo da cui ricavare la settimana tipo.");
+      return;
+    }
+    const sig = (s: Shift) =>
+      `${weekdayOf(s.date)}|${s.tutorId}|${[...shiftYouthIds(s)].sort().join(',')}|${s.startTime}|${s.endTime}|${s.activity || ''}`;
+    const seen = new Map<string, Shift>();
+    occ.forEach(s => { const k = sig(s); if (!seen.has(k)) seen.set(k, s); });
+    const existing = new Set(
+      shifts.filter(s => s.isTemplate).map(s => sig(s))
+    );
+    const rows = Array.from(seen.values())
+      .filter(s => !existing.has(sig(s)))
+      .map(s => {
+        const wd = weekdayOf(s.date);
+        const youthIds = shiftYouthIds(s);
+        return {
+          id: Math.random().toString(36).slice(2, 11),
+          tutor_id: s.tutorId,
+          youth_id: youthIds[0] || null,
+          youth_ids: youthIds,
+          date: format(addDays(TEMPLATE_ANCHOR, wd - 1), 'yyyy-MM-dd'),
+          start_time: s.startTime,
+          end_time: s.endTime,
+          activity: s.activity || 'Attività generica',
+          status: 'pianificato',
+          actual_start_time: null,
+          actual_end_time: null,
+          actual_notes: '',
+          is_template: true,
+          template_weekday: wd,
+          template_shift_id: null,
+        };
+      });
+    if (rows.length === 0) {
+      alert("La settimana tipo è già stata generata dai turni di consuntivo.");
+      return;
+    }
+    if (!confirm(`Rigenerare ${rows.length} turni della settimana tipo a partire dal consuntivo?`)) return;
+    try {
+      const { error } = await supabase.from('shifts').insert(rows);
+      if (error) throw error;
+      const normalized = rows.map(r => ({
+        id: r.id,
+        tutorId: r.tutor_id,
+        youthId: r.youth_id,
+        youthIds: r.youth_ids,
+        date: r.date,
+        startTime: r.start_time,
+        endTime: r.end_time,
+        activity: r.activity,
+        status: r.status,
+        actualStartTime: r.actual_start_time,
+        actualEndTime: r.actual_end_time,
+        actualNotes: r.actual_notes,
+        isTemplate: r.is_template,
+        templateWeekday: r.template_weekday,
+        templateShiftId: r.template_shift_id,
+      }));
+      setShifts(prev => [...prev, ...normalized]);
+      alert(`Settimana tipo rigenerata: ${rows.length} turni creati.`);
+    } catch (error) {
+      console.error("Error regenerating templates:", error);
+      alert("Errore durante la rigenerazione della settimana tipo.");
     }
   };
 
@@ -2605,6 +2677,16 @@ function App() {
                       Copia su tutto il mese
                     </button>
                   </div>
+                )}
+                {isPlan && (
+                  <button
+                    onClick={handleRegenTemplates}
+                    title="Crea la settimana tipo ricavandola dai turni di consuntivo esistenti"
+                    className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
+                  >
+                    <CalendarClock size={16} />
+                    Rigenera settimana tipo
+                  </button>
                 )}
                 {!isPlan && (
                   <button
