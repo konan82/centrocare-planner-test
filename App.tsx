@@ -818,6 +818,8 @@ function App() {
 
   // Calendar filter state: filtri simultanei tutor + ragazzo
   const [youthFilter, setYouthFilter] = useState<string>('all');
+  // Calendar time-slot view: Mattina (08-13), Pomeriggio (13-19), Tutto (08-19)
+  const [dayPart, setDayPart] = useState<'tutto' | 'mattina' | 'pomeriggio'>('tutto');
 
   // WhatsApp share state
   const [isWhatsAppSending, setIsWhatsAppSending] = useState(false);
@@ -2412,8 +2414,8 @@ function App() {
                 </h2>
                 <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-snug">
                   {isPlan
-                    ? 'Settimana tipo LUN-SAB · 08:00 – 19:00 · ripetuta ogni settimana'
-                    : `Fascia oraria LUN-SAB · 08:00 – 19:00 · copia della pianificazione`}
+                    ? `Settimana tipo LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · ripetuta ogni settimana`
+                    : `Fascia oraria LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · copia della pianificazione`}
                 </p>
               </div>
               {!isPlan && (
@@ -2488,6 +2490,25 @@ function App() {
                   />
                 </div>
               )}
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 shrink-0 self-start sm:self-auto">
+                {([
+                  { key: 'mattina', label: 'Mattina' },
+                  { key: 'pomeriggio', label: 'Pomeriggio' },
+                  { key: 'tutto', label: 'Tutto' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setDayPart(opt.key)}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      dayPart === opt.key
+                        ? 'bg-white text-teal-700 shadow-sm ring-1 ring-slate-200'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={handleWhatsAppSend}
                 disabled={isWhatsAppSending}
@@ -2745,8 +2766,8 @@ function App() {
               </thead>
               <tbody>
                 {(() => {
-                  const DAY_START = 8 * 60; // 08:00
-                  const DAY_END = 19 * 60; // 19:00
+                  const DAY_START = dayPart === 'mattina' ? 8 * 60 : dayPart === 'pomeriggio' ? 13 * 60 : 8 * 60; // 08:00 o 13:00
+                  const DAY_END = dayPart === 'mattina' ? 13 * 60 : dayPart === 'pomeriggio' ? 19 * 60 : 19 * 60; // 13:00 o 19:00
                   const SLOT = 15; // granularità 15 min
                   const ROW_COUNT = (DAY_END - DAY_START) / SLOT + 1; // 45: 44 slot + riga finale di bordo (19:00)
                   const ROW_H = 36; // altezza riga (h-9) in px
