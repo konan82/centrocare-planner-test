@@ -44,7 +44,10 @@ import {
   MousePointer2,
   MessageCircle,
   Play,
-  Wallet
+  Wallet,
+  Sunrise,
+  Sunset,
+  CalendarRange
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
@@ -2458,9 +2461,10 @@ function App() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3">
+              {/* Filtri tutor + ragazzo */}
               {restrictedUserTutorId ? (
-                <span className="w-full sm:w-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
                   <UserCheck size={15} />
                   Solo i tuoi turni
                 </span>
@@ -2475,7 +2479,7 @@ function App() {
                     allowAll
                     allLabel="Tutti i tutor"
                     allValue="all"
-                    className="w-full sm:w-56"
+                    className="w-full sm:w-52"
                   />
                   <PersonCombo
                     options={youths}
@@ -2486,121 +2490,130 @@ function App() {
                     allowAll
                     allLabel="Tutti i ragazzi"
                     allValue="all"
-                    className="w-full sm:w-56"
+                    className="w-full sm:w-52"
                   />
                 </div>
               )}
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200 shrink-0 self-start sm:self-auto">
+
+              {/* Selettore fascia oraria ad alto impatto */}
+              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
                 {([
-                  { key: 'mattina', label: 'Mattina' },
-                  { key: 'pomeriggio', label: 'Pomeriggio' },
-                  { key: 'tutto', label: 'Tutto' },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setDayPart(opt.key)}
-                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                      dayPart === opt.key
-                        ? 'bg-white text-teal-700 shadow-sm ring-1 ring-slate-200'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                  { key: 'mattina', label: 'Mattina', icon: Sunrise, active: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-orange-200' },
+                  { key: 'pomeriggio', label: 'Pomeriggio', icon: Sunset, active: 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200' },
+                  { key: 'tutto', label: 'Tutto', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                ] as const).map(opt => {
+                  const Icon = opt.icon;
+                  const active = dayPart === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => setDayPart(opt.key)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                        active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
-              <button
-                onClick={handleWhatsAppSend}
-                disabled={isWhatsAppSending}
-                title="Cattura lo screenshot dei turni e invialo via WhatsApp"
-                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 shadow-md shadow-green-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg disabled:opacity-50"
-              >
-                {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
-                {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
-              </button>
-              {!isPlan && tutorFilter !== 'all' && tutorFilter && (
-                <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
-                  Trascina o apri un turno per registrare il consuntivo
-                </div>
-              )}
-              {!isPlan && (
-                <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-red-200 bg-white p-1 shadow-sm">
-                  <input
-                    type="month"
-                    value={clearMonth}
-                    onChange={e => setClearMonth(e.target.value)}
-                    title="Mese di cui cancellare tutti i turni del consuntivo"
-                    className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300"
-                  />
+
+              {/* Azioni */}
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleWhatsAppSend}
+                  disabled={isWhatsAppSending}
+                  title="Cattura lo screenshot dei turni e invialo via WhatsApp"
+                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 shadow-md shadow-green-200/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg disabled:opacity-50"
+                >
+                  {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
+                  {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
+                </button>
+                {!isPlan && tutorFilter !== 'all' && tutorFilter && (
+                  <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
+                    Trascina o apri un turno per registrare il consuntivo
+                  </div>
+                )}
+                {!isPlan && (
+                  <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-red-200 bg-white p-1 shadow-sm">
+                    <input
+                      type="month"
+                      value={clearMonth}
+                      onChange={e => setClearMonth(e.target.value)}
+                      title="Mese di cui cancellare tutti i turni del consuntivo"
+                      className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300"
+                    />
+                    <button
+                      onClick={handleClearMonthShifts}
+                      title="Cancella tutti i turni del consuntivo nel mese selezionato"
+                      className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-lg hover:from-red-600 hover:to-rose-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                    >
+                      <Trash2 size={16} />
+                      Cancella tutto il mese
+                    </button>
+                  </div>
+                )}
+                {isPlan && (
                   <button
-                    onClick={handleClearMonthShifts}
-                    title="Cancella tutti i turni del consuntivo nel mese selezionato"
-                    className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-lg hover:from-red-600 hover:to-rose-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                    onClick={async () => {
+                      if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                      try {
+                        const { error } = await supabase.from('shifts').delete().eq('is_template', true);
+                        if (error) throw error;
+                        alert(`Turni pianificati cancellati con successo!`);
+                        setShifts(prev => prev.filter(s => !s.isTemplate));
+                      } catch (error) {
+                        console.error(error);
+                        alert("Errore durante la cancellazione");
+                      }
+                    }}
+                    className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
                   >
                     <Trash2 size={16} />
-                    Cancella tutto il mese
+                    Cancella Tutti
                   </button>
-                </div>
-              )}
-              {isPlan && (
-                <button
-                  onClick={async () => {
-                    if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
-                    try {
-                      const { error } = await supabase.from('shifts').delete().eq('is_template', true);
-                      if (error) throw error;
-                      alert(`Turni pianificati cancellati con successo!`);
-                      setShifts(prev => prev.filter(s => !s.isTemplate));
-                    } catch (error) {
-                      console.error(error);
-                      alert("Errore durante la cancellazione");
-                    }
-                  }}
-                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-red-600 rounded-xl hover:bg-red-50 flex items-center gap-2 border border-red-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
-                >
-                  <Trash2 size={16} />
-                  Cancella Tutti
-                </button>
-              )}
-              {isPlan && (
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing}
-                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
-                >
-                  {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
-                  Analizza Conflitti
-                </button>
-              )}
-              {isPlan && (
-                <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-teal-200 bg-white p-1 shadow-sm">
-                  <input
-                    type="month"
-                    value={replicateMonth}
-                    onChange={e => setReplicateMonth(e.target.value)}
-                    title="Mese su cui copiare la pianificazione settimanale"
-                    className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-300"
-                  />
+                )}
+                {isPlan && (
                   <button
-                    onClick={handleReplicateMonth}
-                    title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
-                    className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg hover:from-teal-600 hover:to-emerald-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing}
+                    className="w-full sm:w-auto justify-center px-4 py-2.5 bg-white text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center gap-2 border border-indigo-200 shadow-sm hover:shadow transition-all font-semibold text-sm"
                   >
-                    <CalendarPlus size={16} />
-                    Copia su tutto il mese
+                    {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
+                    Analizza Conflitti
                   </button>
-                </div>
-              )}
-              {!isPlan && (
-                <button
-                  onClick={handleClearAllConsuntivo}
-                  title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
-                  className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-xl hover:from-rose-700 hover:to-red-800 shadow-md shadow-rose-300/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
-                >
-                  <Trash2 size={16} />
-                  Reset consuntivo
-                </button>
-              )}
+                )}
+                {isPlan && (
+                  <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-teal-200 bg-white p-1 shadow-sm">
+                    <input
+                      type="month"
+                      value={replicateMonth}
+                      onChange={e => setReplicateMonth(e.target.value)}
+                      title="Mese su cui copiare la pianificazione settimanale"
+                      className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-300"
+                    />
+                    <button
+                      onClick={handleReplicateMonth}
+                      title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
+                      className="w-full sm:w-auto justify-center px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg hover:from-teal-600 hover:to-emerald-600 shadow-sm flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-md"
+                    >
+                      <CalendarPlus size={16} />
+                      Copia su tutto il mese
+                    </button>
+                  </div>
+                )}
+                {!isPlan && (
+                  <button
+                    onClick={handleClearAllConsuntivo}
+                    title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
+                    className="w-full sm:w-auto justify-center px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-xl hover:from-rose-700 hover:to-red-800 shadow-md shadow-rose-300/60 flex items-center gap-2 transition-all font-semibold text-sm hover:shadow-lg"
+                  >
+                    <Trash2 size={16} />
+                    Reset consuntivo
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
