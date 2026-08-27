@@ -3243,16 +3243,38 @@ function App() {
     const rd = payRates.rateDouble || 0;
 
     const rows = tutors.map(t => {
-      // Ore settimanali pianificate (settimana tipo), distinte per turno singolo/doppio
+      // Ore settimanali pianificate (settimana tipo), distinte per singolo/doppio.
+      // "Doppio" = il tutor segue >=2 ragazzi nello stesso intervallo: sia un turno con
+      // 2+ ragazzi nella stessa riga, sia due turni singoli sovrapposti. Si contano i
+      // minuti in cui compaiono >=2 ragazzi distinti.
       let wSingle = 0;
       let wDouble = 0;
-      shifts.forEach(s => {
-        if (!s.isTemplate || s.tutorId !== t.id) return;
-        const h = getH(s.startTime, s.endTime);
-        if (h <= 0) return;
-        if (shiftYouthIds(s).length >= 2) wDouble += h;
-        else wSingle += h;
+      const toMin = (t: string) => {
+        const [hh, mm] = (t || '0:0').split(':').map(Number);
+        return (hh || 0) * 60 + (mm || 0);
+      };
+      const intervals = shifts
+        .filter(s => s.isTemplate && s.tutorId === t.id)
+        .map(s => {
+          const h = getH(s.startTime, s.endTime);
+          if (h <= 0) return null;
+          return { startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
+        })
+        .filter((x): x is { startMin: number; endMin: number; youths: Set<string> } => x !== null);
+      const minuteYouths = new Map<number, Set<string>>();
+      intervals.forEach(iv => {
+        for (let m = iv.startMin; m < iv.endMin; m++) {
+          let set = minuteYouths.get(m);
+          if (!set) { set = new Set<string>(); minuteYouths.set(m, set); }
+          iv.youths.forEach(y => set!.add(y));
+        }
       });
+      minuteYouths.forEach(set => {
+        if (set.size >= 2) wDouble += 1;
+        else if (set.size === 1) wSingle += 1;
+      });
+      wSingle /= 60;
+      wDouble /= 60;
 
       const base = (wSingle * rs + wDouble * rd) * weeks;
       return { tutor: t, wSingle, wDouble, base };
