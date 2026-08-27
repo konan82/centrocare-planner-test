@@ -847,7 +847,7 @@ function App() {
   const [payMonth, setPayMonth] = useState(() => startOfMonth(new Date()));
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
-  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'total' | null; dir: 'asc' | 'desc' }>({ key: null, dir: 'asc' });
+  const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'total' | null; dir: 'asc' | 'desc' }>({ key: 'tutor', dir: 'asc' });
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3434,7 +3434,7 @@ function App() {
                    {renderPayTh('tutor', 'Tutor', 'left')}
                    {renderPayTh('wSingle', 'Ore Sett. Singolo', 'right')}
                    {renderPayTh('wDouble', 'Ore Sett. Doppio', 'right')}
-                   <th className="text-right py-2.5 px-3 font-bold text-teal-700">Compenso Mensile</th>
+                    {renderPayTh('base', 'Compenso Mensile', 'right')}
                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
