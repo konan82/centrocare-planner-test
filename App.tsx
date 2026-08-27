@@ -4622,9 +4622,11 @@ function App() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
                 <input
                   type="number"
+                  step="0.5"
+                  min="0"
                   className={fieldCls}
                   value={newYouth.requiredHoursPerWeek ?? ''}
-                  onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                  onChange={e => setNewYouth({ ...newYouth, requiredHoursPerWeek: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
                 />
               </div>
               <div className="sm:col-span-2">
