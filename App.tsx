@@ -3673,8 +3673,8 @@ function App() {
                     const rtExecuted = rows.reduce((a, t) => a + cell[t.id][y.id].executed, 0);
                     const rtSaldo = rtExecuted - rtPlanned;
                     return (
-                      <tr key={y.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 pr-3 sticky left-0 bg-white z-10">
+                      <tr key={y.id} className={`hover:bg-slate-50 transition-colors ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : ''}`}>
+                        <td className={`py-2.5 pr-3 sticky left-0 z-10 ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : 'bg-white'}`}>
                           <span className="flex items-center gap-2.5 min-w-0">
                             <span className={`h-7 w-7 shrink-0 rounded-full ${getYouthColor(y.id, youths).bg} ${getYouthColor(y.id, youths).text} text-[11px] font-bold flex items-center justify-center`}>{getInitials(y.name)}</span>
                             <span className="font-semibold text-slate-700 truncate">{y.name}</span>
@@ -3702,7 +3702,7 @@ function App() {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold">
+                  <tr className={`border-t-2 border-slate-200 bg-gradient-to-r from-slate-50 to-white font-bold ${Math.abs(grandPlan - grandExec) > 0.005 ? 'animate-row-flash' : ''}`}>
                     <td className="py-3 pr-3 text-slate-700 sticky left-0 bg-gradient-to-r from-slate-50 to-white z-10">Totale</td>
                     {rows.map((t, ti) => {
                       const saldo = rowTot[ti].executed - rowTot[ti].planned;
