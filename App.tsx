@@ -3355,6 +3355,8 @@ function App() {
         let sm = 0;
         let dm = 0;
         let minWeeks = iv.weeks;
+        const singleYouths = new Set<string>();
+        const doubleYouths = new Set<string>();
         for (let m = iv.startMin; m < iv.endMin; m++) {
           const arr = minuteIntervals.get(iv.wd * 1440 + m) || [];
           const yc = new Set<string>();
@@ -3362,8 +3364,10 @@ function App() {
           if (yc.size >= 2) {
             dm++;
             arr.forEach(x => { if (x.weeks < minWeeks) minWeeks = x.weeks; });
+            yc.forEach(y => doubleYouths.add(y));
           } else {
             sm++;
+            arr.forEach(x => x.youths.forEach(y => singleYouths.add(y)));
           }
         }
         const singleH = sm / 60;
@@ -3380,6 +3384,8 @@ function App() {
           valid: iv.weeks,
           doubleValid: minWeeks,
           pay,
+          singleYouths: [...singleYouths],
+          doubleYouths: [...doubleYouths],
         };
       });
       shiftRows.sort((a, b) => (a.wd - b.wd) || (a.startMin - b.startMin));
@@ -3414,6 +3420,7 @@ function App() {
     const totBase = rows.reduce((a, r) => a + r.base, 0);
 
     const eur = (v: number) => `€ ${v.toFixed(2)}`;
+    const youthName = (id: string) => youths.find(y => y.id === id)?.name || '—';
     const ratesDirty =
       payRatesDraft.rateSingle !== payRates.rateSingle ||
       payRatesDraft.rateDouble !== payRates.rateDouble ||
@@ -3746,15 +3753,19 @@ function App() {
                                   type="button"
                                   onClick={() => downloadCsv(
                                     `breakdown_${r.tutor.name.replace(/[^\w]+/g, '_')}.csv`,
-                                    ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Formula', 'Paga parziale (€)'],
+                                    ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Ragazzo/i', 'Formula', 'Paga parziale (€)'],
                                     r.shiftRows.map(sr => {
                                       const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
                                       const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
+                                      const sNames = sr.singleYouths.map(youthName).join(', ');
+                                      const dNames = sr.doubleYouths.map(youthName).join(', ');
+                                      const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `S: ${sNames} | D: ${dNames}` : (sr.doubleH > 0 ? `D: ${dNames}` : sNames);
                                       return [
                                         `${sr.day} ${sr.time}`,
                                         sr.singleH.toFixed(2),
                                         sr.doubleH.toFixed(2),
                                         sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/${sr.doubleValid}` : String(dQ),
+                                        youthCell,
                                         `( ${sr.singleH.toFixed(2)} x ${rs} x ${sQ} ) + ( ${sr.doubleH.toFixed(2)} x ${rd} x ${dQ} )`,
                                         (sr.singleH * rs * sQ + sr.doubleH * rd * dQ).toFixed(2),
                                       ];
@@ -3775,6 +3786,7 @@ function App() {
                                         <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-amber-500 to-amber-600 border-r border-white/40">Singolo</th>
                                         <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-violet-500 to-violet-600 border-r border-white/40">Doppio</th>
                                         <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40">Validità</th>
+                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-emerald-600 to-green-700 border-r border-white/40">Ragazzo/i</th>
                                         <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-slate-700 to-slate-800 border-r border-white/40">Formula</th>
                                         <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-teal-600 to-emerald-600">Paga parz.</th>
                                       </tr>
@@ -3788,6 +3800,23 @@ function App() {
                                           <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-r border-slate-200 bg-sky-50/40" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
                                             {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
                                           </td>
+                                          <td className="px-3 py-2 border-r border-slate-200 bg-emerald-50/30">
+                                            <div className="flex flex-col gap-0.5">
+                                              {sr.singleH > 0 && (
+                                                <span className="inline-flex items-center gap-1.5">
+                                                  <span className="h-1.5 w-1.5 rounded-full bg-teal-500 inline-block shrink-0"></span>
+                                                  <span className="text-slate-600">{sr.singleYouths.map(youthName).join(', ')}</span>
+                                                </span>
+                                              )}
+                                              {sr.doubleH > 0 && (
+                                                <span className="inline-flex items-center gap-1.5">
+                                                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 inline-block shrink-0"></span>
+                                                  <span className="text-violet-700">{sr.doubleYouths.map(youthName).join(', ')}</span>
+                                                </span>
+                                              )}
+                                              {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">—</span>}
+                                            </div>
+                                          </td>
                                           <td className="px-3 py-2 text-slate-600 tabular-nums border-r border-slate-200">
                                             ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
                                             + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
@@ -3798,7 +3827,7 @@ function App() {
                                     </tbody>
                                     <tfoot>
                                       <tr className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
-                                        <td className="px-3 py-2 font-black uppercase tracking-wide text-[11px]" colSpan={4}>Totale (doppio non duplicato)</td>
+                                        <td className="px-3 py-2 font-black uppercase tracking-wide text-[11px]" colSpan={5}>Totale (doppio non duplicato)</td>
                                         <td className="px-3 py-2 text-right font-bold tabular-nums" colSpan={2}>{eur(r.base)}</td>
                                       </tr>
                                     </tfoot>
