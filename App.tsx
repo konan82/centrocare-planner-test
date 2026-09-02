@@ -3760,29 +3760,29 @@ function App() {
           </div>
           <div className="p-6">
             <div className="flex flex-wrap items-stretch gap-4">
-              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <span className="w-9 h-9 rounded-xl bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center text-amber-600 transition-colors shadow-sm">
+                  <span className="w-9 h-9 rounded-xl bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center text-orange-600 transition-colors shadow-sm">
                     <UserCheck size={18} />
                   </span>
                   <div>
-                    <span className="text-sm font-extrabold text-amber-700 uppercase tracking-wide block leading-tight">Singolo</span>
-                    <span className="text-[10px] text-amber-500 font-medium">Tariffa oraria</span>
+                    <span className="text-sm font-extrabold text-orange-700 uppercase tracking-wide block leading-tight">Singolo</span>
+                    <span className="text-[10px] text-orange-500 font-medium">Tariffa oraria</span>
                   </div>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 font-black text-2xl">€</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 font-black text-2xl">€</span>
                   <input
                     type="number"
                     min={0}
                     step={0.01}
-                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-amber-200 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition text-2xl font-black text-amber-700 tabular-nums placeholder:text-amber-300"
+                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-orange-200 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition text-2xl font-black text-orange-700 tabular-nums placeholder:text-orange-300"
                     placeholder="0.00"
                     value={payRatesDraft.rateSingle || ''}
                     onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   />
                 </div>
-                <span className="text-[11px] text-amber-500/70 mt-2 block font-medium">€/h per turno con 1 ragazzo</span>
+                <span className="text-[11px] text-orange-500/70 mt-2 block font-medium">€/h per turno con 1 ragazzo</span>
               </div>
 
               <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
