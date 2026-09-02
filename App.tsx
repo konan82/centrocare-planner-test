@@ -3826,7 +3826,7 @@ function App() {
             const sliceH = Math.min(remaining, pageH - margin * 2);
             const srcY = (img.height * offset) / imgH;
             const srcSliceH = (img.height * sliceH) / imgH;
-            pdf.addImage(dataUrl, 'PNG', margin, margin, contentW, sliceH, undefined, 'FAST', 0, srcY, contentW, srcSliceH);
+            pdf.addImage(dataUrl, 'PNG', margin, margin, contentW, sliceH, undefined, 'FAST', 0, srcY, img.width, srcSliceH);
             remaining -= sliceH;
             offset += sliceH;
             page++;
