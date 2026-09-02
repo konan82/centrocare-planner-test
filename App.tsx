@@ -3759,36 +3759,58 @@ function App() {
             </h3>
           </div>
           <div className="p-6">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[170px]">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Turno Singolo (€/h)</label>
+            <div className="flex flex-wrap items-stretch gap-4">
+              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="w-9 h-9 rounded-xl bg-amber-100 group-hover:bg-amber-200 flex items-center justify-center text-amber-600 transition-colors shadow-sm">
+                    <UserCheck size={18} />
+                  </span>
+                  <div>
+                    <span className="text-sm font-extrabold text-amber-700 uppercase tracking-wide block leading-tight">Singolo</span>
+                    <span className="text-[10px] text-amber-500 font-medium">Tariffa oraria</span>
+                  </div>
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">€</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 font-black text-2xl">€</span>
                   <input
                     type="number"
                     min={0}
                     step={0.01}
-                    className="w-full pl-7 pr-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
+                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-amber-200 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 transition text-2xl font-black text-amber-700 tabular-nums placeholder:text-amber-300"
+                    placeholder="0.00"
                     value={payRatesDraft.rateSingle || ''}
                     onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   />
                 </div>
+                <span className="text-[11px] text-amber-500/70 mt-2 block font-medium">€/h per turno con 1 ragazzo</span>
               </div>
-              <div className="flex-1 min-w-[170px]">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Turno Doppio (€/h)</label>
+
+              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="w-9 h-9 rounded-xl bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center text-violet-600 transition-colors shadow-sm">
+                    <Users size={18} />
+                  </span>
+                  <div>
+                    <span className="text-sm font-extrabold text-violet-700 uppercase tracking-wide block leading-tight">Doppio</span>
+                    <span className="text-[10px] text-violet-500 font-medium">Tariffa oraria</span>
+                  </div>
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">€</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 font-black text-2xl">€</span>
                   <input
                     type="number"
                     min={0}
                     step={0.01}
-                    className="w-full pl-7 pr-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
+                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-violet-200 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 transition text-2xl font-black text-violet-700 tabular-nums placeholder:text-violet-300"
+                    placeholder="0.00"
                     value={payRatesDraft.rateDouble || ''}
                     onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   />
                 </div>
+                <span className="text-[11px] text-violet-500/70 mt-2 block font-medium">€/h per turno con 2+ ragazzi</span>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+
+              <div className="flex items-center shrink-0">
                 <button
                   onClick={handleSavePayRates}
                   disabled={paySaving || !ratesDirty}
