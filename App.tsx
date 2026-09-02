@@ -3318,14 +3318,17 @@ function App() {
           const h = getH(s.startTime, s.endTime);
           if (h <= 0) return null;
           return {
+            id: s.id,
             wd: s.templateWeekday || weekdayOf(s.date),
             startMin: toMin(s.startTime),
             endMin: toMin(s.endTime),
+            startTime: s.startTime,
+            endTime: s.endTime,
             youths: new Set(shiftYouthIds(s)),
             weeks: s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : weeks,
           };
         })
-        .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string>; weeks: number } => x !== null);
+        .filter((x): x is { id: string; wd: number; startMin: number; endMin: number; startTime: string; endTime: string; youths: Set<string>; weeks: number } => x !== null);
       // Per ogni minuto (giorno+orario), elenco dei turni che lo coprono
       const minuteIntervals = new Map<number, typeof intervals>();
       intervals.forEach(iv => {
@@ -3342,6 +3345,40 @@ function App() {
       let doubleHW = 0; // ore doppie × validità minima (per media ponderata)
       const details: string[] = [];
       const dayLabel = (wd: number) => ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][wd] || `Giorno ${wd}`;
+      const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      // Tabella per turno: per ogni turno attribuisci i minuti singoli/doppi e calcola la
+      // paga parziale. Il doppio pesa sulla validità MINIMA dei turni sovrapposti (opzione C).
+      const shiftRows = intervals.map(iv => {
+        let sm = 0;
+        let dm = 0;
+        let minWeeks = iv.weeks;
+        for (let m = iv.startMin; m < iv.endMin; m++) {
+          const arr = minuteIntervals.get(iv.wd * 1440 + m) || [];
+          const yc = new Set<string>();
+          arr.forEach(x => x.youths.forEach(y => yc.add(y)));
+          if (yc.size >= 2) {
+            dm++;
+            arr.forEach(x => { if (x.weeks < minWeeks) minWeeks = x.weeks; });
+          } else {
+            sm++;
+          }
+        }
+        const singleH = sm / 60;
+        const doubleH = dm / 60;
+        const pay = (singleH * rs * iv.weeks) + (doubleH * rd * minWeeks);
+        return {
+          wd: iv.wd,
+          startMin: iv.startMin,
+          day: dayLabel(iv.wd),
+          time: `${iv.startTime}–${iv.endTime}`,
+          singleH,
+          doubleH,
+          valid: iv.weeks,
+          doubleValid: minWeeks,
+          pay,
+        };
+      });
+      shiftRows.sort((a, b) => (a.wd - b.wd) || (a.startMin - b.startMin));
       const reducedSeen = new Set<number>();
       intervals.forEach(iv => { if (iv.weeks !== weeks && !reducedSeen.has(iv.wd)) { reducedSeen.add(iv.wd); details.push(`${dayLabel(iv.wd)} · turno valido ${iv.weeks} settimane`); } });
       minuteIntervals.forEach(arr => {
@@ -3366,7 +3403,7 @@ function App() {
       const doubleWeeks = wDouble > 0 ? doubleHW / (wDouble * 60) : 0; // media ponderata sulle ore
 
       const base = paySingle + payDouble;
-      return { tutor: t, wSingle, wDouble, paySingle, payDouble, singleWeeks, doubleWeeks, base, details };
+      return { tutor: t, wSingle, wDouble, paySingle, payDouble, singleWeeks, doubleWeeks, base, details, shiftRows };
     });
 
     const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
@@ -3605,6 +3642,38 @@ function App() {
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Totale</div>
                                 <div className="font-bold text-teal-700 tabular-nums">{eur(r.base)}</div>
                                 <div className="text-[10px] text-slate-400">già pesato per la validità</div>
+                              </div>
+                            </div>
+                            <div className="mt-2">
+                              <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Pagine parziali per turno</div>
+                              <div className="overflow-x-auto rounded-lg border border-lime-200 bg-white">
+                                <table className="w-full text-[11px] whitespace-nowrap">
+                                  <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase tracking-wide text-slate-500">
+                                      <th className="px-2 py-1 text-left font-semibold">Turno</th>
+                                      <th className="px-2 py-1 text-right font-semibold">Sing.</th>
+                                      <th className="px-2 py-1 text-right font-semibold">Dopp.</th>
+                                      <th className="px-2 py-1 text-right font-semibold">Valid.</th>
+                                      <th className="px-2 py-1 text-right font-semibold">Paga parziale</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {r.shiftRows.map((sr, i) => (
+                                      <tr key={i}>
+                                        <td className="px-2 py-1 text-slate-600">{sr.day} {sr.time}</td>
+                                        <td className="px-2 py-1 text-right tabular-nums text-slate-700">{sr.singleH.toFixed(2)}h</td>
+                                        <td className="px-2 py-1 text-right tabular-nums text-violet-600">{sr.doubleH.toFixed(2)}h</td>
+                                        <td className="px-2 py-1 text-right tabular-nums text-slate-600" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
+                                          {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
+                                        </td>
+                                        <td className="px-2 py-1 text-right tabular-nums font-semibold text-teal-700"
+                                            title={`(${sr.singleH.toFixed(2)} × ${rs} × ${sr.singleH > 0 ? sr.valid : sr.doubleValid}) + (${sr.doubleH.toFixed(2)} × ${rd} × ${sr.doubleH > 0 ? sr.doubleValid : sr.valid})`}>
+                                          {eur(sr.pay)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
                               </div>
                             </div>
                             {r.details.length > 0 && (
