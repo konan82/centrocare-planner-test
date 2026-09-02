@@ -854,6 +854,7 @@ function App() {
   const [showPayHelp, setShowPayHelp] = useState(false);
   const [payDetailTutor, setPayDetailTutor] = useState<string | null>(null);
   const [zoomPayTutor, setZoomPayTutor] = useState<string | null>(null);
+  const [zoomPayTableTutor, setZoomPayTableTutor] = useState<string | null>(null);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3457,9 +3458,9 @@ function App() {
       const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
       const ROW_H = 44 * scale;
       const COL_W = 66 * scale;
-      const TZ = scale >= 1.6 ? 13 : 9; // font asse orari
-      const TC = scale >= 1.6 ? 13 : 9; // font intestazione giorno
-      const TB = scale >= 1.6 ? 11 : 8; // font blocco
+      const TZ = scale >= 1.6 ? 15 : 9; // font asse orari
+      const TC = scale >= 1.6 ? 15 : 9; // font intestazione giorno
+      const TB = scale >= 1.6 ? 13 : 8; // font blocco
       if (!r.shiftRows.length) return null;
       const minStart = Math.min(...r.shiftRows.map(s => s.startMin));
       const maxEnd = Math.max(...r.shiftRows.map(s => s.endMin));
@@ -3471,9 +3472,9 @@ function App() {
       const blocksPerDay = DAYS.map((_, dIdx) => r.shiftRows.filter(s => s.wd === dIdx + 1));
       return (
         <div className="flex gap-1.5 items-start">
-          <div className="relative select-none shrink-0" style={{ width: 46 * scale, height: (totalMin / 30) * ROW_H }}>
+          <div className="relative select-none shrink-0" style={{ width: 56 * scale, height: (totalMin / 30) * ROW_H }}>
             {timeAxis.map((t, i) => (
-              <div key={i} className="absolute right-1 leading-none text-slate-400 tabular-nums" style={{ top: ((t - start) / 30) * ROW_H - 5, fontSize: TZ }}>
+              <div key={i} className="absolute right-0 w-full text-right leading-none text-slate-500 tabular-nums px-1" style={{ top: ((t - start) / 30) * ROW_H - (TZ / 2), fontSize: TZ }}>
                 {fmt(t)}
               </div>
             ))}
@@ -3490,8 +3491,8 @@ function App() {
                   <div key={i} className="absolute left-0.5 right-0.5 overflow-hidden rounded"
                        style={{ top: top + 5, height: Math.max(h - 5, 18 * scale), zIndex: 5 }}
                        title={`${s.day} ${s.time} · sing. ${s.singleH.toFixed(2)}h · dopp. ${s.doubleH.toFixed(2)}h · valid. ${dbl ? s.doubleValid : s.valid} sett.`}>
-                    <div className={`h-full rounded px-1 leading-tight text-white shadow-sm ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`} style={{ fontSize: TB }}>
-                      <div className="font-bold" style={{ paddingTop: scale >= 1.6 ? 2 : 0 }}>{s.time}</div>
+                    <div className={`h-full rounded px-1 leading-snug text-white shadow-sm flex flex-col justify-center items-center text-center ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`} style={{ fontSize: TB }}>
+                      <div className="font-bold" style={{ paddingTop: scale >= 1.6 ? 3 : 0 }}>{s.time}</div>
                       {dbl && <div className="font-extrabold">Dopp.</div>}
                       <div>{dbl ? `min ${s.doubleValid} sett.` : `${s.valid} sett.`}</div>
                     </div>
@@ -3501,6 +3502,68 @@ function App() {
             </div>
           ))}
         </div>
+      );
+    };
+
+    const payTable = (r: typeof rows[number], big = false) => {
+      const pad = big ? 'px-5 py-3' : 'px-3 py-2';
+      const padTh = big ? 'px-5 py-4' : 'px-3 py-2.5';
+      const thFont = big ? 'text-base' : 'text-[11px]';
+      const bodyFont = big ? 'text-base' : 'text-sm';
+      return (
+        <table className={`whitespace-nowrap border-collapse ${big ? 'min-w-max' : ''}`}>
+          <thead>
+            <tr className="text-white uppercase">
+              <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-teal-600 to-emerald-600 border-r border-white/40`}>Turno</th>
+              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-amber-500 to-amber-600 border-r border-white/40`}>Singolo</th>
+              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-violet-500 to-violet-600 border-r border-white/40`}>Doppio</th>
+              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40`}>Validità</th>
+              <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-emerald-600 to-green-700 border-r border-white/40`}>Ragazzo/i</th>
+              <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-slate-700 to-slate-800 border-r border-white/40`}>Formula</th>
+              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-teal-600 to-emerald-600`}>Paga parz.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.shiftRows.map((sr, i) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                <td className={`${pad} text-slate-700 font-medium border-r border-slate-200 ${bodyFont}`}>{sr.day} {sr.time}</td>
+                <td className={`${pad} text-right tabular-nums text-slate-700 border-r border-slate-200 bg-amber-50/40 ${bodyFont}`}>{sr.singleH.toFixed(2)}h</td>
+                <td className={`${pad} text-right tabular-nums text-violet-600 border-r border-slate-200 bg-violet-50/40 ${bodyFont}`}>{sr.doubleH.toFixed(2)}h</td>
+                <td className={`${pad} text-right tabular-nums text-slate-600 border-r border-slate-200 bg-sky-50/40 ${bodyFont}`} title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
+                  {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
+                </td>
+                <td className={`${pad} border-r border-slate-200 bg-emerald-50/30 ${bodyFont}`}>
+                  <div className="flex flex-col gap-0.5">
+                    {sr.singleH > 0 && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-teal-500 inline-block shrink-0"></span>
+                        <span className="text-slate-600">{sr.singleYouths.map(youthName).join(', ')}</span>
+                      </span>
+                    )}
+                    {sr.doubleH > 0 && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-violet-500 inline-block shrink-0"></span>
+                        <span className="text-violet-700">{sr.doubleYouths.map(youthName).join(', ')}</span>
+                      </span>
+                    )}
+                    {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">—</span>}
+                  </div>
+                </td>
+                <td className={`${pad} text-slate-600 tabular-nums border-r border-slate-200 ${bodyFont}`}>
+                  ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
+                  + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
+                </td>
+                <td className={`${pad} text-right tabular-nums font-bold text-teal-700 ${bodyFont}`}>{eur(sr.pay)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+              <td className={`${pad} font-black uppercase tracking-wide ${big ? 'text-sm' : 'text-[11px]'}`} colSpan={5}>Totale (doppio non duplicato)</td>
+              <td className={`${pad} text-right font-bold tabular-nums ${big ? 'text-base' : ''}`} colSpan={2}>{eur(r.base)}</td>
+            </tr>
+          </tfoot>
+        </table>
       );
     };
 
@@ -3771,67 +3834,19 @@ function App() {
                                       ];
                                     }),
                                   )}
-                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-md px-2 py-1 transition-colors"
+                                  className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 rounded-lg px-3 py-1.5 shadow-sm transition-all active:scale-95"
                                   title="Scarica il breakdown di questo tutor in formato CSV"
                                 >
-                                  <Download size={12} /> Scarica CSV
+                                  <Download size={15} /> Scarica CSV
                                 </button>
                               </div>
                               <div className="flex flex-col lg:flex-row gap-4 items-start overflow-x-auto">
-                                <div className="rounded-lg border border-lime-300 bg-white shrink-0 overflow-hidden shadow-sm">
-                                  <table className="text-sm whitespace-nowrap border-collapse">
-                                    <thead>
-                                      <tr className="text-white uppercase">
-                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-teal-600 to-emerald-600 border-r border-white/40">Turno</th>
-                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-amber-500 to-amber-600 border-r border-white/40">Singolo</th>
-                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-violet-500 to-violet-600 border-r border-white/40">Doppio</th>
-                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40">Validità</th>
-                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-emerald-600 to-green-700 border-r border-white/40">Ragazzo/i</th>
-                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-slate-700 to-slate-800 border-r border-white/40">Formula</th>
-                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-teal-600 to-emerald-600">Paga parz.</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {r.shiftRows.map((sr, i) => (
-                                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                          <td className="px-3 py-2 text-slate-700 font-medium border-r border-slate-200">{sr.day} {sr.time}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-slate-700 border-r border-slate-200 bg-amber-50/40">{sr.singleH.toFixed(2)}h</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-violet-600 border-r border-slate-200 bg-violet-50/40">{sr.doubleH.toFixed(2)}h</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-r border-slate-200 bg-sky-50/40" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
-                                            {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
-                                          </td>
-                                          <td className="px-3 py-2 border-r border-slate-200 bg-emerald-50/30">
-                                            <div className="flex flex-col gap-0.5">
-                                              {sr.singleH > 0 && (
-                                                <span className="inline-flex items-center gap-1.5">
-                                                  <span className="h-1.5 w-1.5 rounded-full bg-teal-500 inline-block shrink-0"></span>
-                                                  <span className="text-slate-600">{sr.singleYouths.map(youthName).join(', ')}</span>
-                                                </span>
-                                              )}
-                                              {sr.doubleH > 0 && (
-                                                <span className="inline-flex items-center gap-1.5">
-                                                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 inline-block shrink-0"></span>
-                                                  <span className="text-violet-700">{sr.doubleYouths.map(youthName).join(', ')}</span>
-                                                </span>
-                                              )}
-                                              {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">—</span>}
-                                            </div>
-                                          </td>
-                                          <td className="px-3 py-2 text-slate-600 tabular-nums border-r border-slate-200">
-                                            ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
-                                            + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
-                                          </td>
-                                          <td className="px-3 py-2 text-right tabular-nums font-bold text-teal-700">{eur(sr.pay)}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                    <tfoot>
-                                      <tr className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
-                                        <td className="px-3 py-2 font-black uppercase tracking-wide text-[11px]" colSpan={5}>Totale (doppio non duplicato)</td>
-                                        <td className="px-3 py-2 text-right font-bold tabular-nums" colSpan={2}>{eur(r.base)}</td>
-                                      </tr>
-                                    </tfoot>
-                                  </table>
+                                <div
+                                  className="rounded-lg border border-lime-300 bg-white shrink-0 overflow-hidden shadow-sm cursor-zoom-in hover:ring-2 hover:ring-lime-400 transition-shadow"
+                                  onClick={() => setZoomPayTableTutor(r.tutor.id)}
+                                  title="Clicca per ingrandire la tabella"
+                                >
+                                  {payTable(r)}
                                   <p className="px-3 py-1.5 text-[10px] text-slate-400 bg-white border-t border-slate-100">
                                     Nota: nel Totale le ore doppie sovrapposte sono contate <b>una sola volta</b>. La somma delle singole
                                     righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) può risultare più alta perché la stessa ora doppia
@@ -3845,9 +3860,9 @@ function App() {
                                       type="button"
                                       onClick={() => setZoomPayTutor(r.tutor.id)}
                                       title="Ingrandisci il calendario"
-                                      className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-md px-1.5 py-0.5 transition-colors"
+                                      className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 rounded-lg px-3 py-1.5 shadow-sm transition-all active:scale-95"
                                     >
-                                      <Maximize2 size={12} /> Ingrandisci
+                                      <Maximize2 size={16} /> Ingrandisci
                                     </button>
                                   </div>
                                   <button type="button" onClick={() => setZoomPayTutor(r.tutor.id)} title="Clicca per ingrandire" className="block cursor-zoom-in">
@@ -3926,6 +3941,37 @@ function App() {
                   <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-violet-500 inline-block"></span> doppio</span>
                   <span className="inline-flex items-center gap-1.5 text-slate-400">· passa il mouse su un turno per i dettagli</span>
                 </div>
+              </div>
+            </div>
+          );
+        })()}
+        {(() => {
+          const zoomed = rows.find(x => x.tutor.id === zoomPayTableTutor);
+          if (!zoomed) return null;
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setZoomPayTableTutor(null)} />
+              <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-full max-h-[90vh] overflow-auto">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-slate-800">{zoomed.tutor.name}</span>
+                    <span className="text-sm text-slate-500">· dettaglio paga · click sulla tabella per ingrandire</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setZoomPayTableTutor(null)}
+                    className="shrink-0 p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                    title="Chiudi"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="rounded-lg border border-lime-300 bg-white overflow-hidden shadow-sm">{payTable(zoomed, true)}</div>
+                <p className="mt-3 px-3 py-1.5 text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-lg">
+                  Nota: nel Totale le ore doppie sovrapposte sono contate <b>una sola volta</b>. La somma delle singole
+                  righe ({eur(zoomed.shiftRows.reduce((a, s) => a + s.pay, 0))}) può risultare più alta perché la stessa ora doppia
+                  appare in più turni.
+                </p>
               </div>
             </div>
           );
