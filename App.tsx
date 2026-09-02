@@ -3369,6 +3369,7 @@ function App() {
         return {
           wd: iv.wd,
           startMin: iv.startMin,
+          endMin: iv.endMin,
           day: dayLabel(iv.wd),
           time: `${iv.startTime}–${iv.endTime}`,
           singleH,
@@ -3439,6 +3440,53 @@ function App() {
             <Arrow size={12} className={active ? 'opacity-100' : 'opacity-0'} />
           </button>
         </th>
+      );
+    };
+
+    const miniCalendar = (r: { shiftRows: { wd: number; startMin: number; endMin: number; time: string; singleH: number; doubleH: number; valid: number; doubleValid: number; day: string }[] }) => {
+      const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+      const ROW_H = 44;
+      if (!r.shiftRows.length) return null;
+      const minStart = Math.min(...r.shiftRows.map(s => s.startMin));
+      const maxEnd = Math.max(...r.shiftRows.map(s => s.endMin));
+      const start = Math.floor(minStart / 30) * 30;
+      const end = Math.max(start + 60, Math.ceil(maxEnd / 30) * 30);
+      const totalMin = end - start;
+      const timeAxis = Array.from({ length: totalMin / 30 + 1 }, (_, i) => start + i * 30);
+      const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      const blocksPerDay = DAYS.map((_, dIdx) => r.shiftRows.filter(s => s.wd === dIdx + 1));
+      return (
+        <div className="flex gap-1.5 items-start">
+          <div className="relative select-none" style={{ width: 40, height: (totalMin / 30) * ROW_H }}>
+            {timeAxis.map((t, i) => (
+              <div key={i} className="absolute right-1 leading-none text-[9px] text-slate-400 tabular-nums" style={{ top: ((t - start) / 30) * ROW_H - 5 }}>
+                {fmt(t)}
+              </div>
+            ))}
+          </div>
+          {blocksPerDay.map((shifts, dIdx) => (
+            <div key={dIdx} className="relative border border-slate-200 rounded-md overflow-hidden shrink-0"
+                 style={{ width: 66, height: (totalMin / 30) * ROW_H, background: 'repeating-linear-gradient(to bottom, #f8fafc 0 43px, #e2e8f0 43px 44px)' }}>
+              <div className="absolute top-0 inset-x-0 text-center text-[9px] font-bold bg-slate-100 text-slate-500 py-0.5 z-10">{DAYS[dIdx]}</div>
+              {shifts.map((s, i) => {
+                const top = ((s.startMin - start) / 30) * ROW_H;
+                const h = ((s.endMin - s.startMin) / 30) * ROW_H;
+                const dbl = s.doubleH > 0;
+                return (
+                  <div key={i} className="absolute left-0.5 right-0.5 overflow-hidden rounded px-0.5"
+                       style={{ top: top + 5, height: Math.max(h - 5, 18), zIndex: 5 }}
+                       title={`${s.day} ${s.time} · sing. ${s.singleH.toFixed(2)}h · dopp. ${s.doubleH.toFixed(2)}h · valid. ${dbl ? s.doubleValid : s.valid} sett.`}>
+                    <div className={`h-full rounded px-1 py-0.5 text-[8px] leading-tight text-white shadow-sm ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`}>
+                      <div className="font-bold">{s.time}</div>
+                      {dbl && <div className="font-extrabold">Dopp.</div>}
+                      <div>{dbl ? `min ${s.doubleValid} sett.` : `${s.valid} sett.`}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       );
     };
 
@@ -3645,36 +3693,46 @@ function App() {
                             </div>
                             <div className="mt-2">
                               <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Pagine parziali per turno</div>
-                              <div className="overflow-x-auto rounded-lg border border-lime-200 bg-white">
-                                <table className="w-full text-sm whitespace-nowrap">
-                                  <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                                      <th className="px-3 py-2 text-left font-semibold">Turno</th>
-                                      <th className="px-3 py-2 text-right font-semibold">Sing.</th>
-                                      <th className="px-3 py-2 text-right font-semibold">Dopp.</th>
-                                      <th className="px-3 py-2 text-right font-semibold">Valid.</th>
-                                      <th className="px-3 py-2 text-left font-semibold">Formula</th>
-                                      <th className="px-3 py-2 text-right font-semibold">Paga parziale</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100">
-                                    {r.shiftRows.map((sr, i) => (
-                                      <tr key={i} className="odd:bg-white even:bg-slate-50/50">
-                                        <td className="px-3 py-2 text-slate-700 font-medium">{sr.day} {sr.time}</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-slate-700">{sr.singleH.toFixed(2)}h</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-violet-600">{sr.doubleH.toFixed(2)}h</td>
-                                        <td className="px-3 py-2 text-right tabular-nums text-slate-600" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
-                                          {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
-                                        </td>
-                                        <td className="px-3 py-2 text-slate-600 tabular-nums">
-                                          ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
-                                          + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
-                                        </td>
-                                        <td className="px-3 py-2 text-right tabular-nums font-bold text-teal-700">{eur(sr.pay)}</td>
+                              <div className="flex flex-col lg:flex-row gap-4 items-start">
+                                <div className="overflow-x-auto rounded-lg border border-lime-200 bg-white min-w-0 flex-1">
+                                  <table className="w-full text-sm whitespace-nowrap">
+                                    <thead>
+                                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
+                                        <th className="px-3 py-2 text-left font-semibold">Turno</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Sing.</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Dopp.</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Valid.</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Formula</th>
+                                        <th className="px-3 py-2 text-right font-semibold">Paga parziale</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                      {r.shiftRows.map((sr, i) => (
+                                        <tr key={i} className="odd:bg-white even:bg-slate-50/50">
+                                          <td className="px-3 py-2 text-slate-700 font-medium">{sr.day} {sr.time}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-slate-700">{sr.singleH.toFixed(2)}h</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-violet-600">{sr.doubleH.toFixed(2)}h</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-slate-600" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
+                                            {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
+                                          </td>
+                                          <td className="px-3 py-2 text-slate-600 tabular-nums">
+                                            ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
+                                            + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
+                                          </td>
+                                          <td className="px-3 py-2 text-right tabular-nums font-bold text-teal-700">{eur(sr.pay)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div className="shrink-0">
+                                  <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Settimana tipo</div>
+                                  <div className="overflow-x-auto">{miniCalendar(r)}</div>
+                                  <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+                                    <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block"></span> singolo</span>
+                                    <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block"></span> doppio</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                             {r.details.length > 0 && (
