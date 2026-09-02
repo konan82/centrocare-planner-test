@@ -3796,7 +3796,18 @@ function App() {
                                         </tr>
                                       ))}
                                     </tbody>
+                                    <tfoot>
+                                      <tr className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+                                        <td className="px-3 py-2 font-black uppercase tracking-wide text-[11px]" colSpan={4}>Totale (doppio non duplicato)</td>
+                                        <td className="px-3 py-2 text-right font-bold tabular-nums" colSpan={2}>{eur(r.base)}</td>
+                                      </tr>
+                                    </tfoot>
                                   </table>
+                                  <p className="px-3 py-1.5 text-[10px] text-slate-400 bg-white border-t border-slate-100">
+                                    Nota: nel Totale le ore doppie sovrapposte sono contate <b>una sola volta</b>. La somma delle singole
+                                    righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) può risultare più alta perché la stessa ora doppia
+                                    appare in più turni.
+                                  </p>
                                 </div>
                                 <div className="shrink-0">
                                   <div className="flex items-center justify-between mb-1">
