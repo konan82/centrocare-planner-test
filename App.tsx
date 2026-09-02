@@ -59,7 +59,7 @@ import { analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
-import html2pdf from 'html2pdf.js';
+import { jsPDF } from 'jspdf';
 
 const waHref = (phone: string) => {
   let digits = (phone || '').replace(/\D/g, '');
@@ -3806,14 +3806,37 @@ function App() {
       html += `<div style="margin-top:20px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">Generato da CentroCare Planner \u2014 ${new Date().toLocaleDateString('it-IT')}</div>`;
       el.innerHTML = html;
       document.body.appendChild(el);
-      html2pdf().set({
-        margin: [10, 10, 14, 10],
-        filename: `report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, windowWidth: 794, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] },
-      }).from(el).save().then(() => document.body.removeChild(el)).catch(() => { if (el.parentNode) el.parentNode.removeChild(el); });
+      const makePdf = async () => {
+        try {
+          const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true, width: 794 });
+          const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 8;
+          const contentW = pageW - margin * 2;
+          const img = new Image();
+          img.src = dataUrl;
+          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+          const imgH = (img.height * contentW) / img.width;
+          let remaining = imgH;
+          let offset = 0;
+          let page = 0;
+          while (remaining > 0) {
+            if (page > 0) pdf.addPage();
+            const sliceH = Math.min(remaining, pageH - margin * 2);
+            const srcY = (img.height * offset) / imgH;
+            const srcSliceH = (img.height * sliceH) / imgH;
+            pdf.addImage(dataUrl, 'PNG', margin, margin, contentW, sliceH, undefined, 'FAST', 0, srcY, contentW, srcSliceH);
+            remaining -= sliceH;
+            offset += sliceH;
+            page++;
+          }
+          pdf.save(`report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`);
+        } finally {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }
+      };
+      makePdf();
     };
 
     return (
