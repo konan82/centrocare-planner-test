@@ -48,7 +48,8 @@ import {
   Sunrise,
   Sunset,
   CalendarRange,
-  CalendarClock
+  CalendarClock,
+  Maximize2
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
@@ -851,6 +852,7 @@ function App() {
   const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'total' | null; dir: 'asc' | 'desc' }>({ key: 'tutor', dir: 'asc' });
   const [showPayHelp, setShowPayHelp] = useState(false);
   const [payDetailTutor, setPayDetailTutor] = useState<string | null>(null);
+  const [zoomPayTutor, setZoomPayTutor] = useState<string | null>(null);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3443,9 +3445,13 @@ function App() {
       );
     };
 
-    const miniCalendar = (r: { shiftRows: { wd: number; startMin: number; endMin: number; time: string; singleH: number; doubleH: number; valid: number; doubleValid: number; day: string }[] }) => {
+    const miniCalendar = (r: { shiftRows: { wd: number; startMin: number; endMin: number; time: string; singleH: number; doubleH: number; valid: number; doubleValid: number; day: string }[] }, scale = 1) => {
       const DAYS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-      const ROW_H = 44;
+      const ROW_H = 44 * scale;
+      const COL_W = 66 * scale;
+      const TZ = scale >= 1.6 ? 13 : 9; // font asse orari
+      const TC = scale >= 1.6 ? 13 : 9; // font intestazione giorno
+      const TB = scale >= 1.6 ? 11 : 8; // font blocco
       if (!r.shiftRows.length) return null;
       const minStart = Math.min(...r.shiftRows.map(s => s.startMin));
       const maxEnd = Math.max(...r.shiftRows.map(s => s.endMin));
@@ -3457,27 +3463,27 @@ function App() {
       const blocksPerDay = DAYS.map((_, dIdx) => r.shiftRows.filter(s => s.wd === dIdx + 1));
       return (
         <div className="flex gap-1.5 items-start">
-          <div className="relative select-none" style={{ width: 40, height: (totalMin / 30) * ROW_H }}>
+          <div className="relative select-none shrink-0" style={{ width: 46 * scale, height: (totalMin / 30) * ROW_H }}>
             {timeAxis.map((t, i) => (
-              <div key={i} className="absolute right-1 leading-none text-[9px] text-slate-400 tabular-nums" style={{ top: ((t - start) / 30) * ROW_H - 5 }}>
+              <div key={i} className="absolute right-1 leading-none text-slate-400 tabular-nums" style={{ top: ((t - start) / 30) * ROW_H - 5, fontSize: TZ }}>
                 {fmt(t)}
               </div>
             ))}
           </div>
           {blocksPerDay.map((shifts, dIdx) => (
             <div key={dIdx} className="relative border border-slate-200 rounded-md overflow-hidden shrink-0"
-                 style={{ width: 66, height: (totalMin / 30) * ROW_H, background: 'repeating-linear-gradient(to bottom, #f8fafc 0 43px, #e2e8f0 43px 44px)' }}>
-              <div className="absolute top-0 inset-x-0 text-center text-[9px] font-bold bg-slate-100 text-slate-500 py-0.5 z-10">{DAYS[dIdx]}</div>
+                 style={{ width: COL_W, height: (totalMin / 30) * ROW_H, background: 'repeating-linear-gradient(to bottom, #f8fafc 0 ' + (44 * scale - 1) + 'px, #e2e8f0 ' + (44 * scale - 1) + 'px ' + (44 * scale) + 'px)' }}>
+              <div className="absolute top-0 inset-x-0 text-center font-bold bg-slate-100 text-slate-500 z-10" style={{ fontSize: TC, paddingTop: 2, paddingBottom: 2 }}>{DAYS[dIdx]}</div>
               {shifts.map((s, i) => {
                 const top = ((s.startMin - start) / 30) * ROW_H;
                 const h = ((s.endMin - s.startMin) / 30) * ROW_H;
                 const dbl = s.doubleH > 0;
                 return (
-                  <div key={i} className="absolute left-0.5 right-0.5 overflow-hidden rounded px-0.5"
-                       style={{ top: top + 5, height: Math.max(h - 5, 18), zIndex: 5 }}
+                  <div key={i} className="absolute left-0.5 right-0.5 overflow-hidden rounded"
+                       style={{ top: top + 5, height: Math.max(h - 5, 18 * scale), zIndex: 5 }}
                        title={`${s.day} ${s.time} · sing. ${s.singleH.toFixed(2)}h · dopp. ${s.doubleH.toFixed(2)}h · valid. ${dbl ? s.doubleValid : s.valid} sett.`}>
-                    <div className={`h-full rounded px-1 py-0.5 text-[8px] leading-tight text-white shadow-sm ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`}>
-                      <div className="font-bold">{s.time}</div>
+                    <div className={`h-full rounded px-1 leading-tight text-white shadow-sm ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`} style={{ fontSize: TB }}>
+                      <div className="font-bold" style={{ paddingTop: scale >= 1.6 ? 2 : 0 }}>{s.time}</div>
                       {dbl && <div className="font-extrabold">Dopp.</div>}
                       <div>{dbl ? `min ${s.doubleValid} sett.` : `${s.valid} sett.`}</div>
                     </div>
@@ -3746,8 +3752,20 @@ function App() {
                                   </table>
                                 </div>
                                 <div className="shrink-0">
-                                  <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Settimana tipo</div>
-                                  <div className="overflow-x-auto">{miniCalendar(r)}</div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Settimana tipo</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setZoomPayTutor(r.tutor.id)}
+                                      title="Ingrandisci il calendario"
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 rounded-md px-1.5 py-0.5 transition-colors"
+                                    >
+                                      <Maximize2 size={12} /> Ingrandisci
+                                    </button>
+                                  </div>
+                                  <button type="button" onClick={() => setZoomPayTutor(r.tutor.id)} title="Clicca per ingrandire" className="block cursor-zoom-in">
+                                    <div className="overflow-x-auto">{miniCalendar(r)}</div>
+                                  </button>
                                   <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
                                     <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block"></span> singolo</span>
                                     <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block"></span> doppio</span>
@@ -3793,6 +3811,38 @@ function App() {
             "Settimane / mese" se non diversa). Per le fasce doppie sovrapposte vale la validità minima.
           </p>
         </Card>
+
+        {(() => {
+          const zoomed = rows.find(x => x.tutor.id === zoomPayTutor);
+          if (!zoomed) return null;
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setZoomPayTutor(null)} />
+              <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-full max-h-[90vh] overflow-auto">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-slate-800">{zoomed.tutor.name}</span>
+                    <span className="text-sm text-slate-500">· settimana tipo · click sul calendario per ingrandire</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setZoomPayTutor(null)}
+                    className="shrink-0 p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                    title="Chiudi"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="overflow-x-auto">{miniCalendar(zoomed, 1.9)}</div>
+                <div className="mt-3 flex items-center gap-4 text-sm text-slate-600">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-teal-500 inline-block"></span> singolo</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-violet-500 inline-block"></span> doppio</span>
+                  <span className="inline-flex items-center gap-1.5 text-slate-400">· passa il mouse su un turno per i dettagli</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   };
