@@ -3810,35 +3810,45 @@ function App() {
                               </div>
                             </div>
                             <div className="mt-2">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Pagine parziali per turno</span>
-                                <button
-                                  type="button"
-                                  onClick={() => downloadCsv(
-                                    `breakdown_${r.tutor.name.replace(/[^\w]+/g, '_')}.csv`,
-                                    ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Ragazzo/i', 'Formula', 'Paga parziale (€)'],
-                                    r.shiftRows.map(sr => {
-                                      const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
-                                      const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
-                                      const sNames = sr.singleYouths.map(youthName).join(', ');
-                                      const dNames = sr.doubleYouths.map(youthName).join(', ');
-                                      const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `S: ${sNames} | D: ${dNames}` : (sr.doubleH > 0 ? `D: ${dNames}` : sNames);
-                                      return [
-                                        `${sr.day} ${sr.time}`,
-                                        sr.singleH.toFixed(2),
-                                        sr.doubleH.toFixed(2),
-                                        sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/${sr.doubleValid}` : String(dQ),
-                                        youthCell,
-                                        `( ${sr.singleH.toFixed(2)} x ${rs} x ${sQ} ) + ( ${sr.doubleH.toFixed(2)} x ${rd} x ${dQ} )`,
-                                        (sr.singleH * rs * sQ + sr.doubleH * rd * dQ).toFixed(2),
-                                      ];
-                                    }),
-                                  )}
-                                  className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 rounded-lg px-3 py-1.5 shadow-sm transition-all active:scale-95"
-                                  title="Scarica il breakdown di questo tutor in formato CSV"
-                                >
-                                  <Download size={15} /> Scarica CSV
-                                </button>
+                              <div className="flex items-center justify-between gap-3 mb-1.5 flex-wrap">
+                                <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Dettaglio per turno e settimana tipo</span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadCsv(
+                                      `breakdown_${r.tutor.name.replace(/[^\w]+/g, '_')}.csv`,
+                                      ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Ragazzo/i', 'Formula', 'Paga parziale (€)'],
+                                      r.shiftRows.map(sr => {
+                                        const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
+                                        const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
+                                        const sNames = sr.singleYouths.map(youthName).join(', ');
+                                        const dNames = sr.doubleYouths.map(youthName).join(', ');
+                                        const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `S: ${sNames} | D: ${dNames}` : (sr.doubleH > 0 ? `D: ${dNames}` : sNames);
+                                        return [
+                                          `${sr.day} ${sr.time}`,
+                                          sr.singleH.toFixed(2),
+                                          sr.doubleH.toFixed(2),
+                                          sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/${sr.doubleValid}` : String(dQ),
+                                          youthCell,
+                                          `( ${sr.singleH.toFixed(2)} x ${rs} x ${sQ} ) + ( ${sr.doubleH.toFixed(2)} x ${rd} x ${dQ} )`,
+                                          (sr.singleH * rs * sQ + sr.doubleH * rd * dQ).toFixed(2),
+                                        ];
+                                      }),
+                                    )}
+                                    className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 rounded-lg px-3 py-1.5 shadow-sm transition-all active:scale-95"
+                                    title="Scarica il breakdown di questo tutor in formato CSV"
+                                  >
+                                    <Download size={15} /> Scarica CSV
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setZoomPayTutor(r.tutor.id)}
+                                    title="Ingrandisci il calendario della settimana tipo"
+                                    className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg px-3 py-1.5 transition-colors"
+                                  >
+                                    <Maximize2 size={15} /> Ingrandisci
+                                  </button>
+                                </div>
                               </div>
                               <div className="flex flex-col lg:flex-row gap-4 items-start overflow-x-auto">
                                 <div
@@ -3854,16 +3864,8 @@ function App() {
                                   </p>
                                 </div>
                                 <div className="shrink-0">
-                                  <div className="flex items-center justify-between mb-1">
+                                  <div className="mb-1">
                                     <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Settimana tipo</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setZoomPayTutor(r.tutor.id)}
-                                      title="Ingrandisci il calendario"
-                                      className="inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 rounded-lg px-3 py-1.5 shadow-sm transition-all active:scale-95"
-                                    >
-                                      <Maximize2 size={16} /> Ingrandisci
-                                    </button>
                                   </div>
                                   <button type="button" onClick={() => setZoomPayTutor(r.tutor.id)} title="Clicca per ingrandire" className="block cursor-zoom-in">
                                     <div className="overflow-x-auto">{miniCalendar(r)}</div>
