@@ -1783,6 +1783,7 @@ function App() {
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
       { view: 'PAYROLL', perm: 'SUMMARY', label: 'Calcolo Paga', icon: Wallet, chipText: 'text-lime-600' },
+      { view: 'GUIDE', perm: 'DASHBOARD', label: 'Guida d\'uso', icon: BookOpen, chipText: 'text-teal-600' },
     ];
     const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
 
@@ -1950,6 +1951,7 @@ function App() {
       : view === 'SUMMARY' ? 'Riepilogo Ore'
       : view === 'PAYROLL' ? 'Calcolo Paga'
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
+      : view === 'GUIDE' ? 'Guida d\'uso'
       : 'CentroCare';
     return (
       <div className="md:hidden bg-gradient-to-r from-zinc-900 via-slate-900 to-black text-white px-3 py-2.5 flex items-center gap-2 sticky top-0 z-30 shadow-lg shadow-black/40">
@@ -1968,6 +1970,131 @@ function App() {
           </div>
         </div>
         <span className="w-10 shrink-0"></span>
+      </div>
+    );
+  };
+
+  const renderGuide = () => {
+    interface GuideBlock { icon: React.ElementType; color: string; title: string; purpose: string; items: { btn?: string; desc: string }[] }
+    const blocks: GuideBlock[] = [
+      {
+        icon: CalendarIcon,
+        color: 'text-teal-600',
+        title: 'Pianificazione Turni',
+        purpose: 'Crea la "settimana tipo" del centro: una copertura settimanale (template) che viene ripetuta automaticamente ogni settimana. Qui decidi chi lavora, in che giorno e in che orario.',
+        items: [
+          { btn: 'Nuovo turno / Aggiungi turno (+)', desc: 'Apre una finestra per inserire un turno: seleziona tutor, giorno della settimana e orario. Imposta anche la "Validità (settimane)", cioè per quante settimane vale quel turno (di default usa le "Settimane / mese" delle tariffe).' },
+          { btn: 'Modalità doppio', desc: 'Permette di assegnare allo stesso turno due centri/ragazzi: genera le ore "Doppio", retribuite con la tariffa doppia nel Calcolo Paga.' },
+          { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno già creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
+          { btn: 'Navigazione settimane', desc: 'Le frecce ‹ › spostano la settimana visualizzata. La pianificazione è un template: le modifiche valgono per la settimana tipo.' },
+          { btn: 'Filtro per ragazzo', desc: 'Mostra solo i turni relativi a un determinato ragazzo per pianificare più facilmente le coperture individuali.' },
+          { btn: 'Copia / Duplica', desc: 'Consente di replicare un turno esistente evitando di reinserirlo da zero.' },
+        ],
+      },
+      {
+        icon: ClipboardCheck,
+        color: 'text-indigo-600',
+        title: 'Consuntivo Turni',
+        purpose: 'Riporta il lavoro effettivamente svolto rispetto alla pianificazione. Serve a registrare come sono andati davvero i turni (assenze, variazioni di orario, sostituzioni) e alimenta Riepilogo Ore e Calcolo Paga.',
+        items: [
+          { btn: 'Registra turno (consuntivo)', desc: 'Per ogni turno pianificato puoi confermare cosa è realmente accaduto: orario di inizio e fine effettivi, oppure segnare il turno come assente.' },
+          { btn: 'Assenza / Annullato', desc: 'Marca un turno come non svolto: le ore diventano 0 e nel consuntivo compare come mancante (da recuperare) o annullato.' },
+          { btn: 'Variazione orario', desc: 'Se il turno è finito prima o dopo, registra gli orari reali: il calcolo delle ore consuntivate segue gli orari effettivi.' },
+          { btn: 'Delta pianificato vs erogato', desc: 'Confronta le ore pianificate con quelle erogate: evidenza le differenze (extra in verde, riduzioni/assenze in rosso) da scalare dal monte ore del ragazzo.' },
+        ],
+      },
+      {
+        icon: UserCheck,
+        color: 'text-sky-600',
+        title: 'Gestione Tutor',
+        purpose: 'Anagrafica degli operatori/educatori che svolgono i turni. Serve a creare la lista dei tutor e associare loro i turni pianificati.',
+        items: [
+          { btn: 'Aggiungi tutor (+)', desc: 'Crea un nuovo tutor con nome, ruolo e stato (Attivo, In pausa, Archiviato).' },
+          { btn: 'Modifica / Archivia', desc: 'Aggiorna i dati del tutor o archivialo per non proporlo più nei nuovi turni mantenendone lo storico.' },
+          { btn: 'Cerca / Filtra', desc: 'Filtra per nome, ruolo o stato per trovare rapidamente un tutor.' },
+          { btn: 'Colore tutor', desc: 'Ogni tutor ha un colore distintivo che rende immediato riconoscerlo nei calendari.' },
+          { btn: 'Associa utente', desc: 'Collega un account (utente) a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
+        ],
+      },
+      {
+        icon: Users,
+        color: 'text-amber-600',
+        title: 'Anagrafica Ragazzi',
+        purpose: 'Elenco dei ragazzi/centri seguito dal centro. Ogni ragazzo ha un monte ore che viene aggiornato con i turni erogati e le relative riduzioni/extra.',
+        items: [
+          { btn: 'Aggiungi ragazzo (+)', desc: 'Inserisce un nuovo ragazzo/centro con i relativi dati anagrafici.' },
+          { btn: 'Consuntivo ragazzo', desc: 'Mostra per ogni ragazzo le ore totali: pianificate, erogate e il delta (extra/recuperi) sul monte ore.' },
+          { btn: 'Cerca / Filtra', desc: 'Trova velocemente un ragazzo per nome per consultarne o aggiornarne il monte ore.' },
+        ],
+      },
+      {
+        icon: BarChart3,
+        color: 'text-rose-600',
+        title: 'Riepilogo Ore',
+        purpose: 'Prospetto complessivo delle ore del periodo: mostra pianificato vs erogato per tutor e per ragazzo, con gli scostamenti da recuperare.',
+        items: [
+          { btn: 'Legenda colori', desc: 'Pian = ore pianificate · Erogate = ore effettive (assenze a 0) · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
+          { btn: 'Selettore periodo', desc: 'Imposta l\'intervallo di date su cui calcolare il riepilogo.' },
+          { btn: 'Vista per tutor / per ragazzo', desc: 'Passa da una prospettiva all\'altra a seconda di cosa ti serve verificare.' },
+        ],
+      },
+      {
+        icon: Wallet,
+        color: 'text-lime-600',
+        title: 'Calcolo Paga',
+        purpose: 'Stima il compenso mensile di ogni tutor a partire dai turni pianificati, pesato per la loro validità in settimane. Comprende il dettaglio per turno (ore singole/doppie) e il confronto con la settimana tipo.',
+        items: [
+          { btn: 'Tariffe (Rate)', desc: 'Imposta la retribuzione oraria singola e doppia e le "Settimane / mese" usate come default di validità.' },
+          { btn: 'Come si calcola?', desc: 'Pannello esplicativo che illustra con un esempio la formula: ore × tariffa × validità, scomponendo il turno in singolo e doppio.' },
+          { btn: 'Dettaglio per turno e settimana tipo', desc: 'Tabella con la paga parziale di ogni turno e il mini-calendario della settimana. Clicca sulla tabella o su "Ingrandisci" per vederli più grandi.' },
+          { btn: 'Scarica CSV', desc: 'Esporta il breakdown di un tutor in formato CSV (apribile con Excel) per un\'archiviazione o analisi esterna.' },
+          { btn: 'Validità ridotta', desc: 'Avviso quando un turno ha una validità diversa da quella di default, così la paga è sempre allineata alla reale durata del turno.' },
+        ],
+      },
+    ];
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-black tracking-tight text-slate-800 flex items-center gap-2.5">
+            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-lg">
+              <BookOpen size={20} />
+            </span>
+            Guida d'uso
+          </h1>
+          <p className="mt-2 text-slate-500 text-sm">
+            Come si usa CentroCare Planner: le funzionalità spiegate per tema, con i pulsanti e le azioni di ogni sezione.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {blocks.map((b, i) => {
+            const Icon = b.icon;
+            return (
+              <div key={i} className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2.5 mb-1">
+                  <span className={`w-9 h-9 rounded-lg bg-slate-50 ring-1 ring-slate-200 flex items-center justify-center ${b.color}`}>
+                    <Icon size={18} />
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-800">{b.title}</h2>
+                </div>
+                <p className="text-sm text-slate-600 mb-3 leading-relaxed">{b.purpose}</p>
+                <ul className="space-y-2.5">
+                  {b.items.map((it, j) => (
+                    <li key={j} className="flex items-start gap-2">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></span>
+                      <div className="text-sm leading-snug">
+                        {it.btn && <span className="font-bold text-teal-700">{it.btn}</span>}{it.btn && <span className="text-slate-400"> — </span>}
+                        <span className="text-slate-600">{it.desc}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-6 text-xs text-slate-400 text-center">
+          Suggerimento: usa il menu laterale per passare da una sezione all'altra. Ogni guida sopra corrisponde a una voce del menu.
+        </p>
       </div>
     );
   };
@@ -4278,6 +4405,7 @@ function App() {
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}
             {view === 'PAYROLL' && renderPayroll()}
+            {view === 'GUIDE' && renderGuide()}
             {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} />}
           </div>
         </main>
