@@ -3713,7 +3713,7 @@ function App() {
 
     const generatePdf = () => {
       const el = document.createElement('div');
-      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#1e293b;line-height:1.4;background:#fff;padding:0;';
+      el.style.cssText = 'position:absolute;left:0;top:0;width:794px;z-index:2147483647;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#1e293b;line-height:1.4;background:#fff;padding:0;';
       const monthLabel = format(payMonth, 'MMMM yyyy', { locale: it });
       const eurFmt = (v: number) => `\u20ac ${v.toFixed(2)}`;
       const totSingle = rows.reduce((a, r) => a + r.wSingle, 0);
@@ -3810,9 +3810,9 @@ function App() {
         margin: [10, 10, 14, 10],
         filename: `report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, windowWidth: 794, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        pagebreak: { mode: ['css', 'legacy'] },
       }).from(el).save().then(() => document.body.removeChild(el)).catch(() => { if (el.parentNode) el.parentNode.removeChild(el); });
     };
 
