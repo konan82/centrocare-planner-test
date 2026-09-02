@@ -3798,6 +3798,21 @@ function App() {
       });
       y = (doc as any).lastAutoTable.finalY + 10;
 
+      // Separatore di pagina + titolo sezione breakdown
+      doc.addPage();
+      y = 20;
+      doc.setFillColor(124, 58, 237);
+      doc.rect(0, 0, 3, 22, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Dettaglio compenso per Tutor', 14, 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Ripartizione mensile paga per turno \u2014 ore singole e doppie, validit\u00e0 e paga parziale.', 14, 19);
+      y += 14;
+
       // Breakdown per tutor
       rows.forEach(r => {
         if (!r.shiftRows.length) return;
