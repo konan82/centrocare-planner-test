@@ -2476,6 +2476,36 @@ function App() {
     // Sistema bottoni standard: stessa forma/size, colore per ruolo
     const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
     const BTN_SM = "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
+
+    // Ore settimanali (settimana tipo) singolo/doppio per il tutor filtrato nella Pianificazione Turni
+    const weeklySD = (() => {
+      const tid = tutorFilter && tutorFilter !== 'all' ? tutorFilter : null;
+      if (!isPlan || !tid) return null;
+      const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+      const intervals = shifts
+        .filter(s => s.isTemplate && s.tutorId === tid)
+        .map(s => {
+          const [sh, sm] = (s.startTime || '0:00').split(':').map(Number);
+          const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
+          const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+          if (h <= 0) return null;
+          return { startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
+        })
+        .filter((x): x is { startMin: number; endMin: number; youths: Set<string> } => x !== null);
+      const minuteYouths = new Map<number, Set<string>>();
+      intervals.forEach(iv => {
+        for (let m = iv.startMin; m < iv.endMin; m++) {
+          let set = minuteYouths.get(m);
+          if (!set) { set = new Set<string>(); minuteYouths.set(m, set); }
+          iv.youths.forEach(y => set!.add(y));
+        }
+      });
+      let single = 0, dbl = 0;
+      minuteYouths.forEach(set => { if (set.size >= 2) dbl += 1; else if (set.size === 1) single += 1; });
+      const tutor = tutors.find(tt => tt.id === tid);
+      return { name: tutor ? tutor.name : '', single: single / 60, dbl: dbl / 60 };
+    })();
+
     return (
       <div className="space-y-3 md:space-y-6 h-[calc(100dvh-6rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
         {/* Calendar Header Controls */}
@@ -2702,6 +2732,20 @@ function App() {
             </div>
           </div>
         </div>
+
+        {weeklySD && (
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 shrink-0 text-sm">
+            <span className="font-extrabold text-slate-700 uppercase tracking-wide text-[11px]">Settimana tipo · {weeklySD.name}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+              Turno singolo: <b className="tabular-nums text-amber-700">{weeklySD.single.toFixed(1)}h</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
+              Turno doppio: <b className="tabular-nums text-violet-700">{weeklySD.dbl.toFixed(1)}h</b>
+            </span>
+          </div>
+        )}
 
         {/* AI Analysis Result */}
         {analysisResult && (
