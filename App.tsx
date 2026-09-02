@@ -3809,9 +3809,12 @@ function App() {
                                 <div className="mt-1 text-[11px] text-slate-500">già pesato per la validità per turno</div>
                               </div>
                             </div>
-                            <div className="mt-2">
-                              <div className="flex items-center justify-between gap-3 mb-1.5 flex-wrap">
-                                <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Dettaglio per turno e settimana tipo</span>
+                            <div className="mt-5 border-t-4 border-teal-600 pt-4">
+                              <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                                <span className="inline-flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-teal-700">
+                                  <span className="h-4 w-1.5 rounded-full bg-teal-600 inline-block"></span>
+                                  Dettaglio per turno e settimana tipo
+                                </span>
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
