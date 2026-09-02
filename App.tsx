@@ -59,6 +59,7 @@ import { analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
 import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
+import html2pdf from 'html2pdf.js';
 
 const waHref = (phone: string) => {
   let digits = (phone || '').replace(/\D/g, '');
@@ -3710,6 +3711,111 @@ function App() {
       URL.revokeObjectURL(url);
     };
 
+    const generatePdf = () => {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#1e293b;line-height:1.4;background:#fff;padding:0;';
+      const monthLabel = format(payMonth, 'MMMM yyyy', { locale: it });
+      const eurFmt = (v: number) => `\u20ac ${v.toFixed(2)}`;
+      const totSingle = rows.reduce((a, r) => a + r.wSingle, 0);
+      const totDouble = rows.reduce((a, r) => a + r.wDouble, 0);
+      const totPay = rows.reduce((a, r) => a + r.base, 0);
+      let html = `
+        <div style="padding:28px 32px 20px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#0d9488,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;">C</div>
+            <div>
+              <div style="font-size:20px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">CentroCare Planner</div>
+              <div style="font-size:11px;color:#64748b;margin-top:1px;">Report Calcolo Paga</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;">
+            <b>Periodo:</b> ${monthLabel} &nbsp;|&nbsp; <b>Tariffe:</b> singolo ${eurFmt(rs)}/h, doppio ${eurFmt(rd)}/h &nbsp;|&nbsp; <b>Default validit\u00e0:</b> ${weeks} sett.
+          </div>
+          <div style="margin-top:20px;font-size:14px;font-weight:800;color:#0f172a;border-bottom:2px solid #0d9488;padding-bottom:4px;">Riepilogo complessivo</div>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11px;">
+            <thead>
+              <tr style="background:#0d9488;color:#fff;">
+                <th style="padding:8px 10px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Tutor</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:700;">Singolo (h)</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:700;">Doppio (h)</th>
+                <th style="padding:8px 10px;text-align:right;font-weight:700;">Compenso</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      rows.forEach((r, i) => {
+        const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+        html += `<tr style="background:${bg};">
+          <td style="padding:7px 10px;font-weight:600;border-bottom:1px solid #e2e8f0;">${r.tutor.name}</td>
+          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${r.wSingle.toFixed(1)}h</td>
+          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#7c3aed;font-variant-numeric:tabular-nums;">${r.wDouble.toFixed(1)}h</td>
+          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(r.base)}</td>
+        </tr>`;
+      });
+      html += `<tr style="background:#f0fdfa;font-weight:800;border-top:2px solid #0d9488;">
+        <td style="padding:8px 10px;" colspan="2">TOTALE</td>
+        <td style="padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums;">${totSingle.toFixed(1)}h sing. + ${totDouble.toFixed(1)}h dopp.</td>
+        <td style="padding:8px 10px;text-align:right;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(totPay)}</td>
+      </tr>`;
+      html += `</tbody></table>`;
+
+      rows.forEach(r => {
+        if (!r.shiftRows.length) return;
+        html += `<div style="margin-top:24px;page-break-inside:avoid;">
+          <div style="font-size:13px;font-weight:800;color:#0f172a;border-bottom:2px solid #7c3aed;padding-bottom:4px;margin-bottom:6px;">
+            ${r.tutor.name} <span style="font-weight:400;color:#64748b;font-size:11px;">\u2014 ${eurFmt(r.base)}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
+            <thead>
+              <tr>
+                <th style="padding:6px 8px;text-align:left;background:#7c3aed;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Turno</th>
+                <th style="padding:6px 8px;text-align:right;background:#f59e0b;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Singolo</th>
+                <th style="padding:6px 8px;text-align:right;background:#7c3aed;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Doppio</th>
+                <th style="padding:6px 8px;text-align:right;background:#0284c7;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Validit\u00e0</th>
+                <th style="padding:6px 8px;text-align:left;background:#059669;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Ragazzo/i</th>
+                <th style="padding:6px 8px;text-align:left;background:#334155;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Formula</th>
+                <th style="padding:6px 8px;text-align:right;background:#0d9488;color:#fff;font-weight:700;">Paga parz.</th>
+              </tr>
+            </thead>
+            <tbody>`;
+        r.shiftRows.forEach((sr, i) => {
+          const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+          const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
+          const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
+          const sNames = sr.singleYouths.map(youthName).join(', ');
+          const dNames = sr.doubleYouths.map(youthName).join(', ');
+          const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `<span style="color:#0d9488;">S: ${sNames}</span> <span style="color:#7c3aed;">D: ${dNames}</span>` : (sr.doubleH > 0 ? `<span style="color:#7c3aed;">D: ${dNames}</span>` : sNames);
+          html += `<tr style="background:${bg};">
+            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-weight:500;">${sr.day} ${sr.time}</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${sr.singleH.toFixed(2)}h</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;color:#7c3aed;font-variant-numeric:tabular-nums;">${sr.doubleH.toFixed(2)}h</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}${sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;">${youthCell}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">(${sr.singleH.toFixed(2)} \u00d7 ${eurFmt(rs)} \u00d7 ${sQ}) + (${sr.doubleH.toFixed(2)} \u00d7 ${eurFmt(rd)} \u00d7 ${dQ})</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(sr.pay)}</td>
+          </tr>`;
+        });
+        html += `<tr style="background:#0d9488;color:#fff;font-weight:800;">
+          <td style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;" colspan="5">Totale (doppio non duplicato)</td>
+          <td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;" colspan="2">${eurFmt(r.base)}</td>
+        </tr>`;
+        html += `</tbody></table>`;
+        html += `<div style="font-size:9px;color:#94a3b8;margin-top:4px;">Nota: nel Totale le ore doppie sovrapposte sono conteggiate una sola volta. La somma delle righe singole pu\u00f2 risultare pi\u00f9 alta.</div>`;
+        html += `</div>`;
+      });
+      html += `<div style="margin-top:20px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">Generato da CentroCare Planner \u2014 ${new Date().toLocaleDateString('it-IT')}</div>`;
+      el.innerHTML = html;
+      document.body.appendChild(el);
+      html2pdf().set({
+        margin: [10, 10, 14, 10],
+        filename: `report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      }).from(el).save().then(() => document.body.removeChild(el)).catch(() => { if (el.parentNode) el.parentNode.removeChild(el); });
+    };
+
     return (
       <div className="space-y-8">
         <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -3717,6 +3823,13 @@ function App() {
             <h2 className="text-2xl font-bold text-slate-800">Calcolo Paga</h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={generatePdf}
+              title="Genera il report Calcolo Paga in PDF"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold shadow-md hover:from-rose-700 hover:to-red-700 active:scale-95 transition-all"
+            >
+              <Download size={16} /> <span className="hidden sm:inline">Report PDF</span>
+            </button>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => setPayMonth(addMonths(payMonth, -1))}
