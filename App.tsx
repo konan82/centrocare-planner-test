@@ -2489,14 +2489,15 @@ function App() {
           const [eh, em] = (s.endTime || '0:0').split(':').map(Number);
           const h = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
           if (h <= 0) return null;
-          return { startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
+          return { wd: s.templateWeekday || weekdayOf(s.date), startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
         })
-        .filter((x): x is { startMin: number; endMin: number; youths: Set<string> } => x !== null);
+        .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string> } => x !== null);
       const minuteYouths = new Map<number, Set<string>>();
       intervals.forEach(iv => {
         for (let m = iv.startMin; m < iv.endMin; m++) {
-          let set = minuteYouths.get(m);
-          if (!set) { set = new Set<string>(); minuteYouths.set(m, set); }
+          const key = iv.wd * 1440 + m;
+          let set = minuteYouths.get(key);
+          if (!set) { set = new Set<string>(); minuteYouths.set(key, set); }
           iv.youths.forEach(y => set!.add(y));
         }
       });
@@ -3302,14 +3303,15 @@ function App() {
         .map(s => {
           const h = getH(s.startTime, s.endTime);
           if (h <= 0) return null;
-          return { startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
+          return { wd: s.templateWeekday || weekdayOf(s.date), startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
         })
-        .filter((x): x is { startMin: number; endMin: number; youths: Set<string> } => x !== null);
+        .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string> } => x !== null);
       const minuteYouths = new Map<number, Set<string>>();
       intervals.forEach(iv => {
         for (let m = iv.startMin; m < iv.endMin; m++) {
-          let set = minuteYouths.get(m);
-          if (!set) { set = new Set<string>(); minuteYouths.set(m, set); }
+          const key = iv.wd * 1440 + m;
+          let set = minuteYouths.get(key);
+          if (!set) { set = new Set<string>(); minuteYouths.set(key, set); }
           iv.youths.forEach(y => set!.add(y));
         }
       });
