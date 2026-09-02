@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, Fragment } from 'react';
 import {
   Users,
   Calendar as CalendarIcon,
@@ -849,6 +849,8 @@ function App() {
   const [paySaving, setPaySaving] = useState(false);
   const [paySavedFlash, setPaySavedFlash] = useState(false);
   const [paySort, setPaySort] = useState<{ key: 'tutor' | 'wSingle' | 'wDouble' | 'base' | 'total' | null; dir: 'asc' | 'desc' }>({ key: 'tutor', dir: 'asc' });
+  const [showPayHelp, setShowPayHelp] = useState(false);
+  const [payDetailTutor, setPayDetailTutor] = useState<string | null>(null);
 
   // Helper: Get start of current week (Monday)
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -3127,6 +3129,14 @@ function App() {
                                               <span className={`rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {shift.startTime}–{shift.endTime}
                                               </span>
+                                              {isPlan && shift.durationWeeks && shift.durationWeeks !== (payRates.weeksPerMonth || 4) && (
+                                                <span
+                                                  className="shrink-0 rounded bg-amber-200/90 border border-amber-400 px-1 py-px text-[9px] font-bold text-amber-800 leading-tight pointer-events-none"
+                                                  title={`Validità: ${shift.durationWeeks} settimane`}
+                                                >
+                                                  {shift.durationWeeks} sett.
+                                                </span>
+                                              )}
                                             </div>
 
                                             {isValidate && hasVariazione && (
@@ -3326,7 +3336,12 @@ function App() {
           else minuteIntervals.set(key, [iv]);
         }
       });
-      let payBase = 0;
+      let paySingle = 0;
+      let payDouble = 0;
+      const details: string[] = [];
+      const dayLabel = (wd: number) => ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][wd] || `Giorno ${wd}`;
+      const reducedSeen = new Set<number>();
+      intervals.forEach(iv => { if (iv.weeks !== weeks && !reducedSeen.has(iv.wd)) { reducedSeen.add(iv.wd); details.push(`${dayLabel(iv.wd)} · turno valido ${iv.weeks} settimane`); } });
       minuteIntervals.forEach(arr => {
         const youthCount = new Set<string>();
         arr.forEach(iv => iv.youths.forEach(y => youthCount.add(y)));
@@ -3334,18 +3349,18 @@ function App() {
           // doppio: pesato per il minimo delle validità dei turni sovrapposti
           const mw = Math.min(...arr.map(iv => iv.weeks));
           wDouble += 1;
-          payBase += (1 / 60) * rd * mw;
+          payDouble += (1 / 60) * rd * mw;
         } else if (youthCount.size === 1) {
           const shiftWeeks = arr[0].weeks;
           wSingle += 1;
-          payBase += (1 / 60) * rs * shiftWeeks;
+          paySingle += (1 / 60) * rs * shiftWeeks;
         }
       });
       wSingle /= 60;
       wDouble /= 60;
 
-      const base = payBase;
-      return { tutor: t, wSingle, wDouble, base };
+      const base = paySingle + payDouble;
+      return { tutor: t, wSingle, wDouble, paySingle, payDouble, base, details };
     });
 
     const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
@@ -3493,8 +3508,40 @@ function App() {
           </div>
         </Card>
 
+        <button
+          onClick={() => setShowPayHelp(v => !v)}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-left text-sm font-semibold text-slate-600 hover:bg-lime-50 hover:border-lime-300 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <Info size={16} className="text-lime-600" /> Come si calcola il compenso mensile?
+          </span>
+          <ChevronDown size={16} className={`text-slate-400 transition-transform ${showPayHelp ? 'rotate-180' : ''}`} />
+        </button>
+        {showPayHelp && (
+          <div className="rounded-xl border border-lime-200 bg-gradient-to-br from-lime-50 to-emerald-50 p-4 text-sm text-slate-700 space-y-3">
+            <p>
+              Il <span className="font-bold">compenso mensile</span> di ogni tutor si ottiene dividendo la sua settimana tipo
+              (Pianificazione Turni) in <span className="font-bold">singolo</span> (1 ragazzo seguito) e{' '}
+              <span className="font-bold">doppio</span> (2+ ragazzi nello stesso intervallo), moltiplicando le ore per la relativa
+              tariffa e per la <span className="font-bold">validità in settimane</span> di ciascun turno:
+            </p>
+            <div className="rounded-lg bg-white border border-lime-200 px-4 py-3 text-center font-mono text-sm text-slate-800">
+              Compenso = (Ore Sing. × Tariffa sing.) × sett. + (Ore Dopp. × Tariffa dopp.) × sett. minime
+            </div>
+            <p className="text-xs text-slate-500">
+              Ogni turno può avere una validità propria (campo "Validità (settimane)" in Pianificazione): di default vale il
+              "Settimane / mese" globale. Quando due o più turni si sovrappongono creando una fascia doppia, si usa la{' '}
+              <span className="font-semibold">minore</span> tra le loro validità.
+            </p>
+            <p className="text-xs">
+              Esempio con i parametri attuali (Singolo {eur(rs)}/h, Doppio {eur(rd)}/h, {weeks} settimane): un tutor con 5h singole
+              e 1h doppie nella settimana tipo → <span className="font-mono">(5 × {eur(rs)} × {weeks}) + (1 × {eur(rd)} × {weeks}) = {eur((5 * rs * weeks) + (1 * rd * weeks))}</span>.
+            </p>
+          </div>
+        )}
+
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-700 mb-4">Compenso mensile · base pianificata × {weeks} settimane</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">Compenso mensile · ore settimanali × tariffe × validità del turno</h3>
           <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
             <table className="w-auto max-w-full text-sm whitespace-nowrap">
               <thead className="sticky top-0 z-10">
@@ -3506,21 +3553,71 @@ function App() {
                  </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedRows.map(r => (
-                    <tr key={r.tutor.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-2.5 pr-3">
-                        <span className="flex items-center gap-2.5 min-w-0">
-                          <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
-                            {getInitials(r.tutor.name)}
+                {sortedRows.map(r => {
+                  const open = payDetailTutor === r.tutor.id;
+                  return (
+                    <Fragment key={r.tutor.id}>
+                      <tr className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 pr-3">
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
+                              {getInitials(r.tutor.name)}
+                            </span>
+                            <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
                           </span>
-                          <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
-                        </span>
-                      </td>
-                      <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.wSingle.toFixed(1)}h</td>
-                      <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.wDouble.toFixed(1)}h</td>
-                      <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">{eur(r.base)}</td>
-                    </tr>
-                ))}
+                        </td>
+                        <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.wSingle.toFixed(1)}h</td>
+                        <td className="text-right py-2.5 px-3 tabular-nums text-violet-600">{r.wDouble.toFixed(1)}h</td>
+                        <td className="text-right py-2.5 pl-3 tabular-nums font-bold text-teal-700">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            {eur(r.base)}
+                            <button
+                              onClick={() => setPayDetailTutor(open ? null : r.tutor.id)}
+                              title={open ? 'Nascondi dettaglio' : 'Mostra come è calcolato'}
+                              className={`ml-1 p-1 rounded-md transition-colors ${open ? 'bg-teal-100 text-teal-700' : 'text-slate-400 hover:bg-slate-100 hover:text-teal-600'}`}
+                            >
+                              <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                      {open && (
+                        <tr className="bg-lime-50/60">
+                          <td colSpan={4} className="py-3 px-4 text-xs text-slate-700 space-y-1.5">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Singolo</div>
+                                <div className="font-semibold text-slate-700 tabular-nums">{eur(r.paySingle)}</div>
+                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)}</div>
+                              </div>
+                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Doppio</div>
+                                <div className="font-semibold text-violet-600 tabular-nums">{eur(r.payDouble)}</div>
+                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)}</div>
+                              </div>
+                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Totale</div>
+                                <div className="font-bold text-teal-700 tabular-nums">{eur(r.base)}</div>
+                                <div className="text-[10px] text-slate-400">già pesato per la validità</div>
+                              </div>
+                            </div>
+                            {r.details.length > 0 && (
+                              <div className="mt-1.5">
+                                <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold mb-0.5">Validità ridotta</div>
+                                {r.details.map((d, i) => (
+                                  <div key={i} className="text-slate-600">▪ {d}</div>
+                                ))}
+                              </div>
+                            )}
+                            {r.details.length === 0 && (
+                              <div className="text-slate-400">Tutti i turni hanno la validità di default ({weeks} settimane).</div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr><td colSpan={4} className="py-6 text-center text-slate-400 italic">Nessun tutor in anagrafica</td></tr>
                 )}
@@ -3538,7 +3635,8 @@ function App() {
             </table>
           </div>
           <p className="mt-3 text-[11px] text-slate-400">
-            Base = ore settimanali della settimana tipo (Pianificazione Turni) × {weeks} settimane × paga oraria
+            Compenso = somma over i turni della settimana tipo: ore singole/doppie × tariffa × validità del turno (quella globale
+            "Settimane / mese" se non diversa). Per le fasce doppie sovrapposte vale la validità minima.
           </p>
         </Card>
       </div>
