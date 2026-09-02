@@ -4340,7 +4340,7 @@ function App() {
       shiftYouthIds(s).forEach(yid => presentYouths.add(yid));
     });
     const rows = summaryTutorFilter === 'all' ? tutors.filter(t => presentTutors.has(t.id)) : tutors.filter(t => t.id === summaryTutorFilter);
-    const cols = summaryYouthFilter === 'all' ? youths.filter(y => presentYouths.has(y.id)) : youths.filter(y => y.id === summaryYouthFilter);
+    const cols = (summaryYouthFilter === 'all' ? youths.filter(y => presentYouths.has(y.id)) : youths.filter(y => y.id === summaryYouthFilter)).sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }));
 
     // Matrice: cell[tutorId][youthId] = { planned, executed }
     const cell: Record<string, Record<string, { planned: number; executed: number }>> = {};
