@@ -3783,21 +3783,17 @@ function App() {
           `${r.wDouble.toFixed(1)}h`,
           eurFmt(r.base),
         ]),
+        foot: [[
+          'TOTALE',
+          `${totSingle.toFixed(1)}h`,
+          `${totDouble.toFixed(1)}h`,
+          eurFmt(totPay),
+        ]],
         styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: [30, 41, 59] },
         headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' },
+        footStyles: { fillColor: [240, 253, 250], fontStyle: 'bold', textColor: [30, 41, 59] },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold', textColor: [13, 148, 136] } },
-        margin: { left: 10, right: 10 },
-      });
-      y = (doc as any).lastAutoTable.finalY + 2;
-
-      // Totale
-      autoTable(doc, {
-        startY: y,
-        body: [[{ content: 'TOTALE', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] } },
-          { content: `${totSingle.toFixed(1)}h sing. + ${totDouble.toFixed(1)}h dopp.`, styles: { halign: 'right' } },
-          { content: eurFmt(totPay), styles: { halign: 'right', fontStyle: 'bold', textColor: [13, 148, 136] } }]],
-        styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, fillColor: [240, 253, 250] },
         margin: { left: 10, right: 10 },
       });
       y = (doc as any).lastAutoTable.finalY + 10;
