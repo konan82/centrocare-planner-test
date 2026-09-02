@@ -49,7 +49,8 @@ import {
   Sunset,
   CalendarRange,
   CalendarClock,
-  Maximize2
+  Maximize2,
+  Download
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
 import { toPng } from 'html-to-image';
@@ -3496,6 +3497,23 @@ function App() {
       );
     };
 
+    const downloadCsv = (filename: string, header: string[], dataRows: (string | number)[][]) => {
+      const esc = (v: string | number) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const lines = [
+        header.map(esc).join(';'),
+        ...dataRows.map(r => r.map(esc).join(';')),
+      ];
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+
     return (
       <div className="space-y-8">
         <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -3673,7 +3691,11 @@ function App() {
                   const open = payDetailTutor === r.tutor.id;
                   return (
                     <Fragment key={r.tutor.id}>
-                      <tr className="hover:bg-slate-50 transition-colors">
+                      <tr
+                        className={`cursor-pointer transition-colors ${open ? 'bg-lime-50' : 'hover:bg-slate-50'}`}
+                        onClick={() => setPayDetailTutor(open ? null : r.tutor.id)}
+                        title={open ? 'Chiudi dettaglio' : 'Clicca per aprire il breakdown'}
+                      >
                         <td className="py-2.5 pr-3">
                           <span className="flex items-center gap-2.5 min-w-0">
                             <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
@@ -3688,7 +3710,7 @@ function App() {
                           <span className="inline-flex items-center justify-end gap-1">
                             {eur(r.base)}
                             <button
-                              onClick={() => setPayDetailTutor(open ? null : r.tutor.id)}
+                              onClick={(e) => { e.stopPropagation(); setPayDetailTutor(open ? null : r.tutor.id); }}
                               title={open ? 'Nascondi dettaglio' : 'Mostra come è calcolato'}
                               className={`ml-1 p-1 rounded-md transition-colors ${open ? 'bg-teal-100 text-teal-700' : 'text-slate-400 hover:bg-slate-100 hover:text-teal-600'}`}
                             >
@@ -3718,7 +3740,32 @@ function App() {
                               </div>
                             </div>
                             <div className="mt-2">
-                              <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Pagine parziali per turno</div>
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Pagine parziali per turno</span>
+                                <button
+                                  type="button"
+                                  onClick={() => downloadCsv(
+                                    `breakdown_${r.tutor.name.replace(/[^\w]+/g, '_')}.csv`,
+                                    ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Formula', 'Paga parziale (€)'],
+                                    r.shiftRows.map(sr => {
+                                      const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
+                                      const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
+                                      return [
+                                        `${sr.day} ${sr.time}`,
+                                        sr.singleH.toFixed(2),
+                                        sr.doubleH.toFixed(2),
+                                        sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/${sr.doubleValid}` : String(dQ),
+                                        `( ${sr.singleH.toFixed(2)} x ${rs} x ${sQ} ) + ( ${sr.doubleH.toFixed(2)} x ${rd} x ${dQ} )`,
+                                        (sr.singleH * rs * sQ + sr.doubleH * rd * dQ).toFixed(2),
+                                      ];
+                                    }),
+                                  )}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-md px-2 py-1 transition-colors"
+                                  title="Scarica il breakdown di questo tutor in formato CSV"
+                                >
+                                  <Download size={12} /> Scarica CSV
+                                </button>
+                              </div>
                               <div className="flex flex-col lg:flex-row gap-4 items-start overflow-x-auto">
                                 <div className="rounded-lg border border-lime-300 bg-white shrink-0 overflow-hidden shadow-sm">
                                   <table className="text-sm whitespace-nowrap border-collapse">
