@@ -3545,6 +3545,8 @@ function App() {
       return { tutor: t, wSingle, wDouble, paySingle, payDouble, singleWeeks, doubleWeeks, base, details, shiftRows };
     });
 
+    rows.sort((a, b) => a.tutor.name.localeCompare(b.tutor.name, 'it', { sensitivity: 'base' }));
+
     const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
     const totWDouble = rows.reduce((a, r) => a + r.wDouble, 0);
     const totBase = rows.reduce((a, r) => a + r.base, 0);
@@ -3860,12 +3862,12 @@ function App() {
           footStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
           alternateRowStyles: { fillColor: [248, 250, 252] },
           columnStyles: {
-            0: { cellWidth: 22 },
-            1: { cellWidth: 14, halign: 'right' },
-            2: { cellWidth: 14, halign: 'right' },
-            3: { cellWidth: 18, halign: 'right' },
+            0: { cellWidth: 24 },
+            1: { cellWidth: 15, halign: 'right' },
+            2: { cellWidth: 15, halign: 'right' },
+            3: { cellWidth: 22, halign: 'right' },
             4: { cellWidth: 40 },
-            6: { cellWidth: 20, halign: 'right' },
+            6: { cellWidth: 22, halign: 'right' },
           },
           margin: { left: 10, right: 10 },
         });
