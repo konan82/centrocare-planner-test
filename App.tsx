@@ -4496,8 +4496,8 @@ function App() {
                     const rtExecuted = rows.reduce((a, t) => a + cell[t.id][y.id].executed, 0);
                     const rtSaldo = rtExecuted - rtPlanned;
                     return (
-                      <tr key={y.id} className={`hover:bg-slate-50 transition-colors ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : ''}`}>
-                        <td className={`py-2.5 pr-3 sticky left-0 z-10 ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : 'bg-white'}`}>
+                      <tr key={y.id} className={`group hover:bg-lime-100/80 transition-colors ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : ''}`}>
+                        <td className={`py-2.5 pr-3 sticky left-0 z-10 ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : 'bg-white group-hover:bg-lime-100/80'}`}>
                           <span className="flex items-center gap-2.5 min-w-0">
                             <span className={`h-7 w-7 shrink-0 rounded-full ${getYouthColor(y.id, youths).bg} ${getYouthColor(y.id, youths).text} text-[11px] font-bold flex items-center justify-center`}>{getInitials(y.name)}</span>
                             <span className="font-semibold text-slate-700 truncate">{y.name}</span>
