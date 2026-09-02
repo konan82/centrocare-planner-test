@@ -3401,10 +3401,10 @@ function App() {
                   type="number"
                   min={1}
                   max={5}
-                  step={0.01}
+                  step={1}
                   className="w-full px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
                   value={payRatesDraft.weeksPerMonth || ''}
-                  onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0 })}
                 />
               </div>
               <div className="flex items-center gap-3 shrink-0">
