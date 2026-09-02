@@ -757,6 +757,7 @@ function App() {
           isTemplate: shift.is_template || false,
           templateWeekday: shift.template_weekday || null,
           templateShiftId: shift.template_shift_id || null,
+          durationWeeks: shift.duration_weeks || null,
         }));
 
         setTutors(normalizedTutors);
@@ -1056,6 +1057,7 @@ function App() {
         is_template: isPlan,
         template_weekday: templateWeekday,
         template_shift_id: isPlan ? null : (editingShift.templateShiftId || null),
+        duration_weeks: isPlan ? (editingShift.durationWeeks || payRates.weeksPerMonth || 4) : null,
       };
 
       const { error } = await supabase.from('shifts').upsert(shiftData);
@@ -1075,6 +1077,7 @@ function App() {
         isTemplate: shiftData.is_template,
         templateWeekday: shiftData.template_weekday,
         templateShiftId: shiftData.template_shift_id,
+        durationWeeks: shiftData.duration_weeks,
       };
 
       if (editingShift.id) {
@@ -1138,6 +1141,7 @@ function App() {
       date: format(addDays(TEMPLATE_ANCHOR, weekday - 1), 'yyyy-MM-dd'),
       templateWeekday: weekday,
       isTemplate: true,
+      durationWeeks: payRates.weeksPerMonth || 4,
       startTime: startTime || '15:00',
       endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
     });
@@ -3303,26 +3307,44 @@ function App() {
         .map(s => {
           const h = getH(s.startTime, s.endTime);
           if (h <= 0) return null;
-          return { wd: s.templateWeekday || weekdayOf(s.date), startMin: toMin(s.startTime), endMin: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) };
+          return {
+            wd: s.templateWeekday || weekdayOf(s.date),
+            startMin: toMin(s.startTime),
+            endMin: toMin(s.endTime),
+            youths: new Set(shiftYouthIds(s)),
+            weeks: s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : weeks,
+          };
         })
-        .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string> } => x !== null);
-      const minuteYouths = new Map<number, Set<string>>();
+        .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string>; weeks: number } => x !== null);
+      // Per ogni minuto (giorno+orario), elenco dei turni che lo coprono
+      const minuteIntervals = new Map<number, typeof intervals>();
       intervals.forEach(iv => {
         for (let m = iv.startMin; m < iv.endMin; m++) {
           const key = iv.wd * 1440 + m;
-          let set = minuteYouths.get(key);
-          if (!set) { set = new Set<string>(); minuteYouths.set(key, set); }
-          iv.youths.forEach(y => set!.add(y));
+          const arr = minuteIntervals.get(key);
+          if (arr) arr.push(iv);
+          else minuteIntervals.set(key, [iv]);
         }
       });
-      minuteYouths.forEach(set => {
-        if (set.size >= 2) wDouble += 1;
-        else if (set.size === 1) wSingle += 1;
+      let payBase = 0;
+      minuteIntervals.forEach(arr => {
+        const youthCount = new Set<string>();
+        arr.forEach(iv => iv.youths.forEach(y => youthCount.add(y)));
+        if (youthCount.size >= 2) {
+          // doppio: pesato per il minimo delle validità dei turni sovrapposti
+          const mw = Math.min(...arr.map(iv => iv.weeks));
+          wDouble += 1;
+          payBase += (1 / 60) * rd * mw;
+        } else if (youthCount.size === 1) {
+          const shiftWeeks = arr[0].weeks;
+          wSingle += 1;
+          payBase += (1 / 60) * rs * shiftWeeks;
+        }
       });
       wSingle /= 60;
       wDouble /= 60;
 
-      const base = (wSingle * rs + wDouble * rd) * weeks;
+      const base = payBase;
       return { tutor: t, wSingle, wDouble, base };
     });
 
@@ -4053,6 +4075,20 @@ function App() {
                   onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
                 />
               </div>
+              {shiftModalMode === 'plan' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Validità (settimane)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    className={fieldCls}
+                    value={editingShift?.durationWeeks || payRates.weeksPerMonth || 4}
+                    onChange={e => setEditingShift({ ...editingShift, durationWeeks: e.target.value === '' ? undefined : (parseInt(e.target.value, 10) || 1) })}
+                    title="Numero di settimane in cui questo turno è attivo (default: Settimane/mese di Calcolo Paga)"
+                  />
+                </div>
+              )}
             </div>
             {shiftModalMode === 'validate' && (
               <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">

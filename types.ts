@@ -72,6 +72,7 @@ export interface Shift {
   isTemplate?: boolean; // turno della settimana tipo (pianificazione)
   templateWeekday?: number | null; // 1 = LUN .. 6 = SAB (per turni template)
   templateShiftId?: string | null; // id del template da cui deriva un turno validato
+  durationWeeks?: number; // settimane di validità del turno (default = weeksPerMonth in Calcolo Paga)
 }
 
 export interface User {
