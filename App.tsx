@@ -3738,7 +3738,7 @@ function App() {
           doc.setFontSize(7.5);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(150, 165, 180);
-          doc.text(`CentroCare Planner \u2014 Report Calcolo Paga \u2014 ${monthLabel}`, 10, dims.height - 7, { align: 'left' });
+          doc.text(`Fondazione Irene ETS \u2014 Report Calcolo Paga \u2014 ${monthLabel}`, 10, dims.height - 7, { align: 'left' });
           doc.text(`Pagina ${i} di ${pages}`, dims.width - 10, dims.height - 7, { align: 'right' });
         }
       };
@@ -3749,7 +3749,7 @@ function App() {
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
-      doc.text('CentroCare Planner', 20, 17);
+      doc.text('Fondazione Irene ETS', 20, 17);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text('Report Calcolo Paga', 20, 24);
