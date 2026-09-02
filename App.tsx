@@ -3398,14 +3398,14 @@ function App() {
           id: 'global',
           rate_single: payRatesDraft.rateSingle || 0,
           rate_double: payRatesDraft.rateDouble || 0,
-          weeks_per_month: payRatesDraft.weeksPerMonth || 4,
+          weeks_per_month: payRates.weeksPerMonth || 4,
           updated_at: new Date().toISOString(),
         });
       if (error) throw error;
       const saved = {
         rateSingle: payRatesDraft.rateSingle || 0,
         rateDouble: payRatesDraft.rateDouble || 0,
-        weeksPerMonth: payRatesDraft.weeksPerMonth || 4,
+        weeksPerMonth: payRates.weeksPerMonth || 4,
       };
       setPayRates(saved);
       setPaySavedFlash(true);
@@ -3551,8 +3551,7 @@ function App() {
     const youthName = (id: string) => youths.find(y => y.id === id)?.name || '—';
     const ratesDirty =
       payRatesDraft.rateSingle !== payRates.rateSingle ||
-      payRatesDraft.rateDouble !== payRates.rateDouble ||
-      payRatesDraft.weeksPerMonth !== payRates.weeksPerMonth;
+      payRatesDraft.rateDouble !== payRates.rateDouble;
 
     const normName = (s?: string) => (s || '').replace(/[\u200B-\u200D\uFEFF\u00A0]/g, ' ').trim().toLowerCase();
     const sortedRows = !paySort.key ? rows : [...rows].sort((a, b) => {
@@ -3789,18 +3788,6 @@ function App() {
                   />
                 </div>
               </div>
-              <div className="flex-1 min-w-[130px]">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Settimane / mese</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  step={1}
-                  className="w-full px-3 py-2.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm outline-none focus:border-lime-400 focus:ring-2 focus:ring-lime-100 focus:bg-white transition text-sm font-semibold text-slate-700 tabular-nums"
-                  value={payRatesDraft.weeksPerMonth || ''}
-                  onChange={e => setPayRatesDraft({ ...payRatesDraft, weeksPerMonth: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0 })}
-                />
-              </div>
               <div className="flex items-center gap-3 shrink-0">
                 <button
                   onClick={handleSavePayRates}
@@ -3849,8 +3836,8 @@ function App() {
               Compenso = (Ore singolo × Tariffa sing. × {weeks} sett.) + (Ore doppio × Tariffa dopp. × validità min.)
             </div>
             <p>
-              La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Di default vale il
-              box "Settimane / mese", ma ogni turno può averne una propria (campo "Validità (settimane)" in Pianificazione). Quando
+              La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Ogni turno ha una propria
+              validità (campo "Validità (settimane)" in Pianificazione, default 4). Quando
               più turni si sovrappongono creando una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro.
             </p>
             <div className="rounded-xl bg-white border border-lime-200 px-5 py-4">
