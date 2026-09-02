@@ -3338,6 +3338,8 @@ function App() {
       });
       let paySingle = 0;
       let payDouble = 0;
+      let singleHW = 0; // ore singole × validità (per media ponderata)
+      let doubleHW = 0; // ore doppie × validità minima (per media ponderata)
       const details: string[] = [];
       const dayLabel = (wd: number) => ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][wd] || `Giorno ${wd}`;
       const reducedSeen = new Set<number>();
@@ -3349,18 +3351,22 @@ function App() {
           // doppio: pesato per il minimo delle validità dei turni sovrapposti
           const mw = Math.min(...arr.map(iv => iv.weeks));
           wDouble += 1;
+          doubleHW += mw;
           payDouble += (1 / 60) * rd * mw;
         } else if (youthCount.size === 1) {
           const shiftWeeks = arr[0].weeks;
           wSingle += 1;
+          singleHW += shiftWeeks;
           paySingle += (1 / 60) * rs * shiftWeeks;
         }
       });
       wSingle /= 60;
       wDouble /= 60;
+      const singleWeeks = wSingle > 0 ? singleHW / (wSingle * 60) : 0; // media ponderata sulle ore
+      const doubleWeeks = wDouble > 0 ? doubleHW / (wDouble * 60) : 0; // media ponderata sulle ore
 
       const base = paySingle + payDouble;
-      return { tutor: t, wSingle, wDouble, paySingle, payDouble, base, details };
+      return { tutor: t, wSingle, wDouble, paySingle, payDouble, singleWeeks, doubleWeeks, base, details };
     });
 
     const totWSingle = rows.reduce((a, r) => a + r.wSingle, 0);
@@ -3588,12 +3594,12 @@ function App() {
                               <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Singolo</div>
                                 <div className="font-semibold text-slate-700 tabular-nums">{eur(r.paySingle)}</div>
-                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)}</div>
+                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)} × {r.singleWeeks.toFixed(2)} sett.</div>
                               </div>
                               <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Doppio</div>
                                 <div className="font-semibold text-violet-600 tabular-nums">{eur(r.payDouble)}</div>
-                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)}</div>
+                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)} × {r.doubleWeeks.toFixed(2)} sett.</div>
                               </div>
                               <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Totale</div>
