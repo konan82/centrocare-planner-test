@@ -60,6 +60,7 @@ import { supabase } from './src/supabaseClient';
 import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMonth, getISOWeek, getMonth, getYear, startOfMonth, endOfMonth, eachWeekOfInterval, endOfWeek, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const waHref = (phone: string) => {
   let digits = (phone || '').replace(/\D/g, '');
@@ -3712,131 +3713,160 @@ function App() {
     };
 
     const generatePdf = () => {
-      const el = document.createElement('div');
-      el.style.cssText = 'position:absolute;left:0;top:0;width:794px;z-index:2147483647;font-family:system-ui,-apple-system,sans-serif;font-size:12px;color:#1e293b;line-height:1.4;background:#fff;padding:0;';
       const monthLabel = format(payMonth, 'MMMM yyyy', { locale: it });
       const eurFmt = (v: number) => `\u20ac ${v.toFixed(2)}`;
       const totSingle = rows.reduce((a, r) => a + r.wSingle, 0);
       const totDouble = rows.reduce((a, r) => a + r.wDouble, 0);
       const totPay = rows.reduce((a, r) => a + r.base, 0);
-      let html = `
-        <div style="padding:28px 32px 20px;">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#0d9488,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;">C</div>
-            <div>
-              <div style="font-size:20px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">CentroCare Planner</div>
-              <div style="font-size:11px;color:#64748b;margin-top:1px;">Report Calcolo Paga</div>
-            </div>
-          </div>
-          <div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;">
-            <b>Periodo:</b> ${monthLabel} &nbsp;|&nbsp; <b>Tariffe:</b> singolo ${eurFmt(rs)}/h, doppio ${eurFmt(rd)}/h &nbsp;|&nbsp; <b>Default validit\u00e0:</b> ${weeks} sett.
-          </div>
-          <div style="margin-top:20px;font-size:14px;font-weight:800;color:#0f172a;border-bottom:2px solid #0d9488;padding-bottom:4px;">Riepilogo complessivo</div>
-          <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11px;">
-            <thead>
-              <tr style="background:#0d9488;color:#fff;">
-                <th style="padding:8px 10px;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Tutor</th>
-                <th style="padding:8px 10px;text-align:right;font-weight:700;">Singolo (h)</th>
-                <th style="padding:8px 10px;text-align:right;font-weight:700;">Doppio (h)</th>
-                <th style="padding:8px 10px;text-align:right;font-weight:700;">Compenso</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-      rows.forEach((r, i) => {
-        const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-        html += `<tr style="background:${bg};">
-          <td style="padding:7px 10px;font-weight:600;border-bottom:1px solid #e2e8f0;">${r.tutor.name}</td>
-          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${r.wSingle.toFixed(1)}h</td>
-          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;color:#7c3aed;font-variant-numeric:tabular-nums;">${r.wDouble.toFixed(1)}h</td>
-          <td style="padding:7px 10px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(r.base)}</td>
-        </tr>`;
-      });
-      html += `<tr style="background:#f0fdfa;font-weight:800;border-top:2px solid #0d9488;">
-        <td style="padding:8px 10px;" colspan="2">TOTALE</td>
-        <td style="padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums;">${totSingle.toFixed(1)}h sing. + ${totDouble.toFixed(1)}h dopp.</td>
-        <td style="padding:8px 10px;text-align:right;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(totPay)}</td>
-      </tr>`;
-      html += `</tbody></table>`;
 
-      rows.forEach(r => {
-        if (!r.shiftRows.length) return;
-        html += `<div style="margin-top:24px;page-break-inside:avoid;">
-          <div style="font-size:13px;font-weight:800;color:#0f172a;border-bottom:2px solid #7c3aed;padding-bottom:4px;margin-bottom:6px;">
-            ${r.tutor.name} <span style="font-weight:400;color:#64748b;font-size:11px;">\u2014 ${eurFmt(r.base)}</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
-            <thead>
-              <tr>
-                <th style="padding:6px 8px;text-align:left;background:#7c3aed;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Turno</th>
-                <th style="padding:6px 8px;text-align:right;background:#f59e0b;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Singolo</th>
-                <th style="padding:6px 8px;text-align:right;background:#7c3aed;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Doppio</th>
-                <th style="padding:6px 8px;text-align:right;background:#0284c7;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Validit\u00e0</th>
-                <th style="padding:6px 8px;text-align:left;background:#059669;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Ragazzo/i</th>
-                <th style="padding:6px 8px;text-align:left;background:#334155;color:#fff;font-weight:700;border-right:1px solid rgba(255,255,255,0.3);">Formula</th>
-                <th style="padding:6px 8px;text-align:right;background:#0d9488;color:#fff;font-weight:700;">Paga parz.</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        r.shiftRows.forEach((sr, i) => {
-          const bg = i % 2 === 0 ? '#ffffff' : '#f8fafc';
-          const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
-          const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
-          const sNames = sr.singleYouths.map(youthName).join(', ');
-          const dNames = sr.doubleYouths.map(youthName).join(', ');
-          const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `<span style="color:#0d9488;">S: ${sNames}</span> <span style="color:#7c3aed;">D: ${dNames}</span>` : (sr.doubleH > 0 ? `<span style="color:#7c3aed;">D: ${dNames}</span>` : sNames);
-          html += `<tr style="background:${bg};">
-            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-weight:500;">${sr.day} ${sr.time}</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${sr.singleH.toFixed(2)}h</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;color:#7c3aed;font-variant-numeric:tabular-nums;">${sr.doubleH.toFixed(2)}h</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">${sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}${sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;">${youthCell}</td>
-            <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-variant-numeric:tabular-nums;">(${sr.singleH.toFixed(2)} \u00d7 ${eurFmt(rs)} \u00d7 ${sQ}) + (${sr.doubleH.toFixed(2)} \u00d7 ${eurFmt(rd)} \u00d7 ${dQ})</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0d9488;font-variant-numeric:tabular-nums;">${eurFmt(sr.pay)}</td>
-          </tr>`;
-        });
-        html += `<tr style="background:#0d9488;color:#fff;font-weight:800;">
-          <td style="padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;" colspan="5">Totale (doppio non duplicato)</td>
-          <td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;" colspan="2">${eurFmt(r.base)}</td>
-        </tr>`;
-        html += `</tbody></table>`;
-        html += `<div style="font-size:9px;color:#94a3b8;margin-top:4px;">Nota: nel Totale le ore doppie sovrapposte sono conteggiate una sola volta. La somma delle righe singole pu\u00f2 risultare pi\u00f9 alta.</div>`;
-        html += `</div>`;
-      });
-      html += `<div style="margin-top:20px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;">Generato da CentroCare Planner \u2014 ${new Date().toLocaleDateString('it-IT')}</div>`;
-      el.innerHTML = html;
-      document.body.appendChild(el);
-      const makePdf = async () => {
-        try {
-          const dataUrl = await toPng(el, { pixelRatio: 2, backgroundColor: '#ffffff', cacheBust: true, width: 794 });
-          const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-          const pageW = pdf.internal.pageSize.getWidth();
-          const pageH = pdf.internal.pageSize.getHeight();
-          const margin = 8;
-          const contentW = pageW - margin * 2;
-          const img = new Image();
-          img.src = dataUrl;
-          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-          const imgH = (img.height * contentW) / img.width;
-          let remaining = imgH;
-          let offset = 0;
-          let page = 0;
-          while (remaining > 0) {
-            if (page > 0) pdf.addPage();
-            const sliceH = Math.min(remaining, pageH - margin * 2);
-            const srcY = (img.height * offset) / imgH;
-            const srcSliceH = (img.height * sliceH) / imgH;
-            pdf.addImage(dataUrl, 'PNG', margin, margin, contentW, sliceH, undefined, 'FAST', 0, srcY, img.width, srcSliceH);
-            remaining -= sliceH;
-            offset += sliceH;
-            page++;
-          }
-          pdf.save(`report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`);
-        } finally {
-          if (el.parentNode) el.parentNode.removeChild(el);
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      let y = 0;
+
+      const ensure = (h: number) => {
+        if (y + h > pageH - 18) {
+          doc.addPage();
+          y = 16;
         }
       };
-      makePdf();
+      const footer = () => {
+        const pages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pages; i++) {
+          doc.setPage(i);
+          const dims = doc.internal.pageSize;
+          doc.setFontSize(7.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(150, 165, 180);
+          doc.text(`CentroCare Planner \u2014 Report Calcolo Paga \u2014 ${monthLabel}`, 10, dims.height - 7, { align: 'left' });
+          doc.text(`Pagina ${i} di ${pages}`, dims.width - 10, dims.height - 7, { align: 'right' });
+        }
+      };
+
+      // Header
+      doc.setFillColor(13, 148, 136);
+      doc.rect(0, 0, pageW, 34, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('CentroCare Planner', 20, 17);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Report Calcolo Paga', 20, 24);
+      doc.setFontSize(9);
+      doc.setTextColor(217, 249, 246);
+      doc.text(`Periodo: ${monthLabel}`, 20, 30);
+
+      // Info tariffe
+      y = 44;
+      doc.setFillColor(240, 253, 244);
+      doc.setDrawColor(187, 247, 208);
+      doc.roundedRect(12, y, pageW - 24, 14, 2, 2, 'FD');
+      doc.setTextColor(22, 101, 52);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Tariffe: singolo ${eurFmt(rs)}/h  \u00b7  doppio ${eurFmt(rd)}/h  \u00b7  validit\u00e0 default ${weeks} sett.`, 16, y + 8);
+      y += 24;
+
+      // Riepilogo
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Riepilogo complessivo', 10, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [['Tutor', 'Singolo (h)', 'Doppio (h)', 'Compenso']],
+        body: rows.map(r => [
+          r.tutor.name,
+          `${r.wSingle.toFixed(1)}h`,
+          `${r.wDouble.toFixed(1)}h`,
+          eurFmt(r.base),
+        ]),
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, textColor: [30, 41, 59] },
+        headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold', textColor: [13, 148, 136] } },
+        margin: { left: 10, right: 10 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 2;
+
+      // Totale
+      autoTable(doc, {
+        startY: y,
+        body: [[{ content: 'TOTALE', colSpan: 2, styles: { halign: 'left', fontStyle: 'bold', textColor: [15, 23, 42] } },
+          { content: `${totSingle.toFixed(1)}h sing. + ${totDouble.toFixed(1)}h dopp.`, styles: { halign: 'right' } },
+          { content: eurFmt(totPay), styles: { halign: 'right', fontStyle: 'bold', textColor: [13, 148, 136] } }]],
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, fillColor: [240, 253, 250] },
+        margin: { left: 10, right: 10 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+
+      // Breakdown per tutor
+      rows.forEach(r => {
+        if (!r.shiftRows.length) return;
+        ensure(26);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${r.tutor.name}`, 10, y);
+        doc.setTextColor(124, 58, 237);
+        doc.text(`${eurFmt(r.base)}`, pageW - 10, y, { align: 'right' });
+        y += 3;
+        autoTable(doc, {
+          startY: y,
+          head: [[
+            { content: 'Turno', styles: { halign: 'left' } },
+            { content: 'Singolo', styles: { halign: 'right' } },
+            { content: 'Doppio', styles: { halign: 'right' } },
+            { content: 'Validit\u00e0', styles: { halign: 'right' } },
+            { content: 'Ragazzo/i', styles: { halign: 'left' } },
+            { content: 'Formula', styles: { halign: 'left' } },
+            { content: 'Paga parz.', styles: { halign: 'right' } },
+          ]],
+          body: r.shiftRows.map(sr => {
+            const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
+            const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
+            const sNames = sr.singleYouths.map(youthName).join(', ');
+            const dNames = sr.doubleYouths.map(youthName).join(', ');
+            const youthCell = sr.singleH > 0 && sr.doubleH > 0 ? `S: ${sNames}  D: ${dNames}` : (sr.doubleH > 0 ? `D: ${dNames}` : sNames);
+            return [
+              `${sr.day} ${sr.time}`,
+              `${sr.singleH.toFixed(2)}h`,
+              `${sr.doubleH.toFixed(2)}h`,
+              `${sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}${sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.`,
+              youthCell,
+              `(${sr.singleH.toFixed(2)} x ${rs.toFixed(2)} x ${sQ}) + (${sr.doubleH.toFixed(2)} x ${rd.toFixed(2)} x ${dQ})`,
+              eurFmt(sr.pay),
+            ];
+          }),
+          foot: [[
+            { content: 'Totale (doppio non duplicato)', colSpan: 5, styles: { halign: 'left', fontStyle: 'bold' } },
+            { content: eurFmt(r.base), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+          ]],
+          styles: { font: 'helvetica', fontSize: 8, cellPadding: 1.8, textColor: [30, 41, 59], overflow: 'linebreak' },
+          headStyles: { fillColor: [100, 116, 139], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          footStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: {
+            0: { cellWidth: 22 },
+            1: { cellWidth: 14, halign: 'right' },
+            2: { cellWidth: 14, halign: 'right' },
+            3: { cellWidth: 18, halign: 'right' },
+            4: { cellWidth: 40 },
+            6: { cellWidth: 20, halign: 'right' },
+          },
+          margin: { left: 10, right: 10 },
+        });
+        y = (doc as any).lastAutoTable.finalY + 4;
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.text('Nota: nel Totale le ore doppie sovrapposte sono conteggiate una sola volta. La somma delle righe singole pu\u00f2 risultare pi\u00f9 alta.', 10, y);
+        y += 10;
+      });
+
+      footer();
+      doc.save(`report_calcolo_paga_${format(payMonth, 'yyyy-MM')}.pdf`);
     };
 
     return (
