@@ -3714,28 +3714,28 @@ function App() {
                             <div className="mt-2">
                               <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Pagine parziali per turno</div>
                               <div className="flex flex-col lg:flex-row gap-4 items-start overflow-x-auto">
-                                <div className="rounded-lg border border-lime-200 bg-white shrink-0">
-                                  <table className="text-sm whitespace-nowrap">
+                                <div className="rounded-lg border border-lime-300 bg-white shrink-0 overflow-hidden shadow-sm">
+                                  <table className="text-sm whitespace-nowrap border-collapse">
                                     <thead>
-                                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
-                                        <th className="px-3 py-2 text-left font-semibold">Turno</th>
-                                        <th className="px-3 py-2 text-right font-semibold">Sing.</th>
-                                        <th className="px-3 py-2 text-right font-semibold">Dopp.</th>
-                                        <th className="px-3 py-2 text-right font-semibold">Valid.</th>
-                                        <th className="px-3 py-2 text-left font-semibold">Formula</th>
-                                        <th className="px-3 py-2 text-right font-semibold">Paga parziale</th>
+                                      <tr className="text-white uppercase">
+                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-teal-600 to-emerald-600 border-r border-white/40">Turno</th>
+                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-amber-500 to-amber-600 border-r border-white/40">Singolo</th>
+                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-violet-500 to-violet-600 border-r border-white/40">Doppio</th>
+                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40">Validità</th>
+                                        <th className="px-3 py-2.5 text-left font-black text-[11px] tracking-wider bg-gradient-to-b from-slate-700 to-slate-800 border-r border-white/40">Formula</th>
+                                        <th className="px-3 py-2.5 text-right font-black text-[11px] tracking-wider bg-gradient-to-b from-teal-600 to-emerald-600">Paga parz.</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-100">
+                                    <tbody>
                                       {r.shiftRows.map((sr, i) => (
-                                        <tr key={i} className="odd:bg-white even:bg-slate-50/50">
-                                          <td className="px-3 py-2 text-slate-700 font-medium">{sr.day} {sr.time}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-slate-700">{sr.singleH.toFixed(2)}h</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-violet-600">{sr.doubleH.toFixed(2)}h</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-slate-600" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
+                                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                          <td className="px-3 py-2 text-slate-700 font-medium border-r border-slate-200">{sr.day} {sr.time}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-slate-700 border-r border-slate-200 bg-amber-50/40">{sr.singleH.toFixed(2)}h</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-violet-600 border-r border-slate-200 bg-violet-50/40">{sr.doubleH.toFixed(2)}h</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-slate-600 border-r border-slate-200 bg-sky-50/40" title={sr.doubleH > 0 ? `Minimo dei turni sovrapposti: ${sr.doubleValid} sett.` : ''}>
                                             {sr.singleH > 0 && sr.doubleH > 0 ? `${sr.valid}/` : ''}{sr.doubleH > 0 ? sr.doubleValid : sr.valid} sett.
                                           </td>
-                                          <td className="px-3 py-2 text-slate-600 tabular-nums">
+                                          <td className="px-3 py-2 text-slate-600 tabular-nums border-r border-slate-200">
                                             ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
                                             + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
                                           </td>
