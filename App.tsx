@@ -3608,25 +3608,45 @@ function App() {
           <ChevronDown size={16} className={`text-slate-400 transition-transform ${showPayHelp ? 'rotate-180' : ''}`} />
         </button>
         {showPayHelp && (
-          <div className="rounded-xl border border-lime-200 bg-gradient-to-br from-lime-50 to-emerald-50 p-4 text-sm text-slate-700 space-y-3">
+          <div className="rounded-xl border border-lime-300 bg-gradient-to-br from-lime-50 to-emerald-50 p-5 text-[15px] text-slate-800 space-y-4 leading-relaxed">
             <p>
-              Il <span className="font-bold">compenso mensile</span> di ogni tutor si ottiene dividendo la sua settimana tipo
-              (Pianificazione Turni) in <span className="font-bold">singolo</span> (1 ragazzo seguito) e{' '}
-              <span className="font-bold">doppio</span> (2+ ragazzi nello stesso intervallo), moltiplicando le ore per la relativa
-              tariffa e per la <span className="font-bold">validità in settimane</span> di ciascun turno:
+              Il <span className="font-bold">compenso mensile</span> di ogni tutor nasce dalla sua{' '}
+              <span className="font-bold">settimana tipo</span> (impostata in Pianificazione Turni). Ogni turno viene scomposto
+              minuto per minuto in:
             </p>
-            <div className="rounded-lg bg-white border border-lime-200 px-4 py-3 text-center font-mono text-sm text-slate-800">
-              Compenso = (Ore Sing. × Tariffa sing.) × sett. + (Ore Dopp. × Tariffa dopp.) × sett. minime
+            <ul className="list-disc pl-6 space-y-1.5">
+              <li>
+                <span className="font-bold text-teal-700">Turno singolo</span> — quando il tutor segue un solo ragazzo; pesa con la{' '}
+                <span className="font-bold">validità</span> di quel turno.
+              </li>
+              <li>
+                <span className="font-bold text-violet-700">Turno doppio</span> — quando il tutor segue <b>2 o più ragazzi</b> nello
+                stesso intervallo; pesa con la <span className="font-bold">validità minima</span> tra i turni che si sovrappongono.
+              </li>
+            </ul>
+            <div className="rounded-xl bg-white border-2 border-lime-300 px-5 py-4 text-center font-mono text-base text-slate-900">
+              Compenso = (Ore singolo × Tariffa sing. × {weeks} sett.) + (Ore doppio × Tariffa dopp. × validità min.)
             </div>
-            <p className="text-xs text-slate-500">
-              Ogni turno può avere una validità propria (campo "Validità (settimane)" in Pianificazione): di default vale il
-              "Settimane / mese" globale. Quando due o più turni si sovrappongono creando una fascia doppia, si usa la{' '}
-              <span className="font-semibold">minore</span> tra le loro validità.
+            <p>
+              La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Di default vale il
+              box "Settimane / mese", ma ogni turno può averne una propria (campo "Validità (settimane)" in Pianificazione). Quando
+              più turni si sovrappongono creando una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro.
             </p>
-            <p className="text-xs">
-              Esempio con i parametri attuali (Singolo {eur(rs)}/h, Doppio {eur(rd)}/h, {weeks} settimane): un tutor con 5h singole
-              e 1h doppie nella settimana tipo → <span className="font-mono">(5 × {eur(rs)} × {weeks}) + (1 × {eur(rd)} × {weeks}) = {eur((5 * rs * weeks) + (1 * rd * weeks))}</span>.
-            </p>
+            <div className="rounded-xl bg-white border border-lime-200 px-5 py-4">
+              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Esempio con i parametri attuali</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <div className="text-slate-600">Tariffa singolo: <span className="font-bold text-slate-800">{eur(rs)}/h</span></div>
+                <div className="text-slate-600">Tariffa doppio: <span className="font-bold text-slate-800">{eur(rd)}/h</span></div>
+                <div className="text-slate-600">Settimana tipo: 1h singolo + 1h doppio</div>
+                <div className="text-slate-600">Validità: singolo {weeks} sett. · doppio min. 1 sett.</div>
+              </div>
+              <div className="mt-3 font-mono text-sm text-slate-800">
+                = (1h × {eur(rs)} × {weeks}) + (1h × {eur(rd)} × 1)
+              </div>
+              <div className="mt-1 font-mono text-lg font-bold text-teal-700">
+                = {eur(1 * rs * weeks)} + {eur(1 * rd * 1)} = {eur((1 * rs * weeks) + (1 * rd * 1))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -3674,28 +3694,28 @@ function App() {
                       {open && (
                         <tr className="bg-lime-50/60">
                           <td colSpan={4} className="py-3 px-4 text-xs text-slate-700 space-y-1.5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
-                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Singolo</div>
-                                <div className="font-semibold text-slate-700 tabular-nums">{eur(r.paySingle)}</div>
-                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)} × {r.singleWeeks.toFixed(2)} sett.</div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="rounded-xl bg-white border border-lime-200 px-4 py-3 shadow-sm">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Singolo</div>
+                                <div className="text-2xl font-extrabold text-slate-700 tabular-nums leading-tight">{eur(r.paySingle)}</div>
+                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)} × {r.singleWeeks.toFixed(2)} sett.</div>
                               </div>
-                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
-                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Doppio</div>
-                                <div className="font-semibold text-violet-600 tabular-nums">{eur(r.payDouble)}</div>
-                                <div className="text-[10px] text-slate-400 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)} × {r.doubleWeeks.toFixed(2)} sett.</div>
+                              <div className="rounded-xl bg-white border border-violet-200 px-4 py-3 shadow-sm">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Doppio</div>
+                                <div className="text-2xl font-extrabold text-violet-600 tabular-nums leading-tight">{eur(r.payDouble)}</div>
+                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)} × {r.doubleWeeks.toFixed(2)} sett.</div>
                               </div>
-                              <div className="rounded-lg bg-white border border-lime-200 px-3 py-2">
-                                <div className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Totale</div>
-                                <div className="font-bold text-teal-700 tabular-nums">{eur(r.base)}</div>
-                                <div className="text-[10px] text-slate-400">già pesato per la validità</div>
+                              <div className="rounded-xl bg-white border border-teal-200 px-4 py-3 shadow-sm">
+                                <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Totale</div>
+                                <div className="text-2xl font-extrabold text-teal-700 tabular-nums leading-tight">{eur(r.base)}</div>
+                                <div className="mt-1 text-[11px] text-slate-500">già pesato per la validità per turno</div>
                               </div>
                             </div>
                             <div className="mt-2">
                               <div className="text-xs uppercase tracking-wide text-slate-500 font-semibold mb-1">Pagine parziali per turno</div>
-                              <div className="flex flex-col lg:flex-row gap-4 items-start">
-                                <div className="overflow-x-auto rounded-lg border border-lime-200 bg-white min-w-0 flex-1">
-                                  <table className="w-full text-sm whitespace-nowrap">
+                              <div className="flex flex-col lg:flex-row gap-4 items-start overflow-x-auto">
+                                <div className="rounded-lg border border-lime-200 bg-white shrink-0">
+                                  <table className="text-sm whitespace-nowrap">
                                     <thead>
                                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wide text-slate-500">
                                         <th className="px-3 py-2 text-left font-semibold">Turno</th>
