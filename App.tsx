@@ -6771,6 +6771,17 @@ function AuditView() {
   const [error, setError] = useState<string | null>(null);
   const [filterEntity, setFilterEntity] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');
+  const [filterFrom, setFilterFrom] = useState<string>('');
+  const [filterTo, setFilterTo] = useState<string>('');
+
+  const applyPreset = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (days - 1));
+    start.setHours(0, 0, 0, 0);
+    setFilterFrom(format(start, 'yyyy-MM-dd'));
+    setFilterTo(format(end, 'yyyy-MM-dd'));
+  };
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -6793,10 +6804,17 @@ function AuditView() {
 
   useEffect(() => { fetchLogs(); }, []);
 
-  const visible = logs.filter(l =>
-    (filterEntity === 'all' || l.entity === filterEntity) &&
-    (filterAction === 'all' || l.action === filterAction)
-  );
+  const visible = logs.filter(l => {
+    if (filterEntity !== 'all' && l.entity !== filterEntity) return false;
+    if (filterAction !== 'all' && l.action !== filterAction) return false;
+    const ts = new Date(l.created_at);
+    if (filterFrom && ts < new Date(`${filterFrom}T00:00:00`)) return false;
+    if (filterTo) {
+      const end = new Date(`${filterTo}T23:59:59.999`);
+      if (ts > end) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -6809,6 +6827,39 @@ function AuditView() {
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           Aggiorna
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-teal-600 text-white text-sm font-semibold">
+          <CalendarIcon size={15} /> Periodo
+        </span>
+        <button onClick={() => applyPreset(1)} className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-300 transition">
+          Oggi
+        </button>
+        <button onClick={() => applyPreset(7)} className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-300 transition">
+          Ultima settimana
+        </button>
+        <button onClick={() => applyPreset(30)} className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-teal-50 hover:border-teal-300 transition">
+          Ultimo mese
+        </button>
+        <div className="flex flex-wrap items-center gap-2 ml-1">
+          <label className="flex items-center gap-1.5 text-sm text-slate-600 font-medium">
+            Da
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
+              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300" />
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600 font-medium">
+            A
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
+              className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300" />
+          </label>
+          {(filterFrom || filterTo) && (
+            <button onClick={() => { setFilterFrom(''); setFilterTo(''); }}
+              className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition">
+              Azzera periodo
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
