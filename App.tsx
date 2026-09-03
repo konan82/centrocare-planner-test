@@ -5324,7 +5324,7 @@ function App() {
                             }}
                             format={toTxt}
                             scaleLabel="fascia oraria non disponibile"
-                            step={15}
+                            step={1}
                           />
                           <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
                             <span className="text-teal-700">08:00</span>
