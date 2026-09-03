@@ -4065,6 +4065,29 @@ function App() {
                 <div className="mt-1 font-mono text-lg font-bold text-teal-700">
                   = {eur(1 * rd * 1)} + {eur(1 * rs * 1)} = {eur(1 * rd * 1 + 1 * rs * 1)}
                 </div>
+                <div className="mt-4 overflow-x-auto rounded-lg border border-lime-100">
+                  <table className="w-full text-sm">
+                    <thead className="bg-lime-50 text-[10px] uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="py-1.5 px-2 text-left font-semibold">Settimana</th>
+                        <th className="py-1.5 px-2 text-left font-semibold">Ragazzi presenti</th>
+                        <th className="py-1.5 px-2 text-center font-semibold">Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-lime-50 text-slate-700">
+                      <tr>
+                        <td className="py-1.5 px-2 font-semibold">1ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ✓✓</span></td>
+                      </tr>
+                      <tr>
+                        <td className="py-1.5 px-2 font-semibold">2ª</td>
+                        <td className="py-1.5 px-2">Rossi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo ✓</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
               <div className="rounded-xl bg-white border border-violet-200 px-5 py-4">
                 <div className="text-xs uppercase tracking-wide text-violet-400 font-semibold mb-2">Esempio · 3 ragazzi</div>
@@ -4077,6 +4100,34 @@ function App() {
                 </div>
                 <div className="mt-1 font-mono text-lg font-bold text-violet-700">
                   = {eur(1 * rs * 1)} + {eur(1 * rd * 1)} + {eur(1 * rd * 1)} = {eur(1 * rs * 1 + 2 * rd * 1)}
+                </div>
+                <div className="mt-4 overflow-x-auto rounded-lg border border-violet-100">
+                  <table className="w-full text-sm">
+                    <thead className="bg-violet-50 text-[10px] uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="py-1.5 px-2 text-left font-semibold">Settimana</th>
+                        <th className="py-1.5 px-2 text-left font-semibold">Ragazzi presenti</th>
+                        <th className="py-1.5 px-2 text-center font-semibold">Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-violet-50 text-slate-700">
+                      <tr>
+                        <td className="py-1.5 px-2 font-semibold">1ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi · Verdi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ✓✓</span></td>
+                      </tr>
+                      <tr>
+                        <td className="py-1.5 px-2 font-semibold">2ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ✓✓</span></td>
+                      </tr>
+                      <tr>
+                        <td className="py-1.5 px-2 font-semibold">3ª</td>
+                        <td className="py-1.5 px-2">Rossi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo ✓</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
