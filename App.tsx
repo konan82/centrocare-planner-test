@@ -4027,8 +4027,22 @@ function App() {
                 turno doppio che lo include, le settimane in eccesso vengono pagate a tariffa singola.
               </li>
             </ul>
-            <div className="rounded-xl bg-white border-2 border-lime-300 px-5 py-4 text-center font-mono text-base text-slate-900">
-              Compenso = (Ore singolo × Tariffa sing. × Validità) + (Ore doppio × Tariffa dopp. × Validità min.) + (Residuo singolo × Tariffa sing.)
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-lime-400 shadow-lg px-5 py-5 text-center">
+              <div className="text-[11px] uppercase tracking-widest text-lime-300 font-bold mb-3">Formula compenso mensile</div>
+              <div className="flex flex-wrap items-center justify-center gap-2 font-black">
+                <span className="text-2xl text-white">Compenso =</span>
+                <span className="bg-teal-500/20 text-teal-200 border-2 border-teal-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
+                  Ore singolo × Tariffa sing. × <span className="text-teal-400">Validità</span>
+                </span>
+                <span className="text-2xl text-white font-black">+</span>
+                <span className="bg-violet-500/20 text-violet-200 border-2 border-violet-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
+                  Ore doppio × Tariffa dopp. × <span className="text-violet-400">Validità min.</span>
+                </span>
+                <span className="text-2xl text-white font-black">+</span>
+                <span className="bg-amber-500/20 text-amber-200 border-2 border-amber-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
+                  Residuo singolo × Tariffa sing.
+                </span>
+              </div>
             </div>
             <p>
               La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Ogni turno ha una propria
