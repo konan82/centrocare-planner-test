@@ -700,6 +700,11 @@ function App() {
       if (error) console.error('Audit log error:', error);
     });
   };
+  // Costruisce il payload details per le modifiche con record vecchio vs nuovo
+  const auditDiff = (oldRecord: Record<string, any> | undefined, newRecord: Record<string, any> | undefined) => ({
+    old: oldRecord || null,
+    new: newRecord || null,
+  });
   const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
@@ -1032,7 +1037,13 @@ function App() {
       const { error } = await supabase.from('tutors').upsert(tutorData);
       if (error) throw error;
 
-      auditLog(newTutor.id ? 'update' : 'create', 'tutor', tutorData.id, tutorData.name, { role: tutorData.role || '' });
+      const oldTutor = newTutor.id ? tutors.find(t => t.id === newTutor.id) : undefined;
+      auditLog(newTutor.id ? 'update' : 'create', 'tutor', tutorData.id, tutorData.name, newTutor.id && oldTutor
+        ? auditDiff(
+            { name: oldTutor.name, max_hours_per_week: oldTutor.maxHoursPerWeek, min_hours_per_week: oldTutor.minHoursPerWeek ?? null, specialties: oldTutor.specialties, unavailable_days: oldTutor.unavailableDays, status: oldTutor.status, role: oldTutor.role || '', phone: oldTutor.phone || '', email: oldTutor.email || '', notes: oldTutor.notes || '' },
+            { name: tutorData.name, max_hours_per_week: tutorData.max_hours_per_week, min_hours_per_week: tutorData.min_hours_per_week, specialties: tutorData.specialties, unavailable_days: tutorData.unavailable_days, status: tutorData.status, role: tutorData.role, phone: tutorData.phone, email: tutorData.email, notes: tutorData.notes }
+          )
+        : { role: tutorData.role || '' });
 
       if (newTutor.id) {
         setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, minHoursPerWeek: tutorData.min_hours_per_week, unavailableDays: tutorData.unavailable_days, unavailableRanges: tutorData.unavailable_ranges, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
@@ -1051,7 +1062,7 @@ function App() {
     try {
       const { error } = await supabase.from('tutors').delete().eq('id', id);
       if (error) throw error;
-      auditLog('delete', 'tutor', id, tutors.find(t => t.id === id)?.name || id);
+      auditLog('delete', 'tutor', id, tutors.find(t => t.id === id)?.name || id, auditDiff({ name: tutors.find(t => t.id === id)?.name, status: tutors.find(t => t.id === id)?.status, role: tutors.find(t => t.id === id)?.role || '', max_hours_per_week: tutors.find(t => t.id === id)?.maxHoursPerWeek }, null));
       setTutors(tutors.filter(t => t.id !== id));
       setShifts(shifts.filter(s => s.tutorId !== id));
     } catch (error) {
@@ -1092,7 +1103,13 @@ function App() {
       const { error } = await supabase.from('youths').upsert(youthData);
       if (error) throw error;
 
-      auditLog(newYouth.id ? 'update' : 'create', 'youth', youthId, youthData.name, {});
+      const oldYouth = newYouth.id ? youths.find(y => y.id === newYouth.id) : undefined;
+      auditLog(newYouth.id ? 'update' : 'create', 'youth', youthId, youthData.name, newYouth.id && oldYouth
+        ? auditDiff(
+            { name: oldYouth.name, required_hours_per_week: oldYouth.requiredHoursPerWeek, needs: oldYouth.needs, status: oldYouth.status, notes: oldYouth.notes || '', tutor_ids: oldYouth.tutorIds || [] },
+            { name: youthData.name, required_hours_per_week: youthData.required_hours_per_week, needs: youthData.needs, status: youthData.status, notes: youthData.notes, tutor_ids: tutorIds }
+          )
+        : {});
 
       const tutorIds = newYouth.tutorIds || [];
       await supabase.from('youth_tutors').delete().eq('youth_id', youthId);
@@ -1138,7 +1155,7 @@ function App() {
     try {
       const { error } = await supabase.from('youths').delete().eq('id', id);
       if (error) throw error;
-      auditLog('delete', 'youth', id, youths.find(y => y.id === id)?.name || id);
+      auditLog('delete', 'youth', id, youths.find(y => y.id === id)?.name || id, auditDiff({ name: youths.find(y => y.id === id)?.name, required_hours_per_week: youths.find(y => y.id === id)?.requiredHoursPerWeek, status: youths.find(y => y.id === id)?.status }, null));
       setYouths(youths.filter(y => y.id !== id));
       setShifts(shifts.filter(s => shiftYouthIds(s).every(sid => sid !== id)));
     } catch (error) {
@@ -1232,7 +1249,22 @@ function App() {
       const youthNames = editingShift.youthIds?.length
         ? editingShift.youthIds.map(id => youths.find(y => y.id === id)?.name || id).join(', ')
         : (youths.find(y => y.id === youthIds[0])?.name || editingShift.youthId || '—');
-      auditLog(editingShift.id ? 'update' : 'create', 'shift', shiftData.id as string, `${editingShift.date} ${editingShift.startTime}–${editingShift.endTime} ${youthNames}`, { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, is_template: isPlan });
+      const oldShift = editingShift.id ? shifts.find(s => s.id === editingShift.id) : undefined;
+      auditLog(
+        editingShift.id ? 'update' : 'create',
+        'shift',
+        shiftData.id as string,
+        `${editingShift.date} ${editingShift.startTime}–${editingShift.endTime} ${youthNames}`,
+        editingShift.id
+          ? {
+              ...auditDiff(
+                oldShift ? { tutor_id: oldShift.tutorId, date: oldShift.date, start_time: oldShift.startTime, end_time: oldShift.endTime, activity: oldShift.activity, status: oldShift.status, actual_start_time: oldShift.actualStartTime || null, actual_end_time: oldShift.actualEndTime || null, aggregate: oldShift.youthIds && oldShift.youthIds.length ? oldShift.youthIds : oldShift.youthId } : {},
+                { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, activity: editingShift.activity || 'Attività generica', status: shiftData.status, actual_start_time: shiftData.actual_start_time, actual_end_time: shiftData.actual_end_time, aggregate: youthIds }
+              ),
+              is_template: isPlan,
+            }
+          : { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, is_template: isPlan }
+      );
 
       const normalizedShift = {
         ...shiftData,
@@ -1279,7 +1311,7 @@ function App() {
       const shiftToDelete = shifts.find(s => s.id === id);
       const { error } = await supabase.from('shifts').delete().eq('id', id);
       if (error) throw error;
-      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate });
+      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, shiftToDelete ? auditDiff({ date: shiftToDelete.date, start_time: shiftToDelete.startTime, end_time: shiftToDelete.endTime, actual_start_time: shiftToDelete.actualStartTime || null, actual_end_time: shiftToDelete.actualEndTime || null, is_template: !!shiftToDelete.isTemplate, tutor_id: shiftToDelete.tutorId }, null) : { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate });
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
       if (shiftToDelete?.isTemplate) {
@@ -1903,7 +1935,12 @@ function App() {
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
           if (error) throw error;
-          auditLog('update', 'shift', shiftId, `${dateStr} ${newStartTime}–${newEndTime}`, { date: dateStr, start_time: newStartTime, end_time: newEndTime, is_template: !!shiftToUpdate.isTemplate });
+          auditLog('update', 'shift', shiftId, `${dateStr} ${newStartTime}–${newEndTime}`, {
+            ...auditDiff(
+              { date: shiftToUpdate.date, start_time: shiftToUpdate.startTime, end_time: shiftToUpdate.endTime, actual_start_time: shiftToUpdate.actualStartTime || null, actual_end_time: shiftToUpdate.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate },
+              { date: updatedShift.date, start_time: updatedShift.startTime, end_time: updatedShift.endTime, actual_start_time: updatedShift.actualStartTime || null, actual_end_time: updatedShift.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate }
+            )
+          });
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
           if (shiftToUpdate.isTemplate) {
             await syncTemplateOccurrences(updatedShift as Shift);
@@ -3586,7 +3623,13 @@ function App() {
                                                 if (shift.isTemplate) {
                                                   await syncTemplateOccurrences({ ...shift, endTime: nEnd } as Shift);
                                                 }
-                                                auditLog('update', 'shift', shift.id, `${shift.date} (durata → ${nEnd})`, { end_time: nEnd, is_template: shift.isTemplate });
+                                                const oldEnd = shift.isTemplate ? shift.endTime : (shift.actualEndTime || shift.endTime);
+                                                auditLog('update', 'shift', shift.id, `${shift.date} (durata → ${nEnd})`, {
+                                                  ...auditDiff(
+                                                    { end_time: shift.endTime, actual_end_time: shift.actualEndTime || null, is_template: shift.isTemplate },
+                                                    shift.isTemplate ? { end_time: nEnd, actual_end_time: null, is_template: shift.isTemplate } : { end_time: shift.endTime, actual_end_time: nEnd, is_template: shift.isTemplate }
+                                                  )
+                                                });
                                               });
                                           }}
                                           onPointerCancel={(e) => {
@@ -6103,7 +6146,8 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
 
       const result = await response.json();
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to delete user');
-      auditLog('delete', 'user', id, users.find(u => u.id === id)?.username || id);
+      const delUser = users.find(u => u.id === id);
+      auditLog('delete', 'user', id, delUser?.username || id, { old: delUser ? { username: delUser.username, permissions: delUser.permissions, tutor_id: delUser.tutorId || null } : null, new: null });
       fetchUsers();
     } catch (error: any) {
       console.error(error);
@@ -6131,7 +6175,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
 
       if (error) throw error;
 
-      auditLog('update', 'user', editingUser.id, editingUser.username, { permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null });
+      auditLog('update', 'user', editingUser.id, editingUser.username, {
+        old: { username: editingUser.username, permissions: editingUser.permissions, tutor_id: editingUser.tutorId || null, email: editingUser.email || null },
+        new: { username: editingUser.username, permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null },
+      });
 
       setIsEditModalOpen(false);
       setEditingUser(null);
@@ -6613,10 +6660,54 @@ function AuditView() {
                   <p className="text-sm text-slate-600 mt-1 break-words">{log.entity_name || '—'}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
                     <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
-                    {log.details && (
-                      <span className="font-mono">{JSON.stringify(log.details)}</span>
-                    )}
                   </div>
+                  {log.details && log.details.old != null && log.details.new != null && (
+                    <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                      {(() => {
+                        const oldRec: any = log.details.old;
+                        const newRec: any = log.details.new;
+                        const keys = Array.from(new Set([...Object.keys(oldRec), ...Object.keys(newRec)]));
+                        try {
+                          return keys.map(key => {
+                            const ov = oldRec[key];
+                            const nv = newRec[key];
+                            const changed = JSON.stringify(ov) !== JSON.stringify(nv);
+                            if (!changed) return null;
+                            const fmt = (v: any) => v == null ? '—' : (Array.isArray(v) ? v.join(', ') : String(v));
+                            return (
+                              <div key={key} className="contents">
+                                <span className="font-semibold text-slate-500 py-0.5">{key}</span>
+                                <span className="py-0.5">
+                                  <span className="text-red-500 line-through decoration-red-400">{fmt(ov)}</span>
+                                  <span className="mx-1.5 text-slate-400">→</span>
+                                  <span className="text-emerald-600 font-medium">{fmt(nv)}</span>
+                                </span>
+                              </div>
+                            );
+                          });
+                        } catch {
+                          return <span className="text-slate-400 font-mono">{JSON.stringify(log.details)}</span>;
+                        }
+                      })()}
+                    </div>
+                  )}
+                  {/* delete: mostra solo il vecchio record */}
+                  {log.details && log.details.old != null && log.details.new == null && (
+                    <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                      {Object.entries(log.details.old).map(([key, val]: [string, any]) => (
+                        <div key={key} className="contents">
+                          <span className="font-semibold text-slate-500 py-0.5">{key}</span>
+                          <span className="py-0.5 text-red-600">{val == null ? '—' : (Array.isArray(val) ? val.join(', ') : String(val))}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* create/bulk: dettagli semplici senza diff */}
+                  {log.details && log.details.old == null && log.details.new == null && (
+                    <div className="mt-1 text-xs text-slate-400 font-mono break-all">
+                      {JSON.stringify(log.details)}
+                    </div>
+                  )}
                 </div>
               </div>
             );
