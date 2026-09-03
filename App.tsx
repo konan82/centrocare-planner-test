@@ -3183,13 +3183,13 @@ function App() {
                                   )}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i)
-                                  ? isBand ? 'bg-rose-100/50' : 'bg-rose-50/60'
+                                  ? 'bg-rose-200/90'
                                   : isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
                                 isDragOver
                                   ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
                                   : tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i)
-                                    ? 'hover:bg-rose-100'
+                                    ? 'hover:bg-rose-300'
                                     : 'hover:bg-teal-50/30'
                               }`}
                             >
