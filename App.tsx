@@ -4057,7 +4057,7 @@ function App() {
                   <div className="text-slate-600">Tariffa singolo: <span className="font-bold text-slate-800">{eur(rs)}/h</span></div>
                   <div className="text-slate-600">Tariffa doppio: <span className="font-bold text-slate-800">{eur(rd)}/h</span></div>
                   <div className="text-slate-600">Rossi (validità 2) + Rossi & Bianchi (validità 1), 1h</div>
-                  <div className="text-slate-600">→ doppio 1 sett. + residuo singolo 1 sett.</div>
+                  <div className="text-slate-600">→ doppio 1 settimana + residuo singolo 1 settimana</div>
                 </div>
                 <div className="mt-3 font-mono text-sm text-slate-800">
                   = (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1) + (1h × <span className="text-teal-700 font-semibold">{eur(rs)}</span> × 1)
@@ -4070,7 +4070,7 @@ function App() {
                 <div className="text-xs uppercase tracking-wide text-violet-400 font-semibold mb-2">Esempio · 3 ragazzi</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
                   <div className="text-slate-600">Rossi (val. 3) + Rossi&Bianchi (val. 2) + Rossi&Bianchi&Verdi (val. 1), 1h</div>
-                  <div className="text-slate-600">→ sing. 1s + doppio 1s + doppio 1s</div>
+                  <div className="text-slate-600">→ singolo 1 settimana + doppio 1 settimana + doppio 1 settimana</div>
                 </div>
                 <div className="mt-3 font-mono text-sm text-slate-800">
                   = (1h × <span className="text-teal-700 font-semibold">{eur(rs)}</span> × 1) + (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1) + (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1)
