@@ -454,7 +454,8 @@ const DualRangeSlider: React.FC<{
   onChange: (vmin: number, vmax: number) => void;
   format?: (v: number) => string;
   scaleLabel?: string;
-}> = ({ min, max, valueMin, valueMax, onChange, format, scaleLabel }) => {
+  step?: number;
+}> = ({ min, max, valueMin, valueMax, onChange, format, scaleLabel, step = 1 }) => {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [drag, setDrag] = useState<'min' | 'max' | null>(null);
 
@@ -466,6 +467,20 @@ const DualRangeSlider: React.FC<{
     const rect = el.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     return Math.round(min + ratio * (max - min));
+  };
+
+  // Sposta l'impugnatura con i tasti cursore (← →) o PagSu/PagGiù
+  const nudge = (which: 'min' | 'max') => (ev: React.KeyboardEvent) => {
+    const delta = ev.shiftKey ? step * 5 : step;
+    let v;
+    if (ev.key === 'ArrowLeft' || ev.key === 'ArrowDown') v = -delta;
+    else if (ev.key === 'ArrowRight' || ev.key === 'ArrowUp') v = delta;
+    else if (ev.key === 'PageDown') v = -delta * 10;
+    else if (ev.key === 'PageUp') v = delta * 10;
+    else return;
+    ev.preventDefault();
+    if (which === 'min') onChange(Math.min(Math.max(valueMin + v, min), valueMax), valueMax);
+    else onChange(valueMin, Math.max(Math.min(valueMax + v, max), valueMin));
   };
 
   React.useEffect(() => {
@@ -507,9 +522,16 @@ const DualRangeSlider: React.FC<{
           style={{ left: `${pct(valueMin)}%`, width: `${pct(valueMax) - pct(valueMin)}%` }}
         ></div>
         <div
-          className={handleCls}
+          className={`${handleCls} focus:outline-none focus:ring-2 focus:ring-teal-300`}
           style={{ left: `${pct(valueMin)}%` }}
           onPointerDown={startDrag('min')}
+          onKeyDown={nudge('min')}
+          role="slider"
+          tabIndex={0}
+          aria-valuemin={min}
+          aria-valuemax={valueMax}
+          aria-valuenow={valueMin}
+          aria-label="Inizio fascia non disponibile"
         >
           {drag === 'min' && (
             <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold tabular-nums whitespace-nowrap">
@@ -518,9 +540,16 @@ const DualRangeSlider: React.FC<{
           )}
         </div>
         <div
-          className={handleCls}
+          className={`${handleCls} focus:outline-none focus:ring-2 focus:ring-teal-300`}
           style={{ left: `${pct(valueMax)}%` }}
           onPointerDown={startDrag('max')}
+          onKeyDown={nudge('max')}
+          role="slider"
+          tabIndex={0}
+          aria-valuemin={valueMin}
+          aria-valuemax={max}
+          aria-valuenow={valueMax}
+          aria-label="Fine fascia non disponibile"
         >
           {drag === 'max' && (
             <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold tabular-nums whitespace-nowrap">
@@ -5294,6 +5323,7 @@ function App() {
                             }}
                             format={toTxt}
                             scaleLabel="fascia oraria non disponibile"
+                            step={15}
                           />
                           <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
                             <span className="text-teal-700">08:00</span>
