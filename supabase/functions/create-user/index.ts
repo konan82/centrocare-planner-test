@@ -18,7 +18,7 @@ serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const { email, password, username, permissions, tutorId } = await req.json();
+    const { email, password, username, permissions, tutorId, permMatrix } = await req.json();
 
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -27,17 +27,18 @@ serve(async (req: Request) => {
       user_metadata: {
         username,
         permissions,
+        perm_matrix: permMatrix || null,
         tutor_id: tutorId || null,
       },
     });
 
     if (error) throw error;
 
-    // Imposta il tutor associato sul profilo appena creato dal trigger
+    // Imposta il tutor associato e la matrice dei permessi sul profilo appena creato dal trigger
     if (data.user) {
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .update({ tutor_id: tutorId || null })
+        .update({ tutor_id: tutorId || null, perm_matrix: permMatrix || null })
         .eq("id", data.user.id);
       if (profileError) throw profileError;
     }

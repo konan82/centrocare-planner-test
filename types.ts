@@ -76,10 +76,26 @@ export interface Shift {
   durationWeeks?: number; // settimane di validità del turno (default = weeksPerMonth in Calcolo Paga)
 }
 
+export interface PermFlags {
+  r: boolean; // Visualizza
+  w: boolean; // Modifica
+  d: boolean; // Elimina
+}
+
+export interface PermMatrix {
+  PIANIFICAZIONE?: PermFlags;
+  CONSUNTIVO?: PermFlags;
+  TUTORS?: PermFlags;
+  YOUTHS?: PermFlags;
+  SUMMARY?: PermFlags;
+  USERS?: PermFlags;
+}
+
 export interface User {
   id: string;
   username: string;
-  permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
+  permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL'] — controlla anche l'admin (ALL)
+  permMatrix?: PermMatrix | null; // flag Visualizza/Modifica/Elimina per non-admin (colonna aggiunta, sicura)
   tutorId?: string | null; // tutor associato: se presente e senza 'ALL', vede solo i propri turni
   email?: string | null; // email reale per il recupero password
 }

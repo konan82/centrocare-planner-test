@@ -55,7 +55,7 @@ import {
   Maximize2,
   Download
 } from 'lucide-react';
-import { Tutor, Youth, Shift, ViewState, User, PaySettings } from './types';
+import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags } from './types';
 import { toPng } from 'html-to-image';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
@@ -73,22 +73,127 @@ const waHref = (phone: string) => {
   return `https://wa.me/${digits}`;
 };
 
-// Etichette italiane dei permessi utente, adattate alle schermate/funzionalità attuali dell'app
+// Matrice permessi per area (Visualizza/Modifica/Elimina) per utenti non-admin.
+// L'admin (permissions contiene 'ALL') resta gestito dalle policy RLS esistenti.
+const PERM_AREAS = ['PIANIFICAZIONE', 'CONSUNTIVO', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USERS'];
 const PERMISSION_LABELS: Record<string, string> = {
-  DASHBOARD: 'Pianificazione & Consuntivo Turni',
+  PIANIFICAZIONE: 'Pianificazione Turni',
+  CONSUNTIVO: 'Consuntivo Turni',
   TUTORS: 'Gestione Tutor',
   YOUTHS: 'Anagrafica Ragazzi',
   SUMMARY: 'Riepilogo Ore & Calcolo Paga',
-  USER_MANAGEMENT: 'Gestione Utenti',
+  USERS: 'Gestione Utenti',
 };
-const PERMISSION_KEYS = ['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'];
 const PERMISSION_RULES: Record<string, string> = {
-  DASHBOARD: 'Accede a Pianificazione Turni, Consuntivo Turni e Guida d\'uso',
+  PIANIFICAZIONE: 'Accede alla pianificazione dei turni e alla Guida d\'uso',
+  CONSUNTIVO: 'Registra e gestisce il consuntivo dei turni',
   TUTORS: 'Gestione dei tutor (schede e disponibilità)',
   YOUTHS: 'Anagrafica dei ragazzi/centri',
   SUMMARY: 'Riepilogo Ore e Calcolo Paga',
-  USER_MANAGEMENT: 'Gestione utenti e permessi (area amministrativa)',
+  USERS: 'Gestione utenti e permessi (area amministrativa)',
 };
+const emptyMatrix = (): PermMatrix => Object.fromEntries(PERM_AREAS.map(a => [a, { r: false, w: false, d: false }])) as PermMatrix;
+const hasMatrix = (u: User | null | undefined) => {
+  if (!u || !u.permMatrix || typeof u.permMatrix !== 'object') return false;
+  const m = normalizeMatrix(u.permMatrix);
+  return PERM_AREAS.some(a => { const f = (m as any)[a] as PermFlags; return !!(f && (f.r || f.w || f.d)); });
+};
+const isAdminUser = (u: User | null | undefined) => !!(u && Array.isArray(u.permissions) && u.permissions.includes('ALL'));
+const matrixToLegacy = (m?: PermMatrix | null | undefined): string[] => {
+  const nm = normalizeMatrix(m);
+  const out: string[] = [];
+  if (nm.PIANIFICAZIONE?.r || nm.CONSUNTIVO?.r) out.push('DASHBOARD');
+  if (nm.TUTORS?.r) out.push('TUTORS');
+  if (nm.YOUTHS?.r) out.push('YOUTHS');
+  if (nm.SUMMARY?.r) out.push('SUMMARY');
+  if (nm.USERS?.r) out.push('USER_MANAGEMENT');
+  return out;
+};
+const LEGACY_VIEW_LABELS: Record<string, string> = {
+  DASHBOARD: 'Pianificazione · Consuntivo',
+  TUTORS: 'Gestione Tutor',
+  YOUTHS: 'Anagrafica Ragazzi',
+  SUMMARY: 'Riepilogo Ore · Paga',
+  USER_MANAGEMENT: 'Gestione Utenti',
+};
+const matrixToLegacyLabel = (p: string) => LEGACY_VIEW_LABELS[p] || p;
+const normalizeMatrix = (m?: PermMatrix | null | undefined): PermMatrix => {
+  const base = emptyMatrix();
+  if (!m || typeof m !== 'object') return base;
+  PERM_AREAS.forEach(a => {
+    const f: any = (m as any)[a];
+    base[a] = { r: !!f?.r, w: !!f?.w, d: !!f?.d };
+  });
+  return base;
+};
+
+// Editor Visualizza/Modifica/Elimina per ogni area (matrice permessi) per utenti non-admin.
+function PermMatrixEditor({ matrix, onChange, admin, onAdminChange }: {
+  matrix: PermMatrix;
+  onChange: (m: PermMatrix) => void;
+  admin: boolean;
+  onAdminChange: (v: boolean) => void;
+}) {
+  const setFlag = (area: string, flag: keyof PermFlags) => {
+    const next = { ...normalizeMatrix(matrix) };
+    const cur = (next as any)[area] as PermFlags;
+    (next as any)[area] = { ...cur, [flag]: !cur[flag] };
+    onChange(next);
+  };
+  return (
+    <div className="space-y-2">
+      <label className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          checked={admin}
+          onChange={e => onAdminChange(e.target.checked)}
+          className="rounded text-purple-600 focus:ring-purple-500"
+        />
+        <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
+      </label>
+      <div className="border-t my-2"></div>
+      <p className="text-xs text-slate-400">
+        Per ogni area scegli se l'utente può Visualizzare, Modificare o Eliminare. Se non spunti almeno "Visualizza", la voce non appare nel menu.
+      </p>
+      <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-100 text-slate-600 text-xs uppercase">
+              <th className="text-left px-3 py-2 font-semibold">Area</th>
+              <th className="px-2 py-2 font-semibold text-center">Visualizza</th>
+              <th className="px-2 py-2 font-semibold text-center">Modifica</th>
+              <th className="px-2 py-2 font-semibold text-center">Elimina</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PERM_AREAS.map(area => {
+              const f = normalizeMatrix(matrix)[area] as PermFlags;
+              return (
+                <tr key={area} className="border-t border-slate-200">
+                  <td className="px-3 py-2">
+                    <span className="font-semibold block text-slate-800">{PERMISSION_LABELS[area]}</span>
+                    <span className="text-xs text-slate-400">{PERMISSION_RULES[area]}</span>
+                  </td>
+                  {(['r', 'w', 'd'] as (keyof PermFlags)[]).map(flag => (
+                    <td key={flag} className="px-2 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!f[flag]}
+                        onChange={() => setFlag(area, flag)}
+                        disabled={admin}
+                        className="rounded text-teal-600 focus:ring-teal-500"
+                      />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 const shiftYouthIds = (s: Shift | null | undefined): string[] => {
   if (!s) return [];
@@ -836,6 +941,7 @@ function App() {
             id: session.user.id,
             username: profile.username,
             permissions: profile.permissions || [],
+            permMatrix: profile.perm_matrix || null,
             tutorId: profile.tutor_id || null,
           });
           setToken(session.access_token);
@@ -1077,6 +1183,7 @@ function App() {
   // --- Handlers ---
 
   const handleSaveTutor = async () => {
+    if (!assertCan('TUTORS', 'w')) return;
     if (!newTutor.name) return;
 
     try {
@@ -1125,6 +1232,7 @@ function App() {
   };
 
   const handleDeleteTutor = async (id: string) => {
+    if (!assertCan('TUTORS', 'd')) return;
     try {
       const { error } = await supabase.from('tutors').delete().eq('id', id);
       if (error) throw error;
@@ -1138,6 +1246,7 @@ function App() {
   };
 
   const handleSaveYouth = async () => {
+    if (!assertCan('YOUTHS', 'w')) return;
     if (!newYouth.name) return;
 
     try {
@@ -1218,6 +1327,7 @@ function App() {
   };
 
   const handleDeleteYouth = async (id: string) => {
+    if (!assertCan('YOUTHS', 'd')) return;
     try {
       const { error } = await supabase.from('youths').delete().eq('id', id);
       if (error) throw error;
@@ -1261,6 +1371,8 @@ function App() {
   };
 
   const handleSaveShift = async () => {
+    const isPlan = shiftModalMode === 'plan';
+    if (!assertCan(isPlan ? 'PIANIFICAZIONE' : 'CONSUNTIVO', 'w')) return;
     const youthIds = editingShift?.youthIds && editingShift.youthIds.length > 0
       ? editingShift.youthIds
       : (editingShift?.youthId ? [editingShift.youthId] : []);
@@ -1272,7 +1384,6 @@ function App() {
     const shiftStart = toMin(editingShift.startTime);
     const shiftEnd = toMin(editingShift.endTime);
     const tutorForShift = tutors.find(t => t.id === editingShift.tutorId);
-    const isPlan = shiftModalMode === 'plan';
     const shiftWeekday = isPlan
       ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
       : weekdayOf(editingShift.date);
@@ -1375,6 +1486,7 @@ function App() {
   };
 
   const handleDeleteShift = async (id: string) => {
+    if (!assertCan('PIANIFICAZIONE', 'd')) return;
     if (!confirm("Eliminare questo turno?")) return;
     snapshotBeforeMutation();
     try {
@@ -1616,6 +1728,7 @@ function App() {
   // Rigenera la "settimana tipo" (template) a partire dai turni di consuntivo esistenti,
   // deduplicando per (giorno, tutor, ragazzi, orari, attività).
   const handleRegenTemplates = async () => {
+    if (!assertCan('PIANIFICAZIONE', 'w')) return;
     const occ = shifts.filter(s => !s.isTemplate && s.date);
     if (occ.length === 0) {
       alert("Nessun turno di consuntivo da cui ricavare la settimana tipo.");
@@ -1695,6 +1808,7 @@ function App() {
 
   // Cancella TUTTI i turni di consuntivo (non template) in tutto il DB, indipendentemente dal mese
   const handleClearAllConsuntivo = async () => {
+    if (!assertCan('CONSUNTIVO', 'd')) return;
     const count = shifts.filter(s => !s.isTemplate).length;
     if (count === 0) {
       alert("Nessun turno di consuntivo da cancellare.");
@@ -1716,6 +1830,7 @@ function App() {
 
   // Cancella tutti i turni di consuntivo (non template) del mese scelto
   const handleClearMonthShifts = async () => {
+    if (!assertCan('CONSUNTIVO', 'd')) return;
     if (!clearMonth) return;
     const monthStart = `${clearMonth}-01`;
     const monthEnd = format(endOfMonth(parseISO(monthStart)), 'yyyy-MM-dd');
@@ -1969,7 +2084,10 @@ function App() {
 
   const handleDrop = async (e: React.DragEvent, dateStr: string, minutes: number) => {
     e.preventDefault();
-    const shiftId = e.dataTransfer.getData("text/plain");
+    const dragId = e.dataTransfer.getData("text/plain");
+    const dragShift = shifts.find(s => s.id === dragId);
+    if (dragShift && !assertCan(dragShift.isTemplate ? 'PIANIFICAZIONE' : 'CONSUNTIVO', 'w')) return;
+    const shiftId = dragId;
 
     if (shiftId) {
       const shiftToUpdate = shifts.find(s => s.id === shiftId);
@@ -2031,12 +2149,36 @@ function App() {
 
   // --- Views ---
 
-  const hasPermission = (perm: string) => {
-    if (!currentUser) return false;
-    // Safety check: ensure permissions is an array
-    const perms = Array.isArray(currentUser.permissions) ? currentUser.permissions : [];
-    if (perms.includes('ALL')) return true;
-    return perms.includes(perm);
+  // --- Permessi (Visualizza/Modifica/Elimina per area) ---
+  const canView = (u: User | null | undefined, area: string) => {
+    if (!u) return false;
+    if (isAdminUser(u)) return true;
+    if (hasMatrix(u)) return !!normalizeMatrix(u.permMatrix)[area]?.r;
+    if (area === 'PIANIFICAZIONE' || area === 'CONSUNTIVO') return u.permissions.includes('DASHBOARD');
+    if (area === 'TUTORS') return u.permissions.includes('TUTORS');
+    if (area === 'YOUTHS') return u.permissions.includes('YOUTHS');
+    if (area === 'SUMMARY') return u.permissions.includes('SUMMARY');
+    if (area === 'USERS') return u.permissions.includes('USER_MANAGEMENT');
+    return false;
+  };
+  const canEdit = (u: User | null | undefined, area: string) => {
+    if (!u) return false;
+    if (isAdminUser(u)) return true;
+    if (hasMatrix(u)) return !!normalizeMatrix(u.permMatrix)[area]?.w;
+    return true;
+  };
+  const canDelete = (u: User | null | undefined, area: string) => {
+    if (!u) return false;
+    if (isAdminUser(u)) return true;
+    if (hasMatrix(u)) return !!normalizeMatrix(u.permMatrix)[area]?.d;
+    return true;
+  };
+  // Blocca l'azione se l'utente corrente non ha il permesso; ritorna true se permesso.
+  const assertCan = (area: string, mode: 'w' | 'd'): boolean => {
+    if (mode === 'w') { if (canEdit(currentUser, area)) return true; alert(`Permesso insufficiente: non puoi modificare in "${area}".`); return false; }
+    if (canDelete(currentUser, area)) return true;
+    alert(`Permesso insufficiente: non puoi eliminare in "${area}".`);
+    return false;
   };
 
   // Utente "limitato": ha un tutor associato ma NON è ADMIN COMPLETO (ALL).
@@ -2066,13 +2208,13 @@ function App() {
 
   const renderSidebar = () => {
     const navItems: { view: ViewState; perm: string; label: string; icon: React.ElementType; chipText: string }[] = [
-      { view: 'DASHBOARD', perm: 'DASHBOARD', label: 'Pianificazione Turni', icon: CalendarIcon, chipText: 'text-teal-600' },
-      { view: 'VALIDATION', perm: 'DASHBOARD', label: 'Consuntivo Turni', icon: ClipboardCheck, chipText: 'text-indigo-600' },
+      { view: 'DASHBOARD', perm: 'PIANIFICAZIONE', label: 'Pianificazione Turni', icon: CalendarIcon, chipText: 'text-teal-600' },
+      { view: 'VALIDATION', perm: 'CONSUNTIVO', label: 'Consuntivo Turni', icon: ClipboardCheck, chipText: 'text-indigo-600' },
       { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
       { view: 'PAYROLL', perm: 'SUMMARY', label: 'Calcolo Paga', icon: Wallet, chipText: 'text-lime-600' },
-      { view: 'GUIDE', perm: 'DASHBOARD', label: 'Guida d\'uso', icon: BookOpen, chipText: 'text-teal-600' },
+      { view: 'GUIDE', perm: 'PIANIFICAZIONE', label: 'Guida d\'uso', icon: BookOpen, chipText: 'text-teal-600' },
     ];
     const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
     const auditItem = { view: 'AUDIT' as ViewState, perm: 'ALL', label: 'Audit Trail', icon: Shield, chipText: 'text-amber-400' };
@@ -2151,8 +2293,8 @@ function App() {
         </div>
 
         <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
-          {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => setView(i.view), sidebarExpanded))}
-          {hasPermission('ALL') && (
+          {navItems.filter(i => canView(currentUser, i.perm)).map(i => renderNavItem(i, () => setView(i.view), sidebarExpanded))}
+          {isAdminUser(currentUser) && (
             <>
               {sidebarExpanded && (
                 <div className="flex items-center gap-3 my-3 px-1">
@@ -2207,8 +2349,8 @@ function App() {
               </div>
             </div>
             <nav className="relative flex-1 p-4 space-y-1.5 overflow-y-auto">
-              {navItems.filter(i => hasPermission(i.perm)).map(i => renderNavItem(i, () => { setView(i.view); setIsMobileMenuOpen(false); }, true))}
-              {hasPermission('ALL') && (
+              {navItems.filter(i => canView(currentUser, i.perm)).map(i => renderNavItem(i, () => { setView(i.view); setIsMobileMenuOpen(false); }, true))}
+              {isAdminUser(currentUser) && (
                 <>
                   <div className="flex items-center gap-3 my-3 px-1">
                     <div className="h-px flex-1 bg-white/15"></div>
@@ -3656,6 +3798,7 @@ function App() {
                                         <div
                                           className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize flex items-center justify-center"
                                           onPointerDown={(e) => {
+                                            if (!canEdit(currentUser, 'PIANIFICAZIONE')) return;
                                             e.preventDefault();
                                             e.stopPropagation();
                                             e.currentTarget.setPointerCapture(e.pointerId);
@@ -6274,9 +6417,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [users, setUsers] = useState<User[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '', permMatrix: emptyMatrix() });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
+  const [editMatrix, setEditMatrix] = useState<PermMatrix>(emptyMatrix());
   const [editTutorId, setEditTutorId] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -6311,6 +6455,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
         id: p.id,
         username: p.username,
         permissions: p.permissions || [],
+        permMatrix: p.perm_matrix || null,
         tutorId: p.tutor_id || null,
         email: p.email || null,
       })) : []);
@@ -6320,6 +6465,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   const handleCreateUser = async () => {
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
@@ -6333,8 +6479,9 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             email: `${newUser.username}@centrocare.local`,
             password: newUser.password,
             username: newUser.username,
-            permissions: newUser.permissions,
+            permissions: newUser.permissions.includes('ALL') ? ['ALL'] : matrixToLegacy(newUser.permMatrix),
             tutorId: newUser.tutorId || null,
+            permMatrix: newUser.permissions.includes('ALL') ? null : normalizeMatrix(newUser.permMatrix),
           }),
         }
       );
@@ -6342,10 +6489,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       const result = await response.json();
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to create user');
 
-      auditLog('create', 'user', result.user?.id, newUser.username, { permissions: newUser.permissions, tutor_id: newUser.tutorId || null });
+      auditLog('create', 'user', result.user?.id, newUser.username, { permissions: newUser.permissions, perm_matrix: newUser.permMatrix, tutor_id: newUser.tutorId || null });
 
       setIsUserModalOpen(false);
-      setNewUser({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '' });
+      setNewUser({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '', permMatrix: emptyMatrix() });
       fetchUsers();
       alert("Utente creato con successo!");
     } catch (error: any) {
@@ -6355,6 +6502,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   const handleDeleteUser = async (id: string) => {
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può eliminare utenti."); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
@@ -6382,6 +6530,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const openEditModal = (user: User) => {
     setEditingUser(user);
     setEditPermissions([...user.permissions]);
+    setEditMatrix(normalizeMatrix(user.permMatrix));
     setEditTutorId(user.tutorId || '');
     setEditEmail(user.email || '');
     setNewPassword('');
@@ -6391,17 +6540,25 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
 
   const handleUpdatePermissions = async () => {
     if (!editingUser) return;
+    const isAdmin = editPermissions.includes('ALL');
+    const finalPermissions = isAdmin ? ['ALL'] : matrixToLegacy(editMatrix);
+    const finalMatrix = isAdmin ? null : normalizeMatrix(editMatrix);
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null })
+        .update({
+          permissions: finalPermissions,
+          perm_matrix: finalMatrix,
+          tutor_id: editTutorId || null,
+          email: editEmail.trim() || null,
+        })
         .eq('id', editingUser.id);
 
       if (error) throw error;
 
       auditLog('update', 'user', editingUser.id, editingUser.username, {
-        old: { username: editingUser.username, permissions: editingUser.permissions, tutor_id: editingUser.tutorId || null, email: editingUser.email || null },
-        new: { username: editingUser.username, permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null },
+        old: { username: editingUser.username, permissions: editingUser.permissions, perm_matrix: editingUser.permMatrix || null, tutor_id: editingUser.tutorId || null, email: editingUser.email || null },
+        new: { username: editingUser.username, permissions: finalPermissions, perm_matrix: finalMatrix, tutor_id: editTutorId || null, email: editEmail.trim() || null },
       });
 
       setIsEditModalOpen(false);
@@ -6452,28 +6609,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     }
   };
 
-  const togglePermission = (perm: string) => {
-    setNewUser(prev => {
-      const perms = prev.permissions.includes('ALL') ? [] : prev.permissions;
-      if (perms.includes(perm)) {
-        return { ...prev, permissions: perms.filter(p => p !== perm) };
-      } else {
-        return { ...prev, permissions: [...perms, perm] };
-      }
-    });
-  };
-
-  const toggleEditPermission = (perm: string) => {
-    setEditPermissions(prev => {
-      const perms = prev.includes('ALL') ? [] : prev;
-      if (perms.includes(perm)) {
-        return perms.filter(p => p !== perm);
-      } else {
-        return [...perms, perm];
-      }
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -6522,9 +6657,15 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                       <Shield size={10} className="mr-1" /> ADMIN
                     </span>
                   ) : (
-                    user.permissions.map(p => (
-                      <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{PERMISSION_LABELS[p] || p}</span>
-                    ))
+                    (() => {
+                      const norm = normalizeMatrix(user.permMatrix);
+                      const areas = PERM_AREAS.filter(a => { const f = (norm as any)[a] as PermFlags; return !!(f && (f.r || f.w || f.d)); });
+                      return areas.length > 0 ? areas.map(a => (
+                        <span key={a} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{PERMISSION_LABELS[a]}</span>
+                      )) : user.permissions.map(p => (
+                        <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{matrixToLegacyLabel(p)}</span>
+                      ));
+                    })()
                   )}
                 </div>
               </div>
@@ -6583,33 +6724,12 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={newUser.permissions.includes('ALL')}
-                  onChange={() => setNewUser({ ...newUser, permissions: ['ALL'] })}
-                  className="rounded text-teal-600 focus:ring-teal-500"
-                />
-                <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
-              </label>
-              <div className="border-t my-2"></div>
-              {PERMISSION_KEYS.map(perm => (
-                <label key={perm} className="flex items-start space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newUser.permissions.includes(perm)}
-                    onChange={() => togglePermission(perm)}
-                    disabled={newUser.permissions.includes('ALL')}
-                    className="mt-0.5 rounded text-teal-600 focus:ring-teal-500"
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold block">{PERMISSION_LABELS[perm]}</span>
-                    <span className="text-xs text-slate-400">{PERMISSION_RULES[perm]}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+            <PermMatrixEditor
+              matrix={newUser.permMatrix}
+              onChange={(m) => setNewUser({ ...newUser, permMatrix: m })}
+              admin={newUser.permissions.includes('ALL')}
+              onAdminChange={(v) => setNewUser({ ...newUser, permissions: v ? ['ALL'] : [] })}
+            />
           </div>
           <div className="flex justify-end space-x-3 mt-6">
             <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
@@ -6661,33 +6781,12 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Permessi</label>
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={editPermissions.includes('ALL')}
-                  onChange={() => setEditPermissions(['ALL'])}
-                  className="rounded text-teal-600 focus:ring-teal-500"
-                />
-                <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
-              </label>
-              <div className="border-t my-2"></div>
-              {PERMISSION_KEYS.map(perm => (
-                <label key={perm} className="flex items-start space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editPermissions.includes(perm)}
-                    onChange={() => toggleEditPermission(perm)}
-                    disabled={editPermissions.includes('ALL')}
-                    className="mt-0.5 rounded text-teal-600 focus:ring-teal-500"
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold block">{PERMISSION_LABELS[perm]}</span>
-                    <span className="text-xs text-slate-400">{PERMISSION_RULES[perm]}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
+            <PermMatrixEditor
+              matrix={editMatrix}
+              onChange={setEditMatrix}
+              admin={editPermissions.includes('ALL')}
+              onAdminChange={(v) => setEditPermissions(v ? ['ALL'] : [])}
+            />
           </div>
 
           <div className="border-t pt-4 mt-2">
