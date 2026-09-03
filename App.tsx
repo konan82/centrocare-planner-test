@@ -5,6 +5,8 @@ import {
   UserCheck,
   Plus,
   Trash2,
+  Undo2,
+  Redo2,
   CalendarPlus,
   AlertTriangle,
   Menu,
@@ -645,6 +647,88 @@ function App() {
   const [youths, setYouths] = useState<Youth[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
 
+  // UNDO/REDO (azioni sui turni): snapshot dello stato prima di ogni modifica, riapplicato anche al DB
+  const [undoStack, setUndoStack] = useState<Shift[][]>([]);
+  const [redoStack, setRedoStack] = useState<Shift[][]>([]);
+  const cloneShifts = (list: Shift[]) => list.map(s => ({ ...s, youthIds: s.youthIds ? [...s.youthIds] : undefined }));
+  const snapshotBeforeMutation = () => {
+    setUndoStack(prev => [...prev.slice(-63), cloneShifts(shifts)]);
+    setRedoStack([]);
+  };
+  const syncShiftsToDb = async (current: Shift[], target: Shift[]) => {
+    const tgtIds = new Set(target.map(s => s.id));
+    const toDelete = current.filter(s => !tgtIds.has(s.id));
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from('shifts').delete().in('id', toDelete.map(s => s.id));
+      if (error) throw error;
+    }
+    const rows = target.map(s => ({
+      id: s.id,
+      tutor_id: s.tutorId,
+      youth_id: s.youthId || null,
+      youth_ids: s.youthIds && s.youthIds.length > 0 ? s.youthIds : (s.youthId ? [s.youthId] : []),
+      date: s.date,
+      start_time: s.startTime,
+      end_time: s.endTime,
+      activity: s.activity || 'Attività generica',
+      status: s.status || 'pianificato',
+      actual_start_time: s.isTemplate ? null : (s.actualStartTime || null),
+      actual_end_time: s.isTemplate ? null : (s.actualEndTime || null),
+      actual_notes: s.isTemplate ? '' : (s.actualNotes || ''),
+      is_template: s.isTemplate || false,
+      template_weekday: s.templateWeekday || null,
+      template_shift_id: s.templateShiftId || null,
+      duration_weeks: s.durationWeeks || null,
+    }));
+    const { error: upErr } = await supabase.from('shifts').upsert(rows);
+    if (upErr) throw upErr;
+    setShifts(cloneShifts(target));
+  };
+  const handleUndo = async () => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    const current = cloneShifts(shifts);
+    try {
+      await syncShiftsToDb(shifts, prev);
+      setUndoStack(s => s.slice(0, -1));
+      setRedoStack(s => [...s, current]);
+    } catch (error) {
+      console.error("Error on undo:", error);
+      alert("Errore durante l'annullamento");
+    }
+  };
+  const handleRedo = async () => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    const current = cloneShifts(shifts);
+    try {
+      await syncShiftsToDb(shifts, next);
+      setRedoStack(s => s.slice(0, -1));
+      setUndoStack(s => [...s, current]);
+    } catch (error) {
+      console.error("Error on redo:", error);
+      alert("Errore durante il rifacimento dell'azione");
+    }
+  };
+
+  // Shortcut da tastiera: Ctrl+Z = UNDO, Ctrl+Y / Ctrl+Shift+Z = REDO (attivi in Pianificazione e Consuntivo)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (view !== 'CALENDAR' && view !== 'VALIDATION') return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) handleRedo(); else handleUndo();
+      } else if (e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, undoStack, redoStack, shifts, handleUndo, handleRedo]);
+
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -1099,6 +1183,7 @@ function App() {
       ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
       : null;
 
+    snapshotBeforeMutation();
     try {
       const shiftData = {
         id: editingShift.id || Math.random().toString(36).slice(2, 11),
@@ -1162,6 +1247,7 @@ function App() {
 
   const handleDeleteShift = async (id: string) => {
     if (!confirm("Eliminare questo turno?")) return;
+    snapshotBeforeMutation();
     try {
       const shiftToDelete = shifts.find(s => s.id === id);
       const { error } = await supabase.from('shifts').delete().eq('id', id);
@@ -1366,6 +1452,7 @@ function App() {
 
     if (!confirm(`Copiare ${rows.length} turni della settimana tipo nel mese selezionato?`)) return;
 
+    snapshotBeforeMutation();
     try {
       const { error } = await supabase.from('shifts').insert(rows);
       if (error) throw error;
@@ -1434,6 +1521,7 @@ function App() {
       return;
     }
     if (!confirm(`Rigenerare ${rows.length} turni della settimana tipo a partire dal consuntivo?`)) return;
+    snapshotBeforeMutation();
     try {
       const { error } = await supabase.from('shifts').insert(rows);
       if (error) throw error;
@@ -1477,6 +1565,7 @@ function App() {
       return;
     }
     if (!confirm(`ATTENZIONE: cancellare TUTTI i ${count} turni del consuntivo in tutto il database, indipendentemente dal mese? L'azione non può essere annullata.`)) return;
+    snapshotBeforeMutation();
     try {
       const { error } = await supabase.from('shifts').delete().eq('is_template', false);
       if (error) throw error;
@@ -1499,6 +1588,7 @@ function App() {
       return;
     }
     if (!confirm(`Cancellare ${toDelete.length} turni del mese selezionato dal consuntivo? L'azione non può essere annullata.`)) return;
+    snapshotBeforeMutation();
     try {
       const ids = toDelete.map(s => s.id);
       const { error } = await supabase.from('shifts').delete().in('id', ids);
@@ -1528,6 +1618,7 @@ function App() {
 
     const toCreate = templateShifts.filter(t => !existingTemplateIds.has(t.id));
     if (toCreate.length === 0) return;
+    snapshotBeforeMutation();
 
     const rows = toCreate.map(t => ({
       id: Math.random().toString(36).slice(2, 11),
@@ -1745,6 +1836,7 @@ function App() {
     if (shiftId) {
       const shiftToUpdate = shifts.find(s => s.id === shiftId);
       if (shiftToUpdate) {
+        snapshotBeforeMutation();
         const effS = !shiftToUpdate.isTemplate && shiftToUpdate.actualStartTime ? shiftToUpdate.actualStartTime : shiftToUpdate.startTime;
         const effE = !shiftToUpdate.isTemplate && shiftToUpdate.actualEndTime ? shiftToUpdate.actualEndTime : shiftToUpdate.endTime;
         const [sh, sm] = (effS || '15:00').split(':').map(Number);
@@ -2835,6 +2927,28 @@ function App() {
                 })}
               </div>
 
+              {/* UNDO / REDO */}
+              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                <button
+                  onClick={handleUndo}
+                  disabled={undoStack.length === 0}
+                  title="Annulla ultima azione (Ctrl+Z)"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
+                >
+                  <Undo2 size={14} />
+                  Undo
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={redoStack.length === 0}
+                  title="Rifai ultima azione (Ctrl+Y)"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
+                >
+                  <Redo2 size={14} />
+                  Redo
+                </button>
+              </div>
+
               {/* Azioni */}
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button
@@ -2874,6 +2988,7 @@ function App() {
                   <button
                     onClick={async () => {
                       if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                      snapshotBeforeMutation();
                       try {
                         const { error } = await supabase.from('shifts').delete().eq('is_template', true);
                         if (error) throw error;
@@ -3391,6 +3506,7 @@ function App() {
                                             e.preventDefault();
                                             e.stopPropagation();
                                             e.currentTarget.setPointerCapture(e.pointerId);
+                                            snapshotBeforeMutation();
                                             const effE = !shift.isTemplate && shift.actualEndTime ? shift.actualEndTime : shift.endTime;
                                             const [eh, em] = (effE || '0:0').split(':').map(Number);
                                             resizeRef.current = { shiftId: shift.id, startEndMin: eh * 60 + em, startY: e.clientY, endMin: null };
