@@ -166,6 +166,25 @@ const rangesAreGlobal = (ranges: { start: string; end: string }[][] | undefined)
   return norm.every(d => JSON.stringify(d || []) === base);
 };
 
+// Formatta un valore dell'audit in modo leggibile; gestisce le fasce orarie non disponibili,
+// le liste di stringhe (specialità, bisogni) e gli oggetti annidati.
+const formatAuditValue = (key: string, v: any) => {
+  if (v == null) return '—';
+  if (key === 'unavailable_ranges' || key === 'unavailableRanges') {
+    const days = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+    const norm = normalizeUnavailableRanges(v);
+    const parts: string[] = [];
+    days.forEach((d, i) => {
+      const list = (norm[i] || []).map(r => `${r.start}–${r.end}`).join(', ');
+      if (list) parts.push(`${d}: ${list}`);
+    });
+    return parts.length ? parts.join(' · ') : 'nessuna fascia';
+  }
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
 const getEffectiveHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
   const t = getEffectiveTime(s);
   if (!t) return 0;
@@ -1070,8 +1089,8 @@ function App() {
       const oldTutor = newTutor.id ? tutors.find(t => t.id === newTutor.id) : undefined;
       auditLog(newTutor.id ? 'update' : 'create', 'tutor', tutorData.id, tutorData.name, newTutor.id && oldTutor
         ? auditDiff(
-            { name: oldTutor.name, max_hours_per_week: oldTutor.maxHoursPerWeek, min_hours_per_week: oldTutor.minHoursPerWeek ?? null, specialties: oldTutor.specialties, unavailable_days: oldTutor.unavailableDays, status: oldTutor.status, role: oldTutor.role || '', phone: oldTutor.phone || '', email: oldTutor.email || '', notes: oldTutor.notes || '' },
-            { name: tutorData.name, max_hours_per_week: tutorData.max_hours_per_week, min_hours_per_week: tutorData.min_hours_per_week, specialties: tutorData.specialties, unavailable_days: tutorData.unavailable_days, status: tutorData.status, role: tutorData.role, phone: tutorData.phone, email: tutorData.email, notes: tutorData.notes }
+            { name: oldTutor.name, max_hours_per_week: oldTutor.maxHoursPerWeek, min_hours_per_week: oldTutor.minHoursPerWeek ?? null, specialties: oldTutor.specialties, unavailable_days: oldTutor.unavailableDays, unavailable_ranges: oldTutor.unavailableRanges, status: oldTutor.status, role: oldTutor.role || '', phone: oldTutor.phone || '', email: oldTutor.email || '', notes: oldTutor.notes || '' },
+            { name: tutorData.name, max_hours_per_week: tutorData.max_hours_per_week, min_hours_per_week: tutorData.min_hours_per_week, specialties: tutorData.specialties, unavailable_days: tutorData.unavailable_days, unavailable_ranges: tutorData.unavailable_ranges, status: tutorData.status, role: tutorData.role, phone: tutorData.phone, email: tutorData.email, notes: tutorData.notes }
           )
         : { role: tutorData.role || '' });
 
@@ -6861,7 +6880,7 @@ function AuditView() {
                             const nv = newRec[key];
                             const changed = JSON.stringify(ov) !== JSON.stringify(nv);
                             if (!changed) return null;
-                            const fmt = (v: any) => v == null ? '—' : (Array.isArray(v) ? v.join(', ') : String(v));
+                            const fmt = (v: any) => formatAuditValue(key, v);
                             return (
                               <div key={key} className="contents">
                                 <span className="font-semibold text-slate-500 py-0.5">{key}</span>
@@ -6885,7 +6904,7 @@ function AuditView() {
                       {Object.entries(log.details.old).map(([key, val]: [string, any]) => (
                         <div key={key} className="contents">
                           <span className="font-semibold text-slate-500 py-0.5">{key}</span>
-                          <span className="py-0.5 text-red-600">{val == null ? '—' : (Array.isArray(val) ? val.join(', ') : String(val))}</span>
+                          <span className="py-0.5 text-red-600">{formatAuditValue(key, val)}</span>
                         </div>
                       ))}
                     </div>
