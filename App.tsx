@@ -1077,6 +1077,23 @@ function App() {
       : (editingShift?.youthId ? [editingShift.youthId] : []);
     if (!editingShift?.tutorId || youthIds.length === 0 || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
+    // Blocca la creazione/modifica se il turno cade in una fascia oraria di indisponibilità del tutor
+    const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+    const toMinText = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+    const shiftStart = toMin(editingShift.startTime);
+    const shiftEnd = toMin(editingShift.endTime);
+    const tutorForShift = tutors.find(t => t.id === editingShift.tutorId);
+    const unavailRanges = (tutorForShift?.unavailableRanges || []).map(r => {
+      const s = toMin(r.start);
+      const e = toMin(r.end);
+      return { start: Math.min(s, e), end: Math.max(s, e) };
+    }).filter(r => r.end > r.start);
+    const rangeOverlap = unavailRanges.find(r => shiftStart < r.end && shiftEnd > r.start);
+    if (rangeOverlap) {
+      alert(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''}.`);
+      return;
+    }
+
     const isPlan = shiftModalMode === 'plan';
     const templateWeekday = isPlan
       ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
