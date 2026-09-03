@@ -6771,6 +6771,7 @@ function AuditView() {
   const [error, setError] = useState<string | null>(null);
   const [filterEntity, setFilterEntity] = useState<string>('all');
   const [filterAction, setFilterAction] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
   const [filterFrom, setFilterFrom] = useState<string>('');
   const [filterTo, setFilterTo] = useState<string>('');
 
@@ -6807,6 +6808,7 @@ function AuditView() {
   const visible = logs.filter(l => {
     if (filterEntity !== 'all' && l.entity !== filterEntity) return false;
     if (filterAction !== 'all' && l.action !== filterAction) return false;
+    if (filterUser !== 'all' && (l.username || 'Sconosciuto') !== filterUser) return false;
     const ts = new Date(l.created_at);
     if (filterFrom && ts < new Date(`${filterFrom}T00:00:00`)) return false;
     if (filterTo) {
@@ -6815,6 +6817,8 @@ function AuditView() {
     }
     return true;
   });
+
+  const users = Array.from(new Set(logs.map(l => l.username || 'Sconosciuto'))).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-6">
@@ -6877,6 +6881,11 @@ function AuditView() {
           <option value="create">Creato</option>
           <option value="update">Modificato</option>
           <option value="delete">Cancellato</option>
+        </select>
+        <select value={filterUser} onChange={e => setFilterUser(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+          <option value="all">Tutti gli utenti</option>
+          {users.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
         <span className="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-sm text-slate-500 font-medium">
           {visible.length} eventi
