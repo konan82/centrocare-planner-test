@@ -2612,6 +2612,24 @@ function App() {
   const renderCalendar = (mode: 'plan' | 'validate') => {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
+    // Giorni (colonne) in cui il tutor filtrato ha turni → da evidenziare in rosso
+    const tutorActiveWeekdays = new Set<number>();
+    if (tutorFilter !== 'all' && tutorFilter) {
+      calendarDays.forEach((day, dayIdx) => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        const hasShift = visibleShifts.some(s => {
+          if (s.tutorId !== tutorFilter) return false;
+          if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
+          if (isPlan) {
+            return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
+          }
+          if (!s.date || s.isTemplate) return false;
+          const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+          return shiftDate === dateStr;
+        });
+        if (hasShift) tutorActiveWeekdays.add(dayIdx);
+      });
+    }
     // Sistema bottoni standard: stessa forma/size, colore per ruolo
     const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
     const BTN_SM = "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
@@ -3059,25 +3077,6 @@ function App() {
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
                   // Per-day layout: card positions (slot index, span, column) per shift.
-                  // Giorni (colonne) in cui il tutor filtrato ha turni → da evidenziare in rosso
-                  const tutorActiveWeekdays = new Set<number>();
-                  if (tutorFilter !== 'all' && tutorFilter) {
-                    calendarDays.forEach((day, dayIdx) => {
-                      const dateStr = format(day, 'yyyy-MM-dd');
-                      const hasShift = visibleShifts.some(s => {
-                        if (s.tutorId !== tutorFilter) return false;
-                        if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
-                        if (isPlan) {
-                          return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
-                        }
-                        if (!s.date || s.isTemplate) return false;
-                        const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-                        return shiftDate === dateStr;
-                      });
-                      if (hasShift) tutorActiveWeekdays.add(dayIdx);
-                    });
-                  }
-
                   // Overlapping shifts are placed side by side via greedy interval coloring.
                   const dayLayouts = calendarDays.map((day, dayIdx) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
