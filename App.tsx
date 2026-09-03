@@ -2612,22 +2612,14 @@ function App() {
   const renderCalendar = (mode: 'plan' | 'validate') => {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
-    // Giorni (colonne) in cui il tutor filtrato ha turni → da evidenziare in rosso
-    const tutorActiveWeekdays = new Set<number>();
-    if (tutorFilter !== 'all' && tutorFilter) {
-      calendarDays.forEach((day, dayIdx) => {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const hasShift = visibleShifts.some(s => {
-          if (s.tutorId !== tutorFilter) return false;
-          if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
-          if (isPlan) {
-            return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
-          }
-          if (!s.date || s.isTemplate) return false;
-          const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
-          return shiftDate === dateStr;
-        });
-        if (hasShift) tutorActiveWeekdays.add(dayIdx);
+    // Giorni NON disponibili del tutor filtrato (nel calendario mostriamo Lun..Sab = colonne 0..5)
+    const tutorUnavailableWeekdays = new Set<number>();
+    const filteredTutor = tutorFilter && tutorFilter !== 'all' ? tutors.find(t => t.id === tutorFilter) : null;
+    if (filteredTutor) {
+      (filteredTutor.unavailableDays || []).forEach(dayNum => {
+        // unavailableDays: 0=Dom,1=Lun,...,6=Sab → colonna calendario: Lun=0,...,Sab=5
+        const colIdx = dayNum - 1;
+        if (colIdx >= 0 && colIdx <= 5) tutorUnavailableWeekdays.add(colIdx);
       });
     }
     // Sistema bottoni standard: stessa forma/size, colore per ruolo
@@ -3036,7 +3028,7 @@ function App() {
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
                     const isToday = !isPlan && isSameDay(calendarDays[i], new Date());
-                    const highlightCol = tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i);
+                    const highlightCol = tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i);
                     return (
                       <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
                         highlightCol
@@ -3190,13 +3182,13 @@ function App() {
                                     youthFilter !== 'all' ? youthFilter : ''
                                   )}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
-                                tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i)
+                                tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i)
                                   ? isBand ? 'bg-rose-100/50' : 'bg-rose-50/60'
                                   : isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
                                 isDragOver
                                   ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
-                                  : tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i)
+                                  : tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i)
                                     ? 'hover:bg-rose-100'
                                     : 'hover:bg-teal-50/30'
                               }`}
