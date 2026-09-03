@@ -3018,24 +3018,27 @@ function App() {
                   </th>
                   {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
                     const isToday = !isPlan && isSameDay(calendarDays[i], new Date());
+                    const highlightCol = tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i);
                     return (
                       <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
-                        isToday ? 'bg-gradient-to-b from-teal-50 to-white' : 'bg-slate-50/80'
+                        highlightCol
+                          ? 'bg-gradient-to-b from-rose-200 to-rose-50'
+                          : isToday ? 'bg-gradient-to-b from-teal-50 to-white' : 'bg-slate-50/80'
                       }`}>
                         <div className="flex flex-col items-center gap-1">
                           <span className={`text-sm font-extrabold tracking-widest ${
-                            isToday ? 'text-teal-600' : 'text-slate-600'
+                            highlightCol ? 'text-rose-600' : isToday ? 'text-teal-600' : 'text-slate-600'
                           }`}>
                             {label}
                           </span>
                           {!isPlan && (
                             <span className={`text-[10px] font-semibold tabular-nums ${
-                              isToday ? 'text-teal-600' : 'text-slate-400'
+                              highlightCol ? 'text-rose-600' : isToday ? 'text-teal-600' : 'text-slate-400'
                             }`}>
                               {format(calendarDays[i], 'dd/MM')}
                             </span>
                           )}
-                          {isToday && (
+                          {isToday && !highlightCol && (
                             <span className="text-[9px] font-bold uppercase tracking-wide bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-full px-2 py-0.5 shadow-sm shadow-teal-200">
                               Oggi
                             </span>
@@ -3056,6 +3059,25 @@ function App() {
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
                   // Per-day layout: card positions (slot index, span, column) per shift.
+                  // Giorni (colonne) in cui il tutor filtrato ha turni → da evidenziare in rosso
+                  const tutorActiveWeekdays = new Set<number>();
+                  if (tutorFilter !== 'all' && tutorFilter) {
+                    calendarDays.forEach((day, dayIdx) => {
+                      const dateStr = format(day, 'yyyy-MM-dd');
+                      const hasShift = visibleShifts.some(s => {
+                        if (s.tutorId !== tutorFilter) return false;
+                        if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
+                        if (isPlan) {
+                          return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
+                        }
+                        if (!s.date || s.isTemplate) return false;
+                        const shiftDate = typeof s.date === 'string' ? s.date.split('T')[0] : '';
+                        return shiftDate === dateStr;
+                      });
+                      if (hasShift) tutorActiveWeekdays.add(dayIdx);
+                    });
+                  }
+
                   // Overlapping shifts are placed side by side via greedy interval coloring.
                   const dayLayouts = calendarDays.map((day, dayIdx) => {
                     const dateStr = format(day, 'yyyy-MM-dd');
@@ -3169,11 +3191,15 @@ function App() {
                                     youthFilter !== 'all' ? youthFilter : ''
                                   )}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
-                                isBand ? 'bg-slate-50/40' : 'bg-white'
+                                tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i)
+                                  ? isBand ? 'bg-rose-100/50' : 'bg-rose-50/60'
+                                  : isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
                                 isDragOver
                                   ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
-                                  : 'hover:bg-teal-50/30'
+                                  : tutorFilter !== 'all' && tutorFilter && tutorActiveWeekdays.has(i)
+                                    ? 'hover:bg-rose-100'
+                                    : 'hover:bg-teal-50/30'
                               }`}
                             >
                               {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
