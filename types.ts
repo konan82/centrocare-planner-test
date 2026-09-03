@@ -11,6 +11,7 @@ export interface Tutor {
   maxHoursPerWeek: number;
   minHoursPerWeek?: number;
   unavailableDays: number[]; // 0 = Sunday, 1 = Monday, etc.
+  unavailableRanges?: { start: string; end: string }[]; // fasce orarie non disponibili (HH:mm)
   notes: string;
   phone?: string;
   email?: string;
