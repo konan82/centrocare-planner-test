@@ -2726,7 +2726,7 @@ function App() {
               ) : (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <PersonCombo
-                    options={tutors}
+                    options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
                     value={tutorFilter}
                     onChange={setTutorFilter}
                     placeholder="Tutti i tutor"
@@ -2737,7 +2737,7 @@ function App() {
                     className="w-full sm:w-52"
                   />
                   <PersonCombo
-                    options={youths}
+                    options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
                     value={youthFilter}
                     onChange={setYouthFilter}
                     placeholder="Tutti i ragazzi"
