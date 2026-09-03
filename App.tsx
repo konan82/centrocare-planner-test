@@ -5904,8 +5904,9 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
     setError('');
 
     try {
+      const loginEmail = email.trim().includes('@') ? email.trim() : `${email.trim()}@centrocare.local`;
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: loginEmail,
         password,
       });
 
@@ -5956,17 +5957,17 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nome utente</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <UserCheck size={18} className="text-slate-400" />
               </div>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-10 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-2.5 border"
-                placeholder="Inserisci email"
+                placeholder="Inserisci nome utente"
                 required
               />
             </div>
