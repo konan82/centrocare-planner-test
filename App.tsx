@@ -104,7 +104,7 @@ const ROLE_STYLES: Record<string, { badge: string; dot: string }> = {
 };
 const ROLE_DEFAULT = { badge: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
 
-const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore', 'Amministrativo', 'Presidente', 'Vice Presidente'];
+const TUTOR_ROLES = ['Educatore', 'Psicologo', 'Tutor DSA', 'Operatore', 'Volontario', 'Coordinatore', 'Amministrativo', 'Presidente', 'Vice Presidente', 'Capo Supremo'];
 
 // Settimana tipo: date di riferimento LUN-SAB (2026-08-03 era un Lunedì)
 const TEMPLATE_ANCHOR = parseISO('2026-08-03');
