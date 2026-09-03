@@ -73,6 +73,23 @@ const waHref = (phone: string) => {
   return `https://wa.me/${digits}`;
 };
 
+// Etichette italiane dei permessi utente, adattate alle schermate/funzionalità attuali dell'app
+const PERMISSION_LABELS: Record<string, string> = {
+  DASHBOARD: 'Pianificazione & Consuntivo Turni',
+  TUTORS: 'Gestione Tutor',
+  YOUTHS: 'Anagrafica Ragazzi',
+  SUMMARY: 'Riepilogo Ore & Calcolo Paga',
+  USER_MANAGEMENT: 'Gestione Utenti',
+};
+const PERMISSION_KEYS = ['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'];
+const PERMISSION_RULES: Record<string, string> = {
+  DASHBOARD: 'Accede a Pianificazione Turni, Consuntivo Turni e Guida d\'uso',
+  TUTORS: 'Gestione dei tutor (schede e disponibilità)',
+  YOUTHS: 'Anagrafica dei ragazzi/centri',
+  SUMMARY: 'Riepilogo Ore e Calcolo Paga',
+  USER_MANAGEMENT: 'Gestione utenti e permessi (area amministrativa)',
+};
+
 const shiftYouthIds = (s: Shift | null | undefined): string[] => {
   if (!s) return [];
   return s.youthIds && s.youthIds.length > 0 ? s.youthIds : (s.youthId ? [s.youthId] : []);
@@ -6506,7 +6523,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                     </span>
                   ) : (
                     user.permissions.map(p => (
-                      <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{p}</span>
+                      <span key={p} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full border border-slate-200">{PERMISSION_LABELS[p] || p}</span>
                     ))
                   )}
                 </div>
@@ -6577,16 +6594,19 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
               </label>
               <div className="border-t my-2"></div>
-              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'].map(perm => (
-                <label key={perm} className="flex items-center space-x-2">
+              {PERMISSION_KEYS.map(perm => (
+                <label key={perm} className="flex items-start space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={newUser.permissions.includes(perm)}
                     onChange={() => togglePermission(perm)}
                     disabled={newUser.permissions.includes('ALL')}
-                    className="rounded text-teal-600 focus:ring-teal-500"
+                    className="mt-0.5 rounded text-teal-600 focus:ring-teal-500"
                   />
-                  <span className="text-sm capitalize">{perm.replace('_', ' ').toLowerCase()}</span>
+                  <span className="text-sm">
+                    <span className="font-semibold block">{PERMISSION_LABELS[perm]}</span>
+                    <span className="text-xs text-slate-400">{PERMISSION_RULES[perm]}</span>
+                  </span>
                 </label>
               ))}
             </div>
@@ -6652,16 +6672,19 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <span className="text-sm font-bold text-purple-700">ADMIN COMPLETO (Tutto)</span>
               </label>
               <div className="border-t my-2"></div>
-              {['DASHBOARD', 'TUTORS', 'YOUTHS', 'SUMMARY', 'USER_MANAGEMENT'].map(perm => (
-                <label key={perm} className="flex items-center space-x-2">
+              {PERMISSION_KEYS.map(perm => (
+                <label key={perm} className="flex items-start space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={editPermissions.includes(perm)}
                     onChange={() => toggleEditPermission(perm)}
                     disabled={editPermissions.includes('ALL')}
-                    className="rounded text-teal-600 focus:ring-teal-500"
+                    className="mt-0.5 rounded text-teal-600 focus:ring-teal-500"
                   />
-                  <span className="text-sm capitalize">{perm.replace('_', ' ').toLowerCase()}</span>
+                  <span className="text-sm">
+                    <span className="font-semibold block">{PERMISSION_LABELS[perm]}</span>
+                    <span className="text-xs text-slate-400">{PERMISSION_RULES[perm]}</span>
+                  </span>
                 </label>
               ))}
             </div>
