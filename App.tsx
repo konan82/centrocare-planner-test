@@ -8,6 +8,7 @@ import {
   Undo2,
   Redo2,
   RefreshCw,
+  Mail,
   CalendarPlus,
   AlertTriangle,
   Menu,
@@ -6010,6 +6011,12 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [editTutorId, setEditTutorId] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [pwBusy, setPwBusy] = useState(false);
+  const [recoverMsg, setRecoverMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [recoverBusy, setRecoverBusy] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
@@ -6040,6 +6047,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
         username: p.username,
         permissions: p.permissions || [],
         tutorId: p.tutor_id || null,
+        email: p.email || null,
       })) : []);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -6109,6 +6117,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     setEditingUser(user);
     setEditPermissions([...user.permissions]);
     setEditTutorId(user.tutorId || '');
+    setEditEmail(user.email || '');
+    setNewPassword('');
+    setPwMsg(null);
+    setRecoverMsg(null);
     setIsEditModalOpen(true);
   };
 
@@ -6117,12 +6129,12 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ permissions: editPermissions, tutor_id: editTutorId || null })
+        .update({ permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null })
         .eq('id', editingUser.id);
 
       if (error) throw error;
 
-      auditLog('update', 'user', editingUser.id, editingUser.username, { permissions: editPermissions, tutor_id: editTutorId || null });
+      auditLog('update', 'user', editingUser.id, editingUser.username, { permissions: editPermissions, tutor_id: editTutorId || null, email: editEmail.trim() || null });
 
       setIsEditModalOpen(false);
       setEditingUser(null);
@@ -6131,6 +6143,60 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     } catch (error) {
       console.error(error);
       alert("Errore nell'aggiornamento dei permessi");
+    }
+  };
+
+  const callUpdateUser = async (payload: Record<string, any>) => {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+    const result = await response.json();
+    if (!response.ok || result.error) throw new Error(result.error || 'Operazione non riuscita');
+    return result;
+  };
+
+  const handleChangePassword = async () => {
+    if (!editingUser) return;
+    if (!newPassword || newPassword.length < 6) {
+      setPwMsg({ type: 'err', text: 'Inserisci una nuova password di almeno 6 caratteri.' });
+      return;
+    }
+    setPwBusy(true);
+    setPwMsg(null);
+    try {
+      await callUpdateUser({ userId: editingUser.id, newPassword });
+      auditLog('update', 'user', editingUser.id, editingUser.username, { action: 'change_password' });
+      setNewPassword('');
+      setPwMsg({ type: 'ok', text: 'Password cambiata con successo.' });
+    } catch (error: any) {
+      console.error(error);
+      setPwMsg({ type: 'err', text: `Errore: ${error.message}` });
+    } finally {
+      setPwBusy(false);
+    }
+  };
+
+  const handleSendRecovery = async () => {
+    if (!editingUser) return;
+    setRecoverBusy(true);
+    setRecoverMsg(null);
+    try {
+      await callUpdateUser({ userId: editingUser.id, sendRecovery: true });
+      auditLog('update', 'user', editingUser.id, editingUser.username, { action: 'send_recovery_email' });
+      setRecoverMsg({ type: 'ok', text: 'Email di recupero inviata: nuove credenziali generate e spedite.' });
+    } catch (error: any) {
+      console.error(error);
+      setRecoverMsg({ type: 'err', text: `Errore: ${error.message}` });
+    } finally {
+      setRecoverBusy(false);
     }
   };
 
@@ -6308,6 +6374,20 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email (recupero credenziali)</label>
+            <input
+              type="email"
+              value={editEmail}
+              onChange={e => setEditEmail(e.target.value)}
+              placeholder="es. nome@dominio.it"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              Email reale utilizzata per inviare le nuove credenziali in caso di recupero password.
+            </p>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Tutor associato</label>
             <select
               value={editTutorId}
@@ -6350,6 +6430,50 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="border-t pt-4 mt-2">
+            <h4 className="text-sm font-bold text-slate-700 mb-1">Gestione password</h4>
+            <p className="text-xs text-slate-400 mb-3">
+              Cambia la password dell'utente o inviagli via email le nuove credenziali di recupero.
+            </p>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">Nuova password</label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Inserisci nuova password"
+                  className="flex-1 p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                />
+                <button
+                  onClick={handleChangePassword}
+                  disabled={pwBusy}
+                  className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50 text-sm font-semibold whitespace-nowrap"
+                >
+                  {pwBusy ? 'Salvo...' : 'Cambia password'}
+                </button>
+              </div>
+              {pwMsg && (
+                <p className={`text-xs font-medium ${pwMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{pwMsg.text}</p>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={handleSendRecovery}
+                disabled={recoverBusy}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold inline-flex items-center gap-2"
+              >
+                <Mail size={16} />
+                {recoverBusy ? 'Invio...' : 'Invia email di recupero credenziali'}
+              </button>
+            </div>
+            {recoverMsg && (
+              <p className={`text-xs font-medium mt-1 ${recoverMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{recoverMsg.text}</p>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3 mt-6">

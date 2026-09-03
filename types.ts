@@ -81,6 +81,7 @@ export interface User {
   username: string;
   permissions: string[]; // e.g. ['DASHBOARD', 'TUTORS', 'ALL']
   tutorId?: string | null; // tutor associato: se presente e senza 'ALL', vede solo i propri turni
+  email?: string | null; // email reale per il recupero password
 }
 
 export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT';
