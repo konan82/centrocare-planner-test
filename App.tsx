@@ -499,8 +499,9 @@ const DualRangeSlider: React.FC<{
     };
   }, [drag, valueMin, valueMax, min, max]);
 
-  const startDrag = (which: 'min' | 'max') => (e: React.PointerEvent) => {
-    e.preventDefault();
+  const startDrag = (which: 'min' | 'max') => (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLDivElement).focus();
     setDrag(which);
   };
 
