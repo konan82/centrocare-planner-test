@@ -4009,42 +4009,46 @@ function App() {
           <div className="rounded-xl border border-lime-300 bg-gradient-to-br from-lime-50 to-emerald-50 p-5 text-[15px] text-slate-800 space-y-4 leading-relaxed">
             <p>
               Il <span className="font-bold">compenso mensile</span> di ogni tutor nasce dalla sua{' '}
-              <span className="font-bold">settimana tipo</span> (impostata in Pianificazione Turni). Ogni turno viene scomposto
-              minuto per minuto in:
+              <span className="font-bold">settimana tipo</span> (impostata in Pianificazione Turni). Ogni fascia oraria
+              (giorno + orario) può contenere più turni; vengono raggruppati e scomposti per{' '}
+              <span className="font-bold">validità</span> in:
             </p>
             <ul className="list-disc pl-6 space-y-1.5">
               <li>
-                <span className="font-bold text-teal-700">Turno singolo</span> — quando il tutor segue un solo ragazzo; pesa con la{' '}
+                <span className="font-bold text-teal-700">Turno singolo</span> — quando il tutor segue un solo ragazzo; vale per la{' '}
                 <span className="font-bold">validità</span> di quel turno.
               </li>
               <li>
                 <span className="font-bold text-violet-700">Turno doppio</span> — quando il tutor segue <b>2 o più ragazzi</b> nello
-                stesso intervallo; pesa con la <span className="font-bold">validità minima</span> tra i turni che si sovrappongono.
+                stesso intervallo; vale per la <span className="font-bold">validità minima</span> tra le fasce che si sovrappongono.
+              </li>
+              <li>
+                <span className="font-bold text-amber-700">Residuo singolo</span> — se un ragazzo ha un turno con validità più alta del
+                turno doppio che lo include, le settimane in eccesso vengono pagate a tariffa singola.
               </li>
             </ul>
             <div className="rounded-xl bg-white border-2 border-lime-300 px-5 py-4 text-center font-mono text-base text-slate-900">
-              Compenso = (Ore singolo × Tariffa sing. × {weeks} sett.) + (Ore doppio × Tariffa dopp. × validità min.)
+              Compenso = (Ore singolo × Tariffa sing. × Validità) + (Ore doppio × Tariffa dopp. × Validità min.) + (Residuo singolo × Tariffa sing.)
             </div>
             <p>
               La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Ogni turno ha una propria
               validità (campo "Validità (settimane)" in Pianificazione, default 4). Quando
-              più turni si sovrappongono creando una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro.
-              Le settimane in eccesso di un ragazzo il cui turno dura di più vengono pagate come <b>turno singolo residuo</b>:
-              es. Pacetti (validità 2) + Pacetti & Galzerano (validità 1) → 1 settimana doppia + 1 settimana singola (solo Pacetti).
+              più turni creano una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro: le settimane in cui è presente
+              il ragazzo con la validità più alta ma non ancora il doppio vengono pagate come <b>residuo singolo</b>.
             </p>
             <div className="rounded-xl bg-white border border-lime-200 px-5 py-4">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Esempio con i parametri attuali</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
                 <div className="text-slate-600">Tariffa singolo: <span className="font-bold text-slate-800">{eur(rs)}/h</span></div>
                 <div className="text-slate-600">Tariffa doppio: <span className="font-bold text-slate-800">{eur(rd)}/h</span></div>
-                <div className="text-slate-600">Settimana tipo: 1h singolo + 1h doppio</div>
-                <div className="text-slate-600">Validità: singolo {weeks} sett. · doppio min. 1 sett.</div>
+                <div className="text-slate-600">Turni sovrapposti: Pacetti (validità 2) + Pacetti & Galzerano (validità 1), 1h</div>
+                <div className="text-slate-600">Validità: doppio min. 1 sett. · residuo singolo 1 sett.</div>
               </div>
               <div className="mt-3 font-mono text-sm text-slate-800">
-                = (1h × {eur(rs)} × {weeks}) + (1h × {eur(rd)} × 1)
+                = (1h × {eur(rd)} × 1) + (1h × {eur(rs)} × 1)
               </div>
               <div className="mt-1 font-mono text-lg font-bold text-teal-700">
-                = {eur(1 * rs * weeks)} + {eur(1 * rd * 1)} = {eur((1 * rs * weeks) + (1 * rd * 1))}
+                = {eur(1 * rd * 1)} + {eur(1 * rs * 1)} = {eur(1 * rd * 1 + 1 * rs * 1)}
               </div>
             </div>
           </div>
