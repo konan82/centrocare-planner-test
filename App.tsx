@@ -4056,7 +4056,7 @@ function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
                   <div className="text-slate-600">Tariffa singolo: <span className="font-bold text-slate-800">{eur(rs)}/h</span></div>
                   <div className="text-slate-600">Tariffa doppio: <span className="font-bold text-slate-800">{eur(rd)}/h</span></div>
-                  <div className="text-slate-600">Pacetti (validità 2) + Pacetti & Galzerano (validità 1), 1h</div>
+                  <div className="text-slate-600">Rossi (validità 2) + Rossi & Bianchi (validità 1), 1h</div>
                   <div className="text-slate-600">→ doppio 1 sett. + residuo singolo 1 sett.</div>
                 </div>
                 <div className="mt-3 font-mono text-sm text-slate-800">
