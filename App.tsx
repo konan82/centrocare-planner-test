@@ -3462,84 +3462,73 @@ function App() {
           };
         })
         .filter((x): x is { id: string; wd: number; startMin: number; endMin: number; startTime: string; endTime: string; youths: Set<string>; weeks: number } => x !== null);
-      // Per ogni minuto (giorno+orario), elenco dei turni che lo coprono
-      const minuteIntervals = new Map<number, typeof intervals>();
-      intervals.forEach(iv => {
-        for (let m = iv.startMin; m < iv.endMin; m++) {
-          const key = iv.wd * 1440 + m;
-          const arr = minuteIntervals.get(key);
-          if (arr) arr.push(iv);
-          else minuteIntervals.set(key, [iv]);
-        }
-      });
       let paySingle = 0;
       let payDouble = 0;
       let singleHW = 0; // ore singole × validità (per media ponderata)
       let doubleHW = 0; // ore doppie × validità minima (per media ponderata)
       const details: string[] = [];
       const dayLabel = (wd: number) => ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][wd] || `Giorno ${wd}`;
-      const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-      // Tabella per turno: per ogni turno attribuisci i minuti singoli/doppi e calcola la
-      // paga parziale. Il doppio pesa sulla validità MINIMA dei turni sovrapposti (opzione C).
-      const shiftRows = intervals.map(iv => {
-        let sm = 0;
-        let dm = 0;
-        let minWeeks = iv.weeks;
-        const singleYouths = new Set<string>();
-        const doubleYouths = new Set<string>();
-        for (let m = iv.startMin; m < iv.endMin; m++) {
-          const arr = minuteIntervals.get(iv.wd * 1440 + m) || [];
+      // Breakdown per turno con logica "strati di validità".
+      // Più turni sulla stessa fascia oraria (settimana tipo) vengono raggruppati e scomposti
+      // per validità. Es.: Pacetti (validità 2) + Pacetti&Galzerano (validità 1) → 1 settimana
+      // doppia (entrambi presenti) + 1 settimana singola residua (solo Pacetti).
+      const slotKey = (iv: typeof intervals[number]) => `${iv.wd}|${iv.startMin}|${iv.endMin}`;
+      const slotMap = new Map<string, typeof intervals>();
+      intervals.forEach(iv => {
+        const k = slotKey(iv);
+        const arr = slotMap.get(k);
+        if (arr) arr.push(iv);
+        else slotMap.set(k, [iv]);
+      });
+      const shiftRows: Array<{ wd: number; startMin: number; endMin: number; day: string; time: string; singleH: number; doubleH: number; valid: number; doubleValid: number; pay: number; singleYouths: string[]; doubleYouths: string[] }> = [];
+      slotMap.forEach(g => {
+        const thresholds = Array.from(new Set(g.map(x => x.weeks))).sort((a, b) => b - a);
+        const slotH = (g[0].endMin - g[0].startMin) / 60;
+        thresholds.forEach((t, idx) => {
+          const next = idx + 1 < thresholds.length ? thresholds[idx + 1] : 0;
+          const dur = t - next;
+          if (dur <= 0) return;
+          const active = g.filter(x => x.weeks >= t);
           const yc = new Set<string>();
-          arr.forEach(x => x.youths.forEach(y => yc.add(y)));
+          active.forEach(x => x.youths.forEach(y => yc.add(y)));
+          const row: any = {
+            wd: g[0].wd,
+            startMin: g[0].startMin,
+            endMin: g[0].endMin,
+            day: dayLabel(g[0].wd),
+            time: `${g[0].startTime}–${g[0].endTime}`,
+            singleH: 0,
+            doubleH: 0,
+            valid: 0,
+            doubleValid: 0,
+            pay: 0,
+            singleYouths: [] as string[],
+            doubleYouths: [] as string[],
+          };
           if (yc.size >= 2) {
-            dm++;
-            arr.forEach(x => { if (x.weeks < minWeeks) minWeeks = x.weeks; });
-            yc.forEach(y => doubleYouths.add(y));
+            row.doubleH = slotH;
+            row.doubleValid = dur;
+            row.doubleYouths = [...yc];
+            row.pay = slotH * rd * dur;
+            payDouble += row.pay;
+            wDouble += slotH;
+            doubleHW += slotH * dur;
           } else {
-            sm++;
-            arr.forEach(x => x.youths.forEach(y => singleYouths.add(y)));
+            row.singleH = slotH;
+            row.valid = dur;
+            row.singleYouths = [...yc];
+            row.pay = slotH * rs * dur;
+            paySingle += row.pay;
+            wSingle += slotH;
+            singleHW += slotH * dur;
           }
-        }
-        const singleH = sm / 60;
-        const doubleH = dm / 60;
-        const pay = (singleH * rs * iv.weeks) + (doubleH * rd * minWeeks);
-        return {
-          wd: iv.wd,
-          startMin: iv.startMin,
-          endMin: iv.endMin,
-          day: dayLabel(iv.wd),
-          time: `${iv.startTime}–${iv.endTime}`,
-          singleH,
-          doubleH,
-          valid: iv.weeks,
-          doubleValid: minWeeks,
-          pay,
-          singleYouths: [...singleYouths],
-          doubleYouths: [...doubleYouths],
-        };
+          shiftRows.push(row);
+        });
       });
-      shiftRows.sort((a, b) => (a.wd - b.wd) || (a.startMin - b.startMin));
+      shiftRows.sort((a, b) => (a.wd - b.wd) || (a.startMin - b.startMin) || (b.doubleValid - a.doubleValid));
       intervals.forEach(iv => { if (iv.weeks !== weeks) details.push(`${dayLabel(iv.wd)} ${iv.startTime}–${iv.endTime} · turno valido ${iv.weeks} settimane`); });
-      minuteIntervals.forEach(arr => {
-        const youthCount = new Set<string>();
-        arr.forEach(iv => iv.youths.forEach(y => youthCount.add(y)));
-        if (youthCount.size >= 2) {
-          // doppio: pesato per il minimo delle validità dei turni sovrapposti
-          const mw = Math.min(...arr.map(iv => iv.weeks));
-          wDouble += 1;
-          doubleHW += mw;
-          payDouble += (1 / 60) * rd * mw;
-        } else if (youthCount.size === 1) {
-          const shiftWeeks = arr[0].weeks;
-          wSingle += 1;
-          singleHW += shiftWeeks;
-          paySingle += (1 / 60) * rs * shiftWeeks;
-        }
-      });
-      wSingle /= 60;
-      wDouble /= 60;
-      const singleWeeks = wSingle > 0 ? singleHW / (wSingle * 60) : 0; // media ponderata sulle ore
-      const doubleWeeks = wDouble > 0 ? doubleHW / (wDouble * 60) : 0; // media ponderata sulle ore
+      const singleWeeks = wSingle > 0 ? singleHW / wSingle : 0; // media ponderata sulle ore
+      const doubleWeeks = wDouble > 0 ? doubleHW / wDouble : 0; // media ponderata sulle ore
 
       const base = paySingle + payDouble;
       return { tutor: t, wSingle, wDouble, paySingle, payDouble, singleWeeks, doubleWeeks, base, details, shiftRows };
@@ -4040,6 +4029,8 @@ function App() {
               La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Ogni turno ha una propria
               validità (campo "Validità (settimane)" in Pianificazione, default 4). Quando
               più turni si sovrappongono creando una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro.
+              Le settimane in eccesso di un ragazzo il cui turno dura di più vengono pagate come <b>turno singolo residuo</b>:
+              es. Pacetti (validità 2) + Pacetti & Galzerano (validità 1) → 1 settimana doppia + 1 settimana singola (solo Pacetti).
             </p>
             <div className="rounded-xl bg-white border border-lime-200 px-5 py-4">
               <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Esempio con i parametri attuali</div>
@@ -4176,9 +4167,8 @@ function App() {
                                 >
                                   {payTable(r)}
                                   <p className="px-3 py-1.5 text-[10px] text-slate-400 bg-white border-t border-slate-100">
-                                    Nota: nel Totale le ore doppie sovrapposte sono contate <b>una sola volta</b>. La somma delle singole
-                                    righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) può risultare più alta perché la stessa ora doppia
-                                    appare in più turni.
+                                    Nota: la somma delle righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(r.base)}): le fasce doppie sovrapposte sono già
+                                    scomposte per validità (settimane doppie + residuo singolo), senza duplicazioni.
                                   </p>
                                 </div>
                                 <div className="shrink-0">
@@ -4288,9 +4278,8 @@ function App() {
                 </div>
                 <div className="rounded-lg border border-lime-300 bg-white overflow-hidden shadow-sm">{payTable(zoomed, true)}</div>
                 <p className="mt-3 px-3 py-1.5 text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-lg">
-                  Nota: nel Totale le ore doppie sovrapposte sono contate <b>una sola volta</b>. La somma delle singole
-                  righe ({eur(zoomed.shiftRows.reduce((a, s) => a + s.pay, 0))}) può risultare più alta perché la stessa ora doppia
-                  appare in più turni.
+                  Nota: la somma delle righe ({eur(zoomed.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(zoomed.base)}): le fasce doppie sovrapposte sono già
+                  scomposte per validità (settimane doppie + residuo singolo), senza duplicazioni.
                 </p>
               </div>
             </div>
