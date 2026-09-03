@@ -8,7 +8,6 @@ import {
   Undo2,
   Redo2,
   RefreshCw,
-  Mail,
   CalendarPlus,
   AlertTriangle,
   Menu,
@@ -6015,8 +6014,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [newPassword, setNewPassword] = useState('');
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
-  const [recoverMsg, setRecoverMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-  const [recoverBusy, setRecoverBusy] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
@@ -6120,7 +6117,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     setEditEmail(user.email || '');
     setNewPassword('');
     setPwMsg(null);
-    setRecoverMsg(null);
     setIsEditModalOpen(true);
   };
 
@@ -6181,22 +6177,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setPwMsg({ type: 'err', text: `Errore: ${error.message}` });
     } finally {
       setPwBusy(false);
-    }
-  };
-
-  const handleSendRecovery = async () => {
-    if (!editingUser) return;
-    setRecoverBusy(true);
-    setRecoverMsg(null);
-    try {
-      await callUpdateUser({ userId: editingUser.id, sendRecovery: true });
-      auditLog('update', 'user', editingUser.id, editingUser.username, { action: 'send_recovery_email' });
-      setRecoverMsg({ type: 'ok', text: 'Email di recupero inviata: nuove credenziali generate e spedite.' });
-    } catch (error: any) {
-      console.error(error);
-      setRecoverMsg({ type: 'err', text: `Errore: ${error.message}` });
-    } finally {
-      setRecoverBusy(false);
     }
   };
 
@@ -6374,7 +6354,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email (recupero credenziali)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
             <input
               type="email"
               value={editEmail}
@@ -6383,7 +6363,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
             />
             <p className="text-xs text-slate-400 mt-1">
-              Email reale utilizzata per inviare le nuove credenziali in caso di recupero password.
+              Email di contatto dell'utente (facoltativa).
             </p>
           </div>
 
@@ -6435,7 +6415,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           <div className="border-t pt-4 mt-2">
             <h4 className="text-sm font-bold text-slate-700 mb-1">Gestione password</h4>
             <p className="text-xs text-slate-400 mb-3">
-              Cambia la password dell'utente o inviagli via email le nuove credenziali di recupero.
+              Imposta una nuova password per l'utente. La password corrente non è visibile per motivi di sicurezza: una volta resettata, comunicala all'utente di persona.
             </p>
 
             <div className="space-y-2">
@@ -6460,20 +6440,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <p className={`text-xs font-medium ${pwMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{pwMsg.text}</p>
               )}
             </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <button
-                onClick={handleSendRecovery}
-                disabled={recoverBusy}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold inline-flex items-center gap-2"
-              >
-                <Mail size={16} />
-                {recoverBusy ? 'Invio...' : 'Invia email di recupero credenziali'}
-              </button>
-            </div>
-            {recoverMsg && (
-              <p className={`text-xs font-medium mt-1 ${recoverMsg.type === 'ok' ? 'text-emerald-600' : 'text-red-600'}`}>{recoverMsg.text}</p>
-            )}
           </div>
 
           <div className="flex justify-end space-x-3 mt-6">
