@@ -7,6 +7,7 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  RefreshCw,
   CalendarPlus,
   AlertTriangle,
   Menu,
@@ -684,6 +685,21 @@ function App() {
     if (upErr) throw upErr;
     setShifts(cloneShifts(target));
   };
+  // Audit Trail: registra chi ha creato/modificato/cancellato cosa (fire-and-forget, non blocca l'azione)
+  const auditLog = (action: 'create' | 'update' | 'delete', entity: 'shift' | 'tutor' | 'youth' | 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
+    if (!currentUser) return;
+    supabase.from('audit_logs').insert({
+      user_id: currentUser.id,
+      username: currentUser.username,
+      action,
+      entity,
+      entity_id: entityId || null,
+      entity_name: entityName,
+      details: details || null,
+    }).then(({ error }) => {
+      if (error) console.error('Audit log error:', error);
+    });
+  };
   const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
@@ -1016,6 +1032,8 @@ function App() {
       const { error } = await supabase.from('tutors').upsert(tutorData);
       if (error) throw error;
 
+      auditLog(newTutor.id ? 'update' : 'create', 'tutor', tutorData.id, tutorData.name, { role: tutorData.role || '' });
+
       if (newTutor.id) {
         setTutors(tutors.map(t => t.id === newTutor.id ? { ...t, ...tutorData, maxHoursPerWeek: tutorData.max_hours_per_week, minHoursPerWeek: tutorData.min_hours_per_week, unavailableDays: tutorData.unavailable_days, unavailableRanges: tutorData.unavailable_ranges, birthDate: tutorData.birth_date, entryDate: tutorData.entry_date, yearsExperience: tutorData.years_experience } : t));
       } else {
@@ -1033,6 +1051,7 @@ function App() {
     try {
       const { error } = await supabase.from('tutors').delete().eq('id', id);
       if (error) throw error;
+      auditLog('delete', 'tutor', id, tutors.find(t => t.id === id)?.name || id);
       setTutors(tutors.filter(t => t.id !== id));
       setShifts(shifts.filter(s => s.tutorId !== id));
     } catch (error) {
@@ -1072,6 +1091,8 @@ function App() {
 
       const { error } = await supabase.from('youths').upsert(youthData);
       if (error) throw error;
+
+      auditLog(newYouth.id ? 'update' : 'create', 'youth', youthId, youthData.name, {});
 
       const tutorIds = newYouth.tutorIds || [];
       await supabase.from('youth_tutors').delete().eq('youth_id', youthId);
@@ -1117,6 +1138,7 @@ function App() {
     try {
       const { error } = await supabase.from('youths').delete().eq('id', id);
       if (error) throw error;
+      auditLog('delete', 'youth', id, youths.find(y => y.id === id)?.name || id);
       setYouths(youths.filter(y => y.id !== id));
       setShifts(shifts.filter(s => shiftYouthIds(s).every(sid => sid !== id)));
     } catch (error) {
@@ -1207,6 +1229,11 @@ function App() {
       const { error } = await supabase.from('shifts').upsert(shiftData);
       if (error) throw error;
 
+      const youthNames = editingShift.youthIds?.length
+        ? editingShift.youthIds.map(id => youths.find(y => y.id === id)?.name || id).join(', ')
+        : (youths.find(y => y.id === youthIds[0])?.name || editingShift.youthId || '—');
+      auditLog(editingShift.id ? 'update' : 'create', 'shift', shiftData.id as string, `${editingShift.date} ${editingShift.startTime}–${editingShift.endTime} ${youthNames}`, { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, is_template: isPlan });
+
       const normalizedShift = {
         ...shiftData,
         tutorId: shiftData.tutor_id,
@@ -1252,6 +1279,7 @@ function App() {
       const shiftToDelete = shifts.find(s => s.id === id);
       const { error } = await supabase.from('shifts').delete().eq('id', id);
       if (error) throw error;
+      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate });
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
       if (shiftToDelete?.isTemplate) {
@@ -1456,6 +1484,7 @@ function App() {
     try {
       const { error } = await supabase.from('shifts').insert(rows);
       if (error) throw error;
+      auditLog('create', 'shift', undefined, `Copia pianificazione su mese (${rows.length} turni)`, { replicate_month: replicateMonth, count: rows.length });
       const normalized = rows.map(r => ({
         id: r.id,
         tutorId: r.tutor_id,
@@ -1525,6 +1554,7 @@ function App() {
     try {
       const { error } = await supabase.from('shifts').insert(rows);
       if (error) throw error;
+      auditLog('create', 'shift', undefined, `Rigenera settimana tipo (${rows.length} turni)`, { count: rows.length });
       const normalized = rows.map(r => ({
         id: r.id,
         tutorId: r.tutor_id,
@@ -1569,6 +1599,7 @@ function App() {
     try {
       const { error } = await supabase.from('shifts').delete().eq('is_template', false);
       if (error) throw error;
+      auditLog('delete', 'shift', undefined, `Cancellati TUTTI i turni consuntivo (${count})`, { count });
       setShifts(prev => prev.filter(s => s.isTemplate));
       alert(`Fatto: tutti i ${count} turni del consuntivo sono stati cancellati.`);
     } catch (error) {
@@ -1593,6 +1624,7 @@ function App() {
       const ids = toDelete.map(s => s.id);
       const { error } = await supabase.from('shifts').delete().in('id', ids);
       if (error) throw error;
+      auditLog('delete', 'shift', undefined, `Cancellati turni consuntivo mese ${clearMonth} (${ids.length})`, { month: clearMonth, count: ids.length });
       // Registra il mese come cancellato: la copia automatica della settimana tipo lo salterà
       const { error: cmErr } = await supabase.from('cleared_months').upsert({ month: clearMonth });
       if (cmErr) console.warn('cleared_months non aggiornabile:', cmErr.message);
@@ -1871,6 +1903,7 @@ function App() {
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
           if (error) throw error;
+          auditLog('update', 'shift', shiftId, `${dateStr} ${newStartTime}–${newEndTime}`, { date: dateStr, start_time: newStartTime, end_time: newEndTime, is_template: !!shiftToUpdate.isTemplate });
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
           if (shiftToUpdate.isTemplate) {
             await syncTemplateOccurrences(updatedShift as Shift);
@@ -1931,6 +1964,7 @@ function App() {
       { view: 'GUIDE', perm: 'DASHBOARD', label: 'Guida d\'uso', icon: BookOpen, chipText: 'text-teal-600' },
     ];
     const adminItem = { view: 'USER_MANAGEMENT' as ViewState, perm: 'ALL', label: 'Gestione Utenti', icon: Settings, chipText: 'text-cyan-600' };
+    const auditItem = { view: 'AUDIT' as ViewState, perm: 'ALL', label: 'Audit Trail', icon: Shield, chipText: 'text-amber-400' };
 
     const sidebarDecor = (
       <>
@@ -2017,6 +2051,7 @@ function App() {
                 </div>
               )}
               {renderNavItem(adminItem, () => setView(adminItem.view), sidebarExpanded)}
+              {renderNavItem(auditItem, () => setView(auditItem.view), sidebarExpanded)}
             </>
           )}
         </nav>
@@ -2096,6 +2131,7 @@ function App() {
       : view === 'SUMMARY' ? 'Riepilogo Ore'
       : view === 'PAYROLL' ? 'Calcolo Paga'
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
+      : view === 'AUDIT' ? 'Audit Trail'
       : view === 'GUIDE' ? 'Guida d\'uso'
       : 'CentroCare';
     return (
@@ -3550,6 +3586,7 @@ function App() {
                                                 if (shift.isTemplate) {
                                                   await syncTemplateOccurrences({ ...shift, endTime: nEnd } as Shift);
                                                 }
+                                                auditLog('update', 'shift', shift.id, `${shift.date} (durata → ${nEnd})`, { end_time: nEnd, is_template: shift.isTemplate });
                                               });
                                           }}
                                           onPointerCancel={(e) => {
@@ -4861,7 +4898,8 @@ function App() {
             {view === 'SUMMARY' && renderSummary()}
             {view === 'PAYROLL' && renderPayroll()}
             {view === 'GUIDE' && renderGuide()}
-            {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} />}
+            {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} currentUser={currentUser} />}
+            {view === 'AUDIT' && <AuditView />}
           </div>
         </main>
       </div>
@@ -5964,7 +6002,7 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
   );
 }
 
-function UserManagementView({ tutors }: { tutors: Tutor[] }) {
+function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentUser: User | null }) {
   const [users, setUsers] = useState<User[]>([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -5973,6 +6011,21 @@ function UserManagementView({ tutors }: { tutors: Tutor[] }) {
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [editTutorId, setEditTutorId] = useState('');
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
+    if (!currentUser) return;
+    supabase.from('audit_logs').insert({
+      user_id: currentUser.id,
+      username: currentUser.username,
+      action,
+      entity,
+      entity_id: entityId || null,
+      entity_name: entityName,
+      details: details || null,
+    }).then(({ error }) => {
+      if (error) console.error('Audit log error:', error);
+    });
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -6016,6 +6069,8 @@ function UserManagementView({ tutors }: { tutors: Tutor[] }) {
       const result = await response.json();
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to create user');
 
+      auditLog('create', 'user', result.user?.id, newUser.username, { permissions: newUser.permissions, tutor_id: newUser.tutorId || null });
+
       setIsUserModalOpen(false);
       setNewUser({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '' });
       fetchUsers();
@@ -6042,6 +6097,7 @@ function UserManagementView({ tutors }: { tutors: Tutor[] }) {
 
       const result = await response.json();
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to delete user');
+      auditLog('delete', 'user', id, users.find(u => u.id === id)?.username || id);
       fetchUsers();
     } catch (error: any) {
       console.error(error);
@@ -6065,6 +6121,8 @@ function UserManagementView({ tutors }: { tutors: Tutor[] }) {
         .eq('id', editingUser.id);
 
       if (error) throw error;
+
+      auditLog('update', 'user', editingUser.id, editingUser.username, { permissions: editPermissions, tutor_id: editTutorId || null });
 
       setIsEditModalOpen(false);
       setEditingUser(null);
@@ -6333,6 +6391,147 @@ function UserManagementView({ tutors }: { tutors: Tutor[] }) {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+interface AuditLogEntry {
+  id: string;
+  created_at: string;
+  user_id: string | null;
+  username: string | null;
+  action: 'create' | 'update' | 'delete';
+  entity: 'shift' | 'tutor' | 'youth' | 'user';
+  entity_id: string | null;
+  entity_name: string | null;
+  details: Record<string, any> | null;
+}
+
+const AUDIT_ENTITY_LABEL: Record<string, string> = {
+  shift: 'Turno',
+  tutor: 'Tutor',
+  youth: 'Ragazzo',
+  user: 'Utente',
+};
+
+const AUDIT_ACTION_STYLE: Record<string, { label: string; cls: string }> = {
+  create: { label: 'Creato', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  update: { label: 'Modificato', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+  delete: { label: 'Cancellato', cls: 'bg-red-100 text-red-700 border-red-200' },
+};
+
+function AuditView() {
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterEntity, setFilterEntity] = useState<string>('all');
+  const [filterAction, setFilterAction] = useState<string>('all');
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      setLogs((data as AuditLogEntry[] | null) || []);
+      setError(null);
+    } catch (e: any) {
+      console.error('Audit view error:', e);
+      setError(e.message || 'Errore caricamento audit trail');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchLogs(); }, []);
+
+  const visible = logs.filter(l =>
+    (filterEntity === 'all' || l.entity === filterEntity) &&
+    (filterAction === 'all' || l.action === filterAction)
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-2xl font-bold text-slate-800">Audit Trail</h2>
+        <button
+          onClick={fetchLogs}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+        >
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          Aggiorna
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <select value={filterEntity} onChange={e => setFilterEntity(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+          <option value="all">Tutte le entità</option>
+          <option value="shift">Turni</option>
+          <option value="tutor">Tutor</option>
+          <option value="youth">Ragazzi</option>
+          <option value="user">Utenti</option>
+        </select>
+        <select value={filterAction} onChange={e => setFilterAction(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
+          <option value="all">Tutte le azioni</option>
+          <option value="create">Creato</option>
+          <option value="update">Modificato</option>
+          <option value="delete">Cancellato</option>
+        </select>
+        <span className="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-sm text-slate-500 font-medium">
+          {visible.length} eventi
+        </span>
+      </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-teal-600 mb-3"></div>
+          Caricamento audit trail...
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="p-10 rounded-2xl border border-dashed border-slate-300 text-center text-slate-400">
+          Nessun evento registrato.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {visible.map(log => {
+            const aStyle = AUDIT_ACTION_STYLE[log.action] || AUDIT_ACTION_STYLE.create;
+            return (
+              <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold shrink-0">
+                  {(log.username || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-bold text-slate-800">{log.username || 'Sconosciuto'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${aStyle.cls}`}>{aStyle.label}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold border border-slate-200">
+                      {AUDIT_ENTITY_LABEL[log.entity] || log.entity}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-1 break-words">{log.entity_name || '—'}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
+                    <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
+                    {log.details && (
+                      <span className="font-mono">{JSON.stringify(log.details)}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
