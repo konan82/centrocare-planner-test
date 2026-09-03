@@ -131,6 +131,26 @@ const parseTimeMins = (t: string) => {
   return (h || 0) * 60 + (m || 0);
 };
 
+// Normalizza le fasce orarie non disponibili dal formato salvato (JSONB) al formato per-giorno.
+// Ritorna sempre un array di 7 voci (indice = getDay: 0=DOM,1=LUN,...,6=SAB), ogni voce una lista di {start,end}.
+// Compatibilità: il vecchio formato era un array piatto {start,end}[] applicato a tutti i giorni.
+const normalizeUnavailableRanges = (raw: any): { start: string; end: string }[][] => {
+  const empty: { start: string; end: string }[][] = Array.from({ length: 7 }, () => []);
+  if (!Array.isArray(raw)) return empty;
+  const lookRange = (r: any) => (r && typeof r.start === 'string' && typeof r.end === 'string' ? { start: r.start, end: r.end } : null);
+  const cleanList = (list: any[]) => (Array.isArray(list) ? list.map(lookRange).filter(Boolean) as { start: string; end: string }[] : []);
+  // Vecchio formato piatto: entry con start/end diretti (non a loro volta array) → li applichiamo a tutti i 7 giorni
+  if (raw.length > 0 && typeof raw[0] !== 'object') return empty;
+  if (raw.length === 0) return empty;
+  const first = raw[0];
+  if (first && Array.isArray(first.start) === false && Array.isArray(first) === false && typeof first === 'object' && 'start' in first && 'end' in first) {
+    const ranges = cleanList(raw);
+    return empty.map(() => ranges);
+  }
+  if (raw.length === 7) return empty.map((_, i) => cleanList(raw[i] || []));
+  return empty;
+};
+
 const getEffectiveTime = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
   if ((s.status || 'pianificato') === 'cancellato') return null;
   const start = s.actualStartTime || s.startTime;
@@ -839,7 +859,7 @@ function App() {
           ...tutor,
           specialties: tutor.specialties || [],
           unavailableDays: tutor.unavailable_days || [],
-          unavailableRanges: tutor.unavailable_ranges || [],
+          unavailableRanges: normalizeUnavailableRanges(tutor.unavailable_ranges),
           maxHoursPerWeek: tutor.max_hours_per_week,
           minHoursPerWeek: tutor.min_hours_per_week ?? null,
           phone: tutor.phone || '',
@@ -925,6 +945,7 @@ function App() {
 
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
+  const [unavailDay, setUnavailDay] = useState(1);
   const [tutorToDelete, setTutorToDelete] = useState<Tutor | null>(null);
 
   const [isYouthModalOpen, setIsYouthModalOpen] = useState(false);
@@ -1021,7 +1042,7 @@ function App() {
         max_hours_per_week: newTutor.maxHoursPerWeek ?? 20,
         min_hours_per_week: newTutor.minHoursPerWeek ?? 1,
         unavailable_days: newTutor.unavailableDays || [],
-        unavailable_ranges: newTutor.unavailableRanges || [],
+        unavailable_ranges: normalizeUnavailableRanges(newTutor.unavailableRanges),
         notes: newTutor.notes || '',
         phone: newTutor.phone || '',
         email: newTutor.email || '',
@@ -1206,20 +1227,24 @@ function App() {
     const shiftStart = toMin(editingShift.startTime);
     const shiftEnd = toMin(editingShift.endTime);
     const tutorForShift = tutors.find(t => t.id === editingShift.tutorId);
-    const unavailRanges = (tutorForShift?.unavailableRanges || []).map(r => {
+    const isPlan = shiftModalMode === 'plan';
+    const shiftWeekday = isPlan
+      ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
+      : weekdayOf(editingShift.date);
+    const shiftDayIdx = (shiftWeekday - 1 + 7) % 7; // 0=DOM,1=LUN,...,6=SAB (getDay)
+    const unavailRanges = ((tutorForShift?.unavailableRanges || [])[shiftDayIdx] || []).map(r => {
       const s = toMin(r.start);
       const e = toMin(r.end);
       return { start: Math.min(s, e), end: Math.max(s, e) };
     }).filter(r => r.end > r.start);
     const rangeOverlap = unavailRanges.find(r => shiftStart < r.end && shiftEnd > r.start);
     if (rangeOverlap) {
-      alert(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''}.`);
+      alert(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''} di ${['DOM','LUN','MAR','MER','GIO','VEN','SAB'][shiftDayIdx]}.`);
       return;
     }
 
-    const isPlan = shiftModalMode === 'plan';
     const templateWeekday = isPlan
-      ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
+      ? shiftWeekday
       : null;
 
     snapshotBeforeMutation();
@@ -1436,11 +1461,13 @@ function App() {
 
   const openNewTutorModal = () => {
     setNewTutor({});
+    setUnavailDay(1);
     setIsTutorModalOpen(true);
   }
 
   const openEditTutorModal = (tutor: Tutor) => {
     setNewTutor({ ...tutor });
+    setUnavailDay(1);
     setIsTutorModalOpen(true);
   }
 
@@ -2839,15 +2866,21 @@ function App() {
       });
     }
     // Fascia oraria del tutor filtrato non disponibile (minuti assoluti dalla mezzanotte)
-    const tutorUnavailableRanges = ((filteredTutor?.unavailableRanges || []).map(r => {
-      const [hs, ms] = (r.start || '').split(':').map(Number);
-      const [he, me] = (r.end || '').split(':').map(Number);
-      const s = (hs || 0) * 60 + (ms || 0);
-      const e = (he || 0) * 60 + (me || 0);
-      return { start: Math.min(s, e), end: Math.max(s, e) };
-    })).filter(r => r.end > r.start);
-    const isTutorUnavailableAt = (minutes: number) =>
-      filteredTutor !== null && tutorUnavailableRanges.some(r => minutes >= r.start && minutes < r.end);
+    const tutorUnavailableRanges: { start: number; end: number }[][] = Array.from({ length: 7 }, () => []);
+    if (filteredTutor) {
+      (filteredTutor.unavailableRanges || []).forEach((dayRanges, dayIdx) => {
+        (dayRanges || []).forEach(r => {
+          const [hs, ms] = (r.start || '').split(':').map(Number);
+          const [he, me] = (r.end || '').split(':').map(Number);
+          const s = (hs || 0) * 60 + (ms || 0);
+          const e = (he || 0) * 60 + (me || 0);
+          const a = Math.min(s, e), b = Math.max(s, e);
+          if (b > a && dayIdx >= 0 && dayIdx <= 6) tutorUnavailableRanges[dayIdx].push({ start: a, end: b });
+        });
+      });
+    }
+    const isTutorUnavailableAt = (dayIdx: number, minutes: number) =>
+      filteredTutor !== null && (tutorUnavailableRanges[dayIdx] || []).some(r => minutes >= r.start && minutes < r.end);
     // Sistema bottoni standard: stessa forma/size, colore per ruolo
     const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
     const BTN_SM = "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
@@ -3431,13 +3464,13 @@ function App() {
                                     youthFilter !== 'all' ? youthFilter : ''
                                   )}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
-                                tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(minutes))
+                                tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))
                                   ? 'bg-rose-200/90'
                                   : isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
                                 isDragOver
                                   ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
-                                  : tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(minutes))
+                                  : tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))
                                     ? 'hover:bg-rose-300'
                                     : 'hover:bg-teal-50/30'
                               }`}
@@ -5496,60 +5529,95 @@ function App() {
               </div>
               <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-700">Fasce orarie NON disponibili</span>
+                  <span className="text-sm font-medium text-slate-700">Fasce orarie NON disponibili per giorno</span>
                   <button
                     type="button"
-                    onClick={() => setNewTutor({ ...newTutor, unavailableRanges: [...(newTutor.unavailableRanges || []), { start: '12:00', end: '13:00' }] })}
+                    onClick={() => {
+                      const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                      ranges[unavailDay] = [...(ranges[unavailDay] || []), { start: '12:00', end: '13:00' }];
+                      setNewTutor({ ...newTutor, unavailableRanges: ranges });
+                    }}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-lg px-2.5 py-1.5 transition"
                   >
                     <Plus size={13} /> Aggiungi fascia
                   </button>
                 </div>
-                {(newTutor.unavailableRanges || []).length === 0 ? (
-                  <p className="text-xs text-slate-400">Nessuna fascia oraria non disponibile (intervallo 08:00 – 19:00).</p>
-                ) : (
-                  <div className="space-y-3">
-                    {(newTutor.unavailableRanges || []).map((range, i) => {
-                      const toMin = (t: string) => { const [hh, mm] = (t || '8:00').split(':').map(Number); return (hh || 8) * 60 + (mm || 0); };
-                      const toTxt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-                      const vMin = Math.min(19 * 60, Math.max(8 * 60, toMin(range.start)));
-                      const vMax = Math.min(19 * 60, Math.max(vMin, toMin(range.end)));
-                      return (
-                        <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
-                            <button
-                              type="button"
-                              onClick={() => setNewTutor({ ...newTutor, unavailableRanges: (newTutor.unavailableRanges || []).filter((_, j) => j !== i) })}
-                              className="text-slate-400 hover:text-rose-600 transition"
-                              title="Rimuovi fascia"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {DAYS_OF_WEEK.map((day, idx) => {
+                    const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // getDay: 0=DOM,1=LUN,...,6=SAB
+                    const count = (normalizeUnavailableRanges(newTutor.unavailableRanges)[dayIndex] || []).length;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => setUnavailDay(dayIndex)}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition ${
+                          unavailDay === dayIndex
+                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                            : count > 0
+                              ? 'bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-400'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {day}{count > 0 ? ` · ${count}` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(() => {
+                  const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges)[unavailDay] || [];
+                  if (ranges.length === 0) {
+                    return <p className="text-xs text-slate-400">Nessuna fascia per questo giorno (intervallo 08:00 – 19:00).</p>;
+                  }
+                  return (
+                    <div className="space-y-3">
+                      {ranges.map((range, i) => {
+                        const toMin = (t: string) => { const [hh, mm] = (t || '8:00').split(':').map(Number); return (hh || 8) * 60 + (mm || 0); };
+                        const toTxt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+                        const vMin = Math.min(19 * 60, Math.max(8 * 60, toMin(range.start)));
+                        const vMax = Math.min(19 * 60, Math.max(vMin, toMin(range.end)));
+                        return (
+                          <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                  allRanges[unavailDay] = allRanges[unavailDay].filter((_, j) => j !== i);
+                                  setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                                }}
+                                className="text-slate-400 hover:text-rose-600 transition"
+                                title="Rimuovi fascia"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                            <DualRangeSlider
+                              min={8 * 60}
+                              max={19 * 60}
+                              valueMin={vMin}
+                              valueMax={vMax}
+                              onChange={(a, b) => {
+                                const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                allRanges[unavailDay] = allRanges[unavailDay].map((r, j) => j === i ? { start: toTxt(a), end: toTxt(b) } : r);
+                                setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                              }}
+                              format={toTxt}
+                              scaleLabel="fascia oraria non disponibile"
+                              step={1}
+                            />
+                            <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
+                              <span className="text-teal-700">08:00</span>
+                              <span className="text-slate-400 font-medium">da 08:00 a 19:00</span>
+                              <span className="text-emerald-700">19:00</span>
+                            </div>
                           </div>
-                          <DualRangeSlider
-                            min={8 * 60}
-                            max={19 * 60}
-                            valueMin={vMin}
-                            valueMax={vMax}
-                            onChange={(a, b) => {
-                              const arr = (newTutor.unavailableRanges || []).map((r, j) => j === i ? { start: toTxt(a), end: toTxt(b) } : r);
-                              setNewTutor({ ...newTutor, unavailableRanges: arr });
-                            }}
-                            format={toTxt}
-                            scaleLabel="fascia oraria non disponibile"
-                            step={1}
-                          />
-                          <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
-                            <span className="text-teal-700">08:00</span>
-                            <span className="text-slate-400 font-medium">da 08:00 a 19:00</span>
-                            <span className="text-emerald-700">19:00</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>

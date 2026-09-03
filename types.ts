@@ -11,7 +11,7 @@ export interface Tutor {
   maxHoursPerWeek: number;
   minHoursPerWeek?: number;
   unavailableDays: number[]; // 0 = Sunday, 1 = Monday, etc.
-  unavailableRanges?: { start: string; end: string }[]; // fasce orarie non disponibili (HH:mm)
+  unavailableRanges?: { start: string; end: string }[][]; // fasce orarie non disponibili PER GIORNO (HH:mm). Array di 7 voci indicizzate come getDay(): 0=DOM,1=LUN,...,6=SAB; ogni voce = lista di {start,end}
   notes: string;
   phone?: string;
   email?: string;
