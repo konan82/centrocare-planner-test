@@ -159,6 +159,13 @@ const getEffectiveTime = (s: { status?: string; actualStartTime?: string | null;
   return { start, end };
 };
 
+// True se le fasce sono uguali in tutti i 7 giorni (da usare per il toggle "stesse fasce per tutti i giorni")
+const rangesAreGlobal = (ranges: { start: string; end: string }[][] | undefined) => {
+  const norm = normalizeUnavailableRanges(ranges);
+  const base = JSON.stringify(norm[0] || []);
+  return norm.every(d => JSON.stringify(d || []) === base);
+};
+
 const getEffectiveHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
   const t = getEffectiveTime(s);
   if (!t) return 0;
@@ -946,6 +953,7 @@ function App() {
   const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
   const [newTutor, setNewTutor] = useState<Partial<Tutor>>({});
   const [unavailDay, setUnavailDay] = useState(1);
+  const [unavailGlobal, setUnavailGlobal] = useState(true);
   const [tutorToDelete, setTutorToDelete] = useState<Tutor | null>(null);
 
   const [isYouthModalOpen, setIsYouthModalOpen] = useState(false);
@@ -1462,12 +1470,14 @@ function App() {
   const openNewTutorModal = () => {
     setNewTutor({});
     setUnavailDay(1);
+    setUnavailGlobal(true);
     setIsTutorModalOpen(true);
   }
 
   const openEditTutorModal = (tutor: Tutor) => {
     setNewTutor({ ...tutor });
     setUnavailDay(1);
+    setUnavailGlobal(rangesAreGlobal(tutor.unavailableRanges));
     setIsTutorModalOpen(true);
   }
 
@@ -5528,96 +5538,205 @@ function App() {
                 </div>
               </div>
               <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3.5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-700">Fasce orarie NON disponibili per giorno</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-slate-700">Fasce orarie NON disponibili</span>
+                </div>
+                <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100/80 p-1 mb-3">
                   <button
                     type="button"
                     onClick={() => {
                       const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges);
-                      ranges[unavailDay] = [...(ranges[unavailDay] || []), { start: '12:00', end: '13:00' }];
+                      const shared = ranges[0] || [];
+                      ranges.forEach((_, i) => { ranges[i] = i === 0 ? shared : shared.map(r => ({ ...r })); });
                       setNewTutor({ ...newTutor, unavailableRanges: ranges });
+                      setUnavailDay(1);
+                      setUnavailGlobal(true);
                     }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-lg px-2.5 py-1.5 transition"
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${!unavailGlobal ? 'text-slate-500 hover:bg-white' : 'bg-white text-teal-700 shadow-sm border border-slate-200'}`}
                   >
-                    <Plus size={13} /> Aggiungi fascia
+                    Stesse per tutti i giorni
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                      const shared = ranges[0] || [];
+                      ranges.forEach((_, i) => { ranges[i] = i === 0 ? shared : shared.map(r => ({ ...r })); });
+                      setNewTutor({ ...newTutor, unavailableRanges: ranges });
+                      setUnavailDay(1);
+                      setUnavailGlobal(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition ${unavailGlobal ? 'text-slate-500 hover:bg-white' : 'bg-white text-rose-700 shadow-sm border border-slate-200'}`}
+                  >
+                    Diversifica per giorno
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {DAYS_OF_WEEK.map((day, idx) => {
-                    const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // getDay: 0=DOM,1=LUN,...,6=SAB
-                    const count = (normalizeUnavailableRanges(newTutor.unavailableRanges)[dayIndex] || []).length;
+                {unavailGlobal ? (
+                  (() => {
+                    const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges)[0] || [];
                     return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => setUnavailDay(dayIndex)}
-                        className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition ${
-                          unavailDay === dayIndex
-                            ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-                            : count > 0
-                              ? 'bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-400'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        {day}{count > 0 ? ` · ${count}` : ''}
-                      </button>
-                    );
-                  })}
-                </div>
-                {(() => {
-                  const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges)[unavailDay] || [];
-                  if (ranges.length === 0) {
-                    return <p className="text-xs text-slate-400">Nessuna fascia per questo giorno (intervallo 08:00 – 19:00).</p>;
-                  }
-                  return (
-                    <div className="space-y-3">
-                      {ranges.map((range, i) => {
-                        const toMin = (t: string) => { const [hh, mm] = (t || '8:00').split(':').map(Number); return (hh || 8) * 60 + (mm || 0); };
-                        const toTxt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
-                        const vMin = Math.min(19 * 60, Math.max(8 * 60, toMin(range.start)));
-                        const vMax = Math.min(19 * 60, Math.max(vMin, toMin(range.end)));
-                        return (
-                          <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
-                                  allRanges[unavailDay] = allRanges[unavailDay].filter((_, j) => j !== i);
-                                  setNewTutor({ ...newTutor, unavailableRanges: allRanges });
-                                }}
-                                className="text-slate-400 hover:text-rose-600 transition"
-                                title="Rimuovi fascia"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                            <DualRangeSlider
-                              min={8 * 60}
-                              max={19 * 60}
-                              valueMin={vMin}
-                              valueMax={vMax}
-                              onChange={(a, b) => {
-                                const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
-                                allRanges[unavailDay] = allRanges[unavailDay].map((r, j) => j === i ? { start: toTxt(a), end: toTxt(b) } : r);
-                                setNewTutor({ ...newTutor, unavailableRanges: allRanges });
-                              }}
-                              format={toTxt}
-                              scaleLabel="fascia oraria non disponibile"
-                              step={1}
-                            />
-                            <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
-                              <span className="text-teal-700">08:00</span>
-                              <span className="text-slate-400 font-medium">da 08:00 a 19:00</span>
-                              <span className="text-emerald-700">19:00</span>
-                            </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-slate-500">Valide per tutti i giorni della settimana</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                              allRanges.forEach((_, i) => { allRanges[i] = [...(allRanges[0] || []), { start: '12:00', end: '13:00' }]; });
+                              setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-lg px-2.5 py-1.5 transition"
+                          >
+                            <Plus size={13} /> Aggiungi fascia
+                          </button>
+                        </div>
+                        {ranges.length === 0 ? (
+                          <p className="text-xs text-slate-400">Nessuna fascia oraria non disponibile (intervallo 08:00 – 19:00).</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {ranges.map((range, i) => {
+                              const toMin = (t: string) => { const [hh, mm] = (t || '8:00').split(':').map(Number); return (hh || 8) * 60 + (mm || 0); };
+                              const toTxt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+                              const vMin = Math.min(19 * 60, Math.max(8 * 60, toMin(range.start)));
+                              const vMax = Math.min(19 * 60, Math.max(vMin, toMin(range.end)));
+                              return (
+                                <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                        allRanges.forEach((_, di) => { allRanges[di] = allRanges[di].filter((_, j) => j !== i); });
+                                        setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 transition"
+                                      title="Rimuovi fascia"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                  <DualRangeSlider
+                                    min={8 * 60}
+                                    max={19 * 60}
+                                    valueMin={vMin}
+                                    valueMax={vMax}
+                                    onChange={(a, b) => {
+                                      const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                      allRanges.forEach((_, di) => { allRanges[di] = allRanges[di].map((r, j) => j === i ? { start: toTxt(a), end: toTxt(b) } : r); });
+                                      setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                                    }}
+                                    format={toTxt}
+                                    scaleLabel="fascia oraria non disponibile"
+                                    step={1}
+                                  />
+                                  <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
+                                    <span className="text-teal-700">08:00</span>
+                                    <span className="text-slate-400 font-medium">da 08:00 a 19:00</span>
+                                    <span className="text-emerald-700">19:00</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
+                        )}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-slate-500">Fasce specifiche per ogni giorno</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                          ranges[unavailDay] = [...(ranges[unavailDay] || []), { start: '12:00', end: '13:00' }];
+                          setNewTutor({ ...newTutor, unavailableRanges: ranges });
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 rounded-lg px-2.5 py-1.5 transition"
+                      >
+                        <Plus size={13} /> Aggiungi fascia
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {DAYS_OF_WEEK.map((day, idx) => {
+                        const dayIndex = idx + 1 === 7 ? 0 : idx + 1; // getDay: 0=DOM,1=LUN,...,6=SAB
+                        const count = (normalizeUnavailableRanges(newTutor.unavailableRanges)[dayIndex] || []).length;
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => setUnavailDay(dayIndex)}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold transition ${
+                              unavailDay === dayIndex
+                                ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                                : count > 0
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-400'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {day}{count > 0 ? ` · ${count}` : ''}
+                          </button>
                         );
                       })}
                     </div>
-                  );
-                })()}
+                    {(() => {
+                      const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges)[unavailDay] || [];
+                      if (ranges.length === 0) {
+                        return <p className="text-xs text-slate-400">Nessuna fascia per questo giorno (intervallo 08:00 – 19:00).</p>;
+                      }
+                      return (
+                        <div className="space-y-3">
+                          {ranges.map((range, i) => {
+                            const toMin = (t: string) => { const [hh, mm] = (t || '8:00').split(':').map(Number); return (hh || 8) * 60 + (mm || 0); };
+                            const toTxt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+                            const vMin = Math.min(19 * 60, Math.max(8 * 60, toMin(range.start)));
+                            const vMax = Math.min(19 * 60, Math.max(vMin, toMin(range.end)));
+                            return (
+                              <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                      allRanges[unavailDay] = allRanges[unavailDay].filter((_, j) => j !== i);
+                                      setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                                    }}
+                                    className="text-slate-400 hover:text-rose-600 transition"
+                                    title="Rimuovi fascia"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                                <DualRangeSlider
+                                  min={8 * 60}
+                                  max={19 * 60}
+                                  valueMin={vMin}
+                                  valueMax={vMax}
+                                  onChange={(a, b) => {
+                                    const allRanges = normalizeUnavailableRanges(newTutor.unavailableRanges);
+                                    allRanges[unavailDay] = allRanges[unavailDay].map((r, j) => j === i ? { start: toTxt(a), end: toTxt(b) } : r);
+                                    setNewTutor({ ...newTutor, unavailableRanges: allRanges });
+                                  }}
+                                  format={toTxt}
+                                  scaleLabel="fascia oraria non disponibile"
+                                  step={1}
+                                />
+                                <div className="flex justify-between -mt-4 text-[11px] font-semibold tabular-nums">
+                                  <span className="text-teal-700">08:00</span>
+                                  <span className="text-slate-400 font-medium">da 08:00 a 19:00</span>
+                                  <span className="text-emerald-700">19:00</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
