@@ -224,19 +224,20 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
+  const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 p-0 sm:p-4">
-      <div className={`bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full ${size === 'lg' ? 'max-w-2xl' : 'max-w-md'} overflow-hidden animate-fadeIn sm:max-h-[90vh] max-h-[92dvh]`}>
-        <div className="flex justify-between items-center px-4 sm:px-5 py-3 sm:py-4 border-b bg-teal-600 text-white">
-          <h3 className="font-semibold text-base sm:text-lg leading-tight">{title}</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={20} /></button>
+      <div className={`bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full ${widthCls} overflow-hidden animate-fadeIn sm:max-h-[90vh] max-h-[92dvh]`}>
+        <div className="flex justify-between items-center px-5 sm:px-6 py-3.5 sm:py-4 border-b bg-teal-600 text-white">
+          <h3 className="font-semibold text-lg sm:text-xl leading-tight">{title}</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={22} /></button>
         </div>
-        <div className="p-4 sm:p-6 text-slate-900 max-h-[calc(92dvh-4rem)] overflow-y-auto">
+        <div className="p-5 sm:p-7 text-slate-900 max-h-[calc(92dvh-4rem)] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -259,7 +260,7 @@ const Card: React.FC<CardProps> = ({ children, className = "", onClick }) => (
   </div>
 );
 
-const fieldCls = "w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition placeholder:text-slate-400";
+const fieldCls = "w-full p-3 border border-slate-300 rounded-lg bg-white text-slate-900 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition placeholder:text-slate-400";
 
 interface YouthSectionProps {
   icon: React.ReactNode;
@@ -273,10 +274,10 @@ interface YouthSectionProps {
 const YouthSection: React.FC<YouthSectionProps> = ({ icon, title, chipBg, headerBg, textColor, children }) => (
   <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
     <div className={`flex items-center gap-2.5 px-4 py-2.5 border-b ${headerBg}`}>
-      <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm ${chipBg}`}>{icon}</span>
-      <h4 className={`font-bold text-sm tracking-wide ${textColor}`}>{title}</h4>
+      <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm ${chipBg}`}>{icon}</span>
+      <h4 className={`font-bold text-base tracking-wide ${textColor}`}>{title}</h4>
     </div>
-    <div className="px-4 py-4">{children}</div>
+    <div className="px-4 py-4 sm:px-5 sm:py-4">{children}</div>
   </div>
 );
 
@@ -5100,7 +5101,7 @@ function App() {
           <YouthSection icon={<CalendarIcon size={16} />} title="Programmazione" chipBg="bg-teal-500" headerBg="bg-gradient-to-r from-teal-50 to-white border-teal-100" textColor="text-teal-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor <span className="text-red-500">*</span></label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Tutor <span className="text-red-500">*</span></label>
                 <PersonCombo
                   options={tutors}
                   value={editingShift?.tutorId || ''}
@@ -5110,7 +5111,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ragazzi/e <span className="text-red-500">*</span></label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Ragazzi/e <span className="text-red-500">*</span></label>
                 <div className="space-y-2">
                   {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map((yid, yi) => {
                     const y = youths.find(yy => yy.id === yid);
@@ -5163,7 +5164,7 @@ function App() {
               </div>
               {shiftModalMode === 'plan' ? (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Giorno <span className="text-red-500">*</span></label>
+                  <label className="block text-base font-medium text-slate-800 mb-1.5">Giorno <span className="text-red-500">*</span></label>
                   <select
                     className={fieldCls}
                     value={editingShift?.templateWeekday ?? weekdayOf(editingShift?.date)}
@@ -5183,7 +5184,7 @@ function App() {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Data <span className="text-red-500">*</span></label>
+                  <label className="block text-base font-medium text-slate-800 mb-1.5">Data <span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     className={fieldCls}
@@ -5193,7 +5194,7 @@ function App() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Attività</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Attività</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5203,7 +5204,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Inizio pianificato <span className="text-red-500">*</span></label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Inizio pianificato <span className="text-red-500">*</span></label>
                 <input
                   type="time"
                   className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
@@ -5213,7 +5214,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fine pianificata <span className="text-red-500">*</span></label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Fine pianificata <span className="text-red-500">*</span></label>
                 <input
                   type="time"
                   className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
@@ -5224,7 +5225,7 @@ function App() {
               </div>
               {shiftModalMode === 'plan' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Validità (settimane)</label>
+                  <label className="block text-base font-medium text-slate-800 mb-1.5">Validità (settimane)</label>
                   <input
                     type="number"
                     min={1}
@@ -5266,7 +5267,7 @@ function App() {
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Inizio effettivo</label>
+                      <label className="block text-base font-medium text-slate-800 mb-1.5">Inizio effettivo</label>
                       <input
                         type="time"
                         className={fieldCls}
@@ -5275,7 +5276,7 @@ function App() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Fine effettiva</label>
+                      <label className="block text-base font-medium text-slate-800 mb-1.5">Fine effettiva</label>
                       <input
                         type="time"
                         className={fieldCls}
@@ -5334,7 +5335,7 @@ function App() {
                 );
               })()}
               <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Note consuntivo</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Note consuntivo</label>
                 <textarea
                   className={fieldCls + " min-h-[60px]"}
                   placeholder="Come è andato il turno, variazioni, note..."
@@ -5362,7 +5363,7 @@ function App() {
       </Modal>
 
       {/* Tutor Modal */}
-      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"} size="lg">
+      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"} size="xl">
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
@@ -5397,9 +5398,9 @@ function App() {
           </div>
 
           <YouthSection icon={<IdCard size={16} />} title="Dati Personali" chipBg="bg-blue-500" headerBg="bg-gradient-to-r from-blue-50 to-white border-blue-100" textColor="text-blue-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo <span className="text-red-500">*</span></label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Nome Completo <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5409,7 +5410,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data di nascita</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Data di nascita</label>
                 <input
                   type="date"
                   className={fieldCls}
@@ -5418,7 +5419,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Città</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Città</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5428,7 +5429,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                <label className="block text-base font-medium text-slate-800 mb-1.5 flex items-center gap-2">Telefono
                   {waHref(newTutor.phone || '') && (
                     <a href={waHref(newTutor.phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il tutor" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
                       <WhatsAppIcon size={12} />
@@ -5444,7 +5445,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Email</label>
                 <input
                   type="email"
                   className={fieldCls}
@@ -5457,9 +5458,9 @@ function App() {
           </YouthSection>
 
           <YouthSection icon={<UserCheck size={16} />} title="Profilo Professionale" chipBg="bg-violet-500" headerBg="bg-gradient-to-r from-violet-50 to-white border-violet-100" textColor="text-violet-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ruolo</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Ruolo</label>
                 <select
                   className={fieldCls}
                   value={newTutor.role || ''}
@@ -5470,7 +5471,7 @@ function App() {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Specialità (separate da virgola)</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Specialità (separate da virgola)</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5479,8 +5480,8 @@ function App() {
                   onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Settimanali (min – max)</label>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Ore Settimanali (min – max)</label>
                 <DualRangeSlider
                   min={1}
                   max={60}
@@ -5495,7 +5496,7 @@ function App() {
           <YouthSection icon={<Target size={16} />} title="Organizzazione" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Stato</label>
                 <div className="flex gap-2">
                   {[
                     { v: 'attivo', label: 'Attivo', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
@@ -5739,7 +5740,7 @@ function App() {
                 )}
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Note</label>
                 <textarea
                   className={fieldCls + " min-h-[70px]"}
                   placeholder="Annotazioni libere"
@@ -5762,7 +5763,7 @@ function App() {
       </Modal>
 
       {/* Youth Modal */}
-      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="lg">
+      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="xl">
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
@@ -5792,9 +5793,9 @@ function App() {
           </div>
 
           <YouthSection icon={<IdCard size={16} />} title="Dati Anagrafici" chipBg="bg-blue-500" headerBg="bg-gradient-to-r from-blue-50 to-white border-blue-100" textColor="text-blue-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo <span className="text-red-500">*</span></label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Nome Completo <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5804,7 +5805,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data di nascita</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Data di nascita</label>
                 <input
                   type="date"
                   className={fieldCls}
@@ -5813,7 +5814,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Luogo di nascita</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Luogo di nascita</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5823,7 +5824,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Scuola / Istituto</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Scuola / Istituto</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5833,7 +5834,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Codice fiscale</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Codice fiscale</label>
                 <input
                   type="text"
                   className={`${fieldCls} uppercase`}
@@ -5843,7 +5844,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                <label className="block text-base font-medium text-slate-800 mb-1.5 flex items-center gap-2">Telefono
                   {waHref(newYouth.phone || '') && (
                     <a href={waHref(newYouth.phone || '')} target="_blank" rel="noopener noreferrer" title="Chat WhatsApp con il ragazzo" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
                       <WhatsAppIcon size={12} />
@@ -5877,7 +5878,7 @@ function App() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Etichetta (es. Genitore, Zia, Assistente)</label>
+                        <label className="block text-base font-medium text-slate-800 mb-1.5">Etichetta (es. Genitore, Zia, Assistente)</label>
                         <input
                           type="text"
                           className={fieldCls}
@@ -5887,7 +5888,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Nome e cognome</label>
+                        <label className="block text-base font-medium text-slate-800 mb-1.5">Nome e cognome</label>
                         <input
                           type="text"
                           className={fieldCls}
@@ -5897,7 +5898,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">Telefono
+                        <label className="block text-base font-medium text-slate-800 mb-1.5 flex items-center gap-2">Telefono
                           {waHref(contact.phone || '') && (
                             <a href={waHref(contact.phone || '')} target="_blank" rel="noopener noreferrer" title={`Chat WhatsApp con ${contact.name || contact.label || 'il contatto'}`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#25D366] text-white hover:bg-[#1eb457] transition-colors">
                               <WhatsAppIcon size={12} />
@@ -5913,7 +5914,7 @@ function App() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <label className="block text-base font-medium text-slate-800 mb-1.5">Email</label>
                         <input
                           type="email"
                           className={fieldCls}
@@ -5963,9 +5964,9 @@ function App() {
           </YouthSection>
 
           <YouthSection icon={<HeartPulse size={16} />} title="Salute e Vulnerabilità" chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Diagnosi (virgola)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Diagnosi (virgola)</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5975,7 +5976,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Allergie</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Allergie</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5985,7 +5986,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Farmaci / Terapie</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Farmaci / Terapie</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -5998,9 +5999,9 @@ function App() {
           </YouthSection>
 
           <YouthSection icon={<Target size={16} />} title="Percorso al Centro" chipBg="bg-emerald-500" headerBg="bg-gradient-to-r from-emerald-50 to-white border-emerald-100" textColor="text-emerald-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tutor assegnati</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Tutor assegnati</label>
                 <PersonMultiCombo
                   options={tutors}
                   values={newYouth.tutorIds || []}
@@ -6010,7 +6011,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Inizio contratto</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Inizio contratto</label>
                 <input
                   type="date"
                   className={fieldCls}
@@ -6019,7 +6020,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fine contratto</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Fine contratto</label>
                 <input
                   type="date"
                   className={fieldCls}
@@ -6028,7 +6029,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Data ingresso</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Data ingresso</label>
                 <input
                   type="date"
                   className={fieldCls}
@@ -6036,8 +6037,8 @@ function App() {
                   onChange={e => setNewYouth({ ...newYouth, entryDate: e.target.value || null })}
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Stato</label>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Stato</label>
                 <div className="flex gap-2">
                   {[
                     { v: 'attivo', label: 'Attivo', on: 'bg-emerald-500 text-white border-emerald-600 shadow-sm', off: 'bg-white text-slate-600 border-slate-300 hover:border-emerald-400' },
@@ -6055,8 +6056,8 @@ function App() {
                   ))}
                 </div>
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Obiettivi educativi</label>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Obiettivi educativi</label>
                 <textarea
                   className={fieldCls + " min-h-[70px]"}
                   placeholder="Obiettivi di supporto e crescita"
@@ -6068,9 +6069,9 @@ function App() {
           </YouthSection>
 
           <YouthSection icon={<BookOpen size={16} />} title="Programma" chipBg="bg-amber-500" headerBg="bg-gradient-to-r from-amber-50 to-white border-amber-100" textColor="text-amber-700">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ore Richieste / Settimana</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Ore Richieste / Settimana</label>
                 <input
                   type="number"
                   step="0.5"
@@ -6081,7 +6082,7 @@ function App() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Bisogni/Necessità (virgola)</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Bisogni/Necessità (virgola)</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -6090,8 +6091,8 @@ function App() {
                   onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Note</label>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Note</label>
                 <textarea
                   className={fieldCls + " min-h-[70px]"}
                   placeholder="Annotazioni libere"
@@ -6187,7 +6188,7 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nome utente</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Nome utente</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <UserCheck size={18} className="text-slate-400" />
@@ -6204,7 +6205,7 @@ function LoginView({ onLoginSuccess }: LoginViewProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Password</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock size={18} className="text-slate-400" />
@@ -6511,7 +6512,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Username</label>
             <input
               type="text"
               value={newUser.username}
@@ -6520,7 +6521,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Password</label>
             <input
               type="password"
               value={newUser.password}
@@ -6529,7 +6530,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor associato</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Tutor associato</label>
             <select
               value={newUser.tutorId}
               onChange={e => setNewUser({ ...newUser, tutorId: e.target.value })}
@@ -6589,7 +6590,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Email</label>
             <input
               type="email"
               value={editEmail}
@@ -6603,7 +6604,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tutor associato</label>
+            <label className="block text-base font-medium text-slate-800 mb-1.5">Tutor associato</label>
             <select
               value={editTutorId}
               onChange={e => setEditTutorId(e.target.value)}
