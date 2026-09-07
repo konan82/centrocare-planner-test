@@ -383,6 +383,94 @@ const getAge = (birthDate?: string) => {
 
 // --- Components defined within App to share state easily for this demo ---
 
+const collapsibleIsTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+interface CollapsibleHeaderProps {
+  icon: React.ReactNode;
+  iconCls: string;
+  topBarCls: string;
+  title: string;
+  subtitle: string;
+  actions?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ icon, iconCls, topBarCls, title, subtitle, actions, children }) => {
+  const [collapsed, setCollapsed] = useState(true);
+  const hoverRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const handleEnter = useCallback(() => {
+    if (collapsibleIsTouch) return;
+    hoverRef.current = true;
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    setCollapsed(false);
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    if (collapsibleIsTouch) return;
+    hoverRef.current = false;
+    timerRef.current = setTimeout(() => {
+      if (!hoverRef.current) setCollapsed(true);
+    }, 300);
+  }, []);
+
+  const handleTap = useCallback(() => {
+    if (!collapsibleIsTouch) return;
+    hoverRef.current = true;
+    setCollapsed(prev => !prev);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} onMouseEnter={handleEnter} onMouseLeave={handleLeave} className="relative shrink-0">
+      {collapsed ? (
+        <div onClick={handleTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
+          <div className={`p-1.5 rounded-lg text-white shadow-sm shrink-0 ${iconCls}`}>
+            {icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">{title}</p>
+            <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">{subtitle}</p>
+          </div>
+          <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
+            {collapsibleIsTouch ? 'Tocca per aprire' : 'Passa sopra per aprire'}
+          </span>
+          <ChevronDown size={16} className="text-slate-400 shrink-0" />
+        </div>
+      ) : (
+        <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 animate-slide-down">
+          <div className={`h-1.5 rounded-t-2xl ${topBarCls}`}></div>
+          <div className="absolute top-2 right-3 z-10">
+            <button
+              onClick={(e) => { e.stopPropagation(); setCollapsed(true); }}
+              title="Riduci pannello"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            >
+              <ChevronUp size={16} />
+            </button>
+          </div>
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className={`p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 ${iconCls}`}>
+                {icon}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">{title}</h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">{subtitle}</p>
+              </div>
+            </div>
+            {actions && <div className="flex flex-wrap items-center gap-3 shrink-0">{actions}</div>}
+          </div>
+          {children && (
+            <div className="border-t border-slate-100 px-4 sm:px-5 py-4 space-y-4">{children}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -2756,18 +2844,19 @@ function App() {
     ];
 
     return (
-      <div className="space-y-6">
-        <div className="md:sticky md:top-0 md:z-20 bg-slate-50 pt-1 pb-2 space-y-4 md:space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Elenco Tutor</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Educatori e operatori del centro</p>
-          </div>
-          <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-            <Plus size={18} className="mr-2" /> Nuovo Tutor
-          </button>
-        </div>
-
+      <div className="space-y-3 md:space-y-4">
+        <CollapsibleHeader
+          icon={<UserCheck size={14} />}
+          iconCls="bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-200"
+          topBarCls="bg-gradient-to-r from-sky-500 via-blue-500 to-cyan-400"
+          title="Elenco Tutor"
+          subtitle="Educatori e operatori del centro"
+          actions={
+            <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+              <Plus size={18} className="mr-2" /> Nuovo Tutor
+            </button>
+          }
+        >
         {/* Contatori stato */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
           {statusCounters.map(c => (
@@ -2839,7 +2928,7 @@ function App() {
             {filtered.length} su {allTutors.length} profili
           </span>
         </div>
-        </div>
+        </CollapsibleHeader>
 
         {/* Griglia card */}
         {sorted.length > 0 ? (
@@ -3010,18 +3099,19 @@ function App() {
     };
 
     return (
-      <div className="space-y-6">
-        <div className="md:sticky md:top-0 md:z-20 bg-slate-50 pt-1 pb-2 space-y-4 md:space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Elenco Ragazzi</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Anagrafiche dei minori e percorsi al centro</p>
-          </div>
-          <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-            <Plus size={18} className="mr-2" /> Nuovo Profilo
-          </button>
-        </div>
-
+      <div className="space-y-3 md:space-y-4">
+        <CollapsibleHeader
+          icon={<Users size={14} />}
+          iconCls="bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-200"
+          topBarCls="bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-400"
+          title="Elenco Ragazzi"
+          subtitle="Anagrafiche dei minori e percorsi al centro"
+          actions={
+            <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+              <Plus size={18} className="mr-2" /> Nuovo Profilo
+            </button>
+          }
+        >
         {/* Contatori stato */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
           {statusCounters.map(c => (
@@ -3096,7 +3186,7 @@ function App() {
             {filtered.length} su {allYouths.length} profili
           </span>
         </div>
-        </div>
+        </CollapsibleHeader>
 
         {/* Griglia card */}
         {sorted.length > 0 ? (
@@ -4611,53 +4701,58 @@ function App() {
     };
 
     return (
-      <div className="space-y-8">
-        <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">Calcolo Paga</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={generatePdf}
-              title="Genera il report Calcolo Paga in PDF"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold shadow-md hover:from-rose-700 hover:to-red-700 active:scale-95 transition-all"
-            >
-              <Download size={16} /> <span className="hidden sm:inline">Report PDF</span>
-            </button>
-            <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="space-y-3 md:space-y-4">
+        <CollapsibleHeader
+          icon={<Wallet size={14} />}
+          iconCls="bg-gradient-to-br from-lime-500 to-emerald-600 shadow-lime-200"
+          topBarCls="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-400"
+          title="Calcolo Paga"
+          subtitle={`${format(payMonth, 'MMMM yyyy', { locale: it })} · retribuzioni mensili per tutor`}
+          actions={
+            <>
               <button
-                onClick={() => setPayMonth(addMonths(payMonth, -1))}
-                title="Mese precedente"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                onClick={generatePdf}
+                title="Genera il report Calcolo Paga in PDF"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold shadow-md hover:from-rose-700 hover:to-red-700 active:scale-95 transition-all"
               >
-                <ChevronLeft size={20} />
+                <Download size={16} /> <span className="hidden sm:inline">Report PDF</span>
               </button>
-              <button
-                onClick={() => setPayMonth(startOfMonth(new Date()))}
-                title="Torna al mese corrente"
-                className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
-                  isSameMonth(payMonth, new Date())
-                    ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
-                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <span className="flex items-center gap-1.5 md:gap-2">
-                  <CalendarIcon size={14} className="text-teal-600 shrink-0" />
-                  <span className="tracking-tight whitespace-nowrap capitalize">
-                    {format(payMonth, 'MMMM yyyy', { locale: it })}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  onClick={() => setPayMonth(addMonths(payMonth, -1))}
+                  title="Mese precedente"
+                  className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => setPayMonth(startOfMonth(new Date()))}
+                  title="Torna al mese corrente"
+                  className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                    isSameMonth(payMonth, new Date())
+                      ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                      : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 md:gap-2">
+                    <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                    <span className="tracking-tight whitespace-nowrap capitalize">
+                      {format(payMonth, 'MMMM yyyy', { locale: it })}
+                    </span>
                   </span>
-                </span>
-              </button>
-              <button
-                onClick={() => setPayMonth(addMonths(payMonth, 1))}
-                title="Mese successivo"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
+                </button>
+                <button
+                  onClick={() => setPayMonth(addMonths(payMonth, 1))}
+                  title="Mese successivo"
+                  className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </>
+          }
+        >
+        </CollapsibleHeader>
 
         <Card className="p-0 overflow-hidden border-lime-200 shadow-lg">
           <div className="bg-gradient-to-r from-lime-500 to-emerald-500 px-6 py-3">
@@ -7385,26 +7480,32 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Gestione Utenti</h2>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={openAccessLog}
-            className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
-          >
-            <History size={20} className="mr-2" />
-            Log Accessi
-          </button>
-          <button
-            onClick={() => setIsUserModalOpen(true)}
-            className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            <UserPlus size={20} className="mr-2" />
-            Nuovo Utente
-          </button>
-        </div>
-      </div>
+    <div className="space-y-3 md:space-y-4">
+      <CollapsibleHeader
+        icon={<Settings size={14} />}
+        iconCls="bg-gradient-to-br from-cyan-500 to-sky-600 shadow-cyan-200"
+        topBarCls="bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-400"
+        title="Gestione Utenti"
+        subtitle="Utenti, permessi e presenza online"
+        actions={
+          <>
+            <button
+              onClick={openAccessLog}
+              className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
+            >
+              <History size={20} className="mr-2" />
+              Log Accessi
+            </button>
+            <button
+              onClick={() => setIsUserModalOpen(true)}
+              className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
+            >
+              <UserPlus size={20} className="mr-2" />
+              Nuovo Utente
+            </button>
+          </>
+        }
+      >
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {users.map(user => {
@@ -7483,6 +7584,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           );
         })}
       </div>
+      </CollapsibleHeader>
 
       {/* Create User Modal */}
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
