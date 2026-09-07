@@ -51,6 +51,7 @@ serve(async (req: Request) => {
       return {
         user_id: u.id,
         online: beat || sess,
+        last_seen: beatMap[u.id] ? new Date(beatMap[u.id]).toISOString() : null,
         last_sign_in_at: u.last_sign_in_at || null,
         last_active_at: activeMap[u.id] || null,
       };
