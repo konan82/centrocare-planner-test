@@ -3272,10 +3272,10 @@ function App() {
                 {isPlan ? <CalendarIcon size={14} /> : <ClipboardCheck size={14} />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold text-slate-800 leading-tight truncate">
+                <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">
                   {isPlan ? 'Pianificazione Turni' : 'Consuntivo Turni'}
                 </p>
-                <p className="text-[11px] text-slate-400 font-medium leading-tight truncate">
+                <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
                   {isPlan
                     ? weeklySD && weeklySD.id ? <>Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD!.id), e)} className="font-bold text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button> · S {weeklySD.single.toFixed(1)}h / D {weeklySD.dbl.toFixed(1)}h</>
                       : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
@@ -3306,10 +3306,10 @@ function App() {
                 {isPlan ? <CalendarIcon size={18} /> : <ClipboardCheck size={18} />}
               </div>
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight leading-tight">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">
                   {isPlan ? 'Pianificazione Turni' : 'Consuntivo Turni'}
                 </h2>
-                <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-snug">
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
                   {isPlan
                     ? `Settimana tipo LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · ripetuta ogni settimana`
                     : `Fascia oraria LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · copia della pianificazione`}
@@ -5141,8 +5141,8 @@ function App() {
                 <List size={14} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold text-slate-800 leading-tight truncate">Resoconto Turni</p>
-                <p className="text-[11px] text-slate-400 font-medium leading-tight truncate">
+                <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">Resoconto Turni</p>
+                <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
                   {reportView === 'tutor'
                     ? 'Vista Tutor · settimana tipo per tutor · validità ' + defaultWeeks + ' sett.'
                     : 'Vista settimanale · turni per giorno · validità ' + defaultWeeks + ' sett.'}
@@ -5172,8 +5172,8 @@ function App() {
                       <List size={18} />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Resoconto Turni</h2>
-                      <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-snug">
+                      <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Resoconto Turni</h2>
+                      <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
                         {reportView === 'tutor'
                           ? 'Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.'
                           : 'Settimana tipo per giorno: dal lunedì al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validità in settimane.'}
