@@ -5201,8 +5201,8 @@ function App() {
                           <th className="px-5 py-2.5 font-bold w-40">Giorno</th>
                           <th className="px-3 py-2.5 font-bold w-28">Orario</th>
                           <th className="px-3 py-2.5 font-bold w-auto">Ragazzi</th>
-                          <th className="px-3 py-2.5 font-bold w-24">Tipo</th>
-                          <th className="px-3 py-2.5 font-bold w-36">Validità</th>
+                          <th className="px-3 py-2.5 font-bold text-left w-24">Tipo</th>
+                          <th className="px-3 py-2.5 font-bold text-left w-36">Validità</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -5243,7 +5243,7 @@ function App() {
                                   })}
                                 </div>
                               </td>
-                              <td className="px-3 py-2.5 whitespace-nowrap">
+                              <td className="px-3 py-2.5 whitespace-nowrap text-left">
                                 {isDouble ? (
                                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">
                                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio
@@ -5254,7 +5254,7 @@ function App() {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 whitespace-nowrap">
+                              <td className="px-3 py-2.5 whitespace-nowrap text-left">
                                 <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                   {weeks} sett.
                                   {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
