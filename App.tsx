@@ -2387,6 +2387,7 @@ function App() {
                     <div className="h-px flex-1 bg-white/15"></div>
                   </div>
                   {renderNavItem(adminItem, () => { setView(adminItem.view); setIsMobileMenuOpen(false); }, true)}
+                  {renderNavItem(auditItem, () => { setView(auditItem.view); setIsMobileMenuOpen(false); }, true)}
                 </>
               )}
             </nav>
