@@ -1242,6 +1242,33 @@ function App() {
     setReportHeaderCollapsed(prev => !prev);
   }, [isTouch]);
 
+  // Summary header collapse: stesso pattern
+  const [summaryHeaderCollapsed, setSummaryHeaderCollapsed] = useState(true);
+  const summaryHeaderHoverRef = useRef(false);
+  const summaryHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const summaryHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const handleSummaryHeaderEnter = useCallback(() => {
+    if (isTouch) return;
+    summaryHeaderHoverRef.current = true;
+    if (summaryHeaderTimerRef.current) { clearTimeout(summaryHeaderTimerRef.current); summaryHeaderTimerRef.current = null; }
+    setSummaryHeaderCollapsed(false);
+  }, [isTouch]);
+
+  const handleSummaryHeaderLeave = useCallback(() => {
+    if (isTouch) return;
+    summaryHeaderHoverRef.current = false;
+    summaryHeaderTimerRef.current = setTimeout(() => {
+      if (!summaryHeaderHoverRef.current) setSummaryHeaderCollapsed(true);
+    }, 300);
+  }, [isTouch]);
+
+  const handleSummaryHeaderTap = useCallback(() => {
+    if (!isTouch) return;
+    summaryHeaderHoverRef.current = true;
+    setSummaryHeaderCollapsed(prev => !prev);
+  }, [isTouch]);
+
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
   const [tutorSearch, setTutorSearch] = useState('');
@@ -5576,69 +5603,116 @@ function App() {
     const grandExec = rowTot.reduce((a, r) => a + r.executed, 0);
 
     return (
-      <div className="space-y-8">
-        <div className="sticky top-0 z-20 bg-white p-4 rounded-lg shadow-md border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-800">Riepilogo Ore</h2>
-            <span className="hidden sm:block text-xs text-slate-400">Matrice Tutor × Ragazzo · pianificate vs eseguite (consuntivo)</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <PersonCombo
-              options={tutors}
-              value={summaryTutorFilter}
-              onChange={setSummaryTutorFilter}
-              placeholder="Tutti i tutor"
-              colorOf={id => getTutorColor(id, tutors)}
-              allowAll
-              allLabel="Tutti i tutor"
-              allValue="all"
-              className="w-full sm:w-48"
-            />
-            <PersonCombo
-              options={youths}
-              value={summaryYouthFilter}
-              onChange={setSummaryYouthFilter}
-              placeholder="Tutti i ragazzi"
-              colorOf={id => getYouthColor(id, youths)}
-              allowAll
-              allLabel="Tutti i ragazzi"
-              allValue="all"
-              className="w-full sm:w-48"
-            />
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button
-                onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
-                title="Mese precedente"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={() => setSummaryMonthRange(new Date())}
-                title="Torna al mese corrente"
-                className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
-                  isSameMonth(summaryMonth, new Date())
-                    ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
-                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <span className="flex items-center gap-1.5 md:gap-2">
-                  <CalendarIcon size={14} className="text-teal-600 shrink-0" />
-                  <span className="tracking-tight whitespace-nowrap capitalize">
-                    {format(summaryMonth, 'MMMM yyyy', { locale: it })}
-                  </span>
-                </span>
-              </button>
-              <button
-                onClick={() => setSummaryMonthRange(addMonths(summaryMonth, 1))}
-                title="Mese successivo"
-                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-              >
-                <ChevronRight size={20} />
-              </button>
+      <div className="space-y-3 md:space-y-4">
+        {/* Summary Header Controls (collassabile: hover su desktop, tap su touch) */}
+        <div
+          ref={summaryHeaderWrapperRef}
+          onMouseEnter={handleSummaryHeaderEnter}
+          onMouseLeave={handleSummaryHeaderLeave}
+          className="relative shrink-0"
+        >
+          {summaryHeaderCollapsed ? (
+            <div onClick={handleSummaryHeaderTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
+              <div className="p-1.5 rounded-lg text-white shadow-sm shrink-0 bg-gradient-to-br from-rose-500 to-fuchsia-600">
+                <BarChart3 size={14} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">Riepilogo Ore</p>
+                <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
+                  {format(summaryMonth, 'MMMM yyyy', { locale: it })} · matrice Tutor × Ragazzo · pianificate vs eseguite
+                </p>
+              </div>
+              <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
+                {isTouch ? 'Tocca per aprire' : 'Passa sopra per aprire'}
+              </span>
+              <ChevronDown size={16} className="text-slate-400 shrink-0" />
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 animate-slide-down">
+                <div className="h-1.5 rounded-t-2xl bg-gradient-to-r from-rose-500 via-fuchsia-500 to-purple-400"></div>
+                <div className="absolute top-2 right-3 z-10">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSummaryHeaderCollapsed(true); }}
+                    title="Riduci pannello"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
+                <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 bg-gradient-to-br from-rose-500 to-fuchsia-600 shadow-rose-200">
+                      <BarChart3 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Riepilogo Ore</h2>
+                      <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
+                        Matrice Tutor × Ragazzo · pianificate vs eseguite (consuntivo)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <PersonCombo
+                      options={tutors}
+                      value={summaryTutorFilter}
+                      onChange={setSummaryTutorFilter}
+                      placeholder="Tutti i tutor"
+                      colorOf={id => getTutorColor(id, tutors)}
+                      allowAll
+                      allLabel="Tutti i tutor"
+                      allValue="all"
+                      className="w-full sm:w-48"
+                    />
+                    <PersonCombo
+                      options={youths}
+                      value={summaryYouthFilter}
+                      onChange={setSummaryYouthFilter}
+                      placeholder="Tutti i ragazzi"
+                      colorOf={id => getYouthColor(id, youths)}
+                      allowAll
+                      allLabel="Tutti i ragazzi"
+                      allValue="all"
+                      className="w-full sm:w-48"
+                    />
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
+                        title="Mese precedente"
+                        className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                      <button
+                        onClick={() => setSummaryMonthRange(new Date())}
+                        title="Torna al mese corrente"
+                        className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                          isSameMonth(summaryMonth, new Date())
+                            ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                            : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5 md:gap-2">
+                          <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                          <span className="tracking-tight whitespace-nowrap capitalize">
+                            {format(summaryMonth, 'MMMM yyyy', { locale: it })}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => setSummaryMonthRange(addMonths(summaryMonth, 1))}
+                        title="Mese successivo"
+                        className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <Card className="p-0 sm:p-4 overflow-hidden">
