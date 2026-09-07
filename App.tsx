@@ -7496,8 +7496,13 @@ function AuditView() {
                       <button onClick={(e) => goToYouthByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || '—'}</button>
                     ) : (log.entity_name || '—')}
                   </p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
-                    <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 font-semibold shadow-sm">
+                      <CalendarClock size={13} className="text-teal-600 shrink-0" />
+                      <span className="tabular-nums font-bold">{format(new Date(log.created_at), 'dd/MM/yyyy')}</span>
+                      <span className="text-teal-600">·</span>
+                      <span className="tabular-nums font-bold">{format(new Date(log.created_at), 'HH:mm')}</span>
+                    </span>
                   </div>
                   {/* Context turni: tutor e ragazzi associati */}
                   {log.entity === 'shift' && log.details?.context && (
