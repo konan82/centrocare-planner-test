@@ -9,7 +9,6 @@ create table if not exists public.access_logs (
   login_time timestamptz not null default now(),
   logout_time timestamptz,
   ip_address text,
-  mac_address text,
   user_agent text
 );
 

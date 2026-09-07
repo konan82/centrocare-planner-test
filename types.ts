@@ -108,7 +108,6 @@ export interface AccessLogEntry {
   logout_time: string | null;
   logout_reason: string | null;
   ip_address: string | null;
-  mac_address: string | null;
   user_agent: string | null;
 }
 

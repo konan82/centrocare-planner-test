@@ -6633,7 +6633,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       const { data, error } = await supabase
         .from('access_logs')
         .select('*')
-        .order('login_time', { ascending: false });
+        .order('login_time', { ascending: true });
       if (error) throw error;
       setAccessLogs((data || []) as AccessLogEntry[]);
     } catch (error: any) {
@@ -7085,10 +7085,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       </Modal>
 
       {/* Access Log Modal */}
-      <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi">
+      <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi" size="xl">
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm text-slate-500">
-            Storico sessioni di accesso degli utenti (login / logout)
+            Storico sessioni di accesso degli utenti, in ordine dal più vecchio al più recente
           </p>
           <button
             onClick={fetchAccessLogs}
@@ -7105,38 +7105,37 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           <div className="text-center py-8 text-slate-400 text-sm">Nessun accesso registrato</div>
         ) : (
           <div className="max-h-[60vh] overflow-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead className="bg-slate-50 sticky top-0">
                 <tr>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Utente</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Login</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Logout / Scadenza</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Dispositivo</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase w-[18%]">Utente</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase w-[22%]">Login</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase w-[22%]">Logout / Scadenza</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase w-[38%]">Dispositivo</th>
                 </tr>
               </thead>
               <tbody>
                 {accessLogs.map(log => {
                   const user = users.find(u => u.id === log.user_id);
-                  const isOnline = !log.logout_time && !!userPresence[log.user_id]?.online;
                   return (
                     <tr key={log.id} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2 font-medium text-slate-800">
+                      <td className="px-4 py-2.5 font-medium text-slate-800">
                         {user?.username || 'Sconosciuto'}
                       </td>
-                      <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
                         {format(new Date(log.login_time), 'dd/MM/yyyy HH:mm')}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2.5">
                         {log.logout_time ? (
-                          <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-slate-500 whitespace-nowrap">
                               {format(new Date(log.logout_time), 'dd/MM/yyyy HH:mm')}
                             </span>
                             {log.logout_reason === 'scadenza' && (
-                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase whitespace-nowrap">Scaduta</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase whitespace-nowrap">Scaduta</span>
                             )}
                             {log.logout_reason === 'logout' && (
-                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase whitespace-nowrap">Logout</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase whitespace-nowrap">Logout</span>
                             )}
                           </div>
                         ) : (
@@ -7146,12 +7145,9 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2.5">
                         <div className="text-slate-700">{formatIp(log.ip_address)}</div>
-                        <div className="text-[11px] text-slate-400 mt-0.5" title="MAC address non disponibile dal browser web">
-                          MAC: {log.mac_address || 'N/D'}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">
+                        <div className="text-[11px] text-slate-500 mt-0.5 break-words">
                           {parseBrowser(log.user_agent)}
                         </div>
                       </td>
