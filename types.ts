@@ -100,6 +100,17 @@ export interface User {
   email?: string | null; // email reale per il recupero password
 }
 
+export interface AccessLogEntry {
+  id: string;
+  session_id: string | null;
+  user_id: string;
+  login_time: string;
+  logout_time: string | null;
+  ip_address: string | null;
+  mac_address: string | null;
+  user_agent: string | null;
+}
+
 export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT';
 
 export interface PaySettings {

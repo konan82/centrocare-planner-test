@@ -56,9 +56,10 @@ import {
   Maximize2,
   Pencil,
   ArrowRight,
-  Download
+  Download,
+  History
 } from 'lucide-react';
-import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags } from './types';
+import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
 import { INITIAL_TUTORS, INITIAL_YOUTHS, INITIAL_SHIFTS, DAYS_OF_WEEK } from './constants';
 import { analyzeConflicts, ConflictAnalysis } from './lib/geminiService';
@@ -6554,6 +6555,9 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [pwBusy, setPwBusy] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userPresence, setUserPresence] = useState<Record<string, { online: boolean; lastSignInAt: string | null; lastActiveAt: string | null }>>({});
+  const [isAccessLogOpen, setIsAccessLogOpen] = useState(false);
+  const [accessLogs, setAccessLogs] = useState<AccessLogEntry[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
 
   const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
     if (!currentUser) return;
@@ -6622,6 +6626,41 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     const iv = setInterval(fetchPresence, 60 * 1000);
     return () => clearInterval(iv);
   }, []);
+
+  const fetchAccessLogs = async () => {
+    setLogLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('access_logs')
+        .select('*')
+        .order('login_time', { ascending: false });
+      if (error) throw error;
+      setAccessLogs((data || []) as AccessLogEntry[]);
+    } catch (error: any) {
+      console.error('Error fetching access logs:', error);
+      alert(`Errore nel caricamento del log degli accessi: ${error.message}`);
+    } finally {
+      setLogLoading(false);
+    }
+  };
+
+  const openAccessLog = () => {
+    setIsAccessLogOpen(true);
+    fetchAccessLogs();
+  };
+
+  const parseBrowser = (ua: string | null) => {
+    if (!ua) return 'Sconosciuto';
+    const parts = ua.split(') ');
+    const tail = parts.length > 1 ? parts[parts.length - 1] : ua;
+    let m: RegExpMatchArray | null;
+    if ((m = tail.match(/Edg\/([\d.]+)/))) return `Edge ${m[1].split('.')[0]}`;
+    if ((m = tail.match(/OPR\/([\d.]+)/))) return `Opera ${m[1].split('.')[0]}`;
+    if ((m = tail.match(/Chrome\/([\d.]+)/))) return `Chrome ${m[1].split('.')[0]}`;
+    if ((m = tail.match(/Firefox\/([\d.]+)/))) return `Firefox ${m[1].split('.')[0]}`;
+    if ((m = tail.match(/Version\/([\d.]+).*Safari/))) return `Safari ${m[1]}`;
+    return ua.slice(0, 60);
+  };
 
   const handleCreateUser = async () => {
     if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
@@ -6772,13 +6811,22 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Gestione Utenti</h2>
-        <button
-          onClick={() => setIsUserModalOpen(true)}
-          className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
-        >
-          <UserPlus size={20} className="mr-2" />
-          Nuovo Utente
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openAccessLog}
+            className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
+          >
+            <History size={20} className="mr-2" />
+            Log Accessi
+          </button>
+          <button
+            onClick={() => setIsUserModalOpen(true)}
+            className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
+          >
+            <UserPlus size={20} className="mr-2" />
+            Nuovo Utente
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -7029,6 +7077,78 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Access Log Modal */}
+      <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi">
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-sm text-slate-500">
+            Storico sessioni di accesso degli utenti (login / logout)
+          </p>
+          <button
+            onClick={fetchAccessLogs}
+            disabled={logLoading}
+            className="text-sm px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-md flex items-center gap-1.5 text-slate-600 disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={logLoading ? 'animate-spin' : ''} /> Aggiorna
+          </button>
+        </div>
+
+        {logLoading && accessLogs.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm">Caricamento...</div>
+        ) : accessLogs.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm">Nessun accesso registrato</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto border border-slate-200 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Utente</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Login</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Logout</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Dispositivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accessLogs.map(log => {
+                  const user = users.find(u => u.id === log.user_id);
+                  const isOnline = !log.logout_time && !!userPresence[log.user_id]?.online;
+                  return (
+                    <tr key={log.id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        {user?.username || 'Sconosciuto'}
+                      </td>
+                      <td className="px-3 py-2 text-slate-700 whitespace-nowrap">
+                        {format(new Date(log.login_time), 'dd/MM/yyyy HH:mm')}
+                      </td>
+                      <td className="px-3 py-2">
+                        {log.logout_time ? (
+                          <span className="text-slate-500 whitespace-nowrap">
+                            {format(new Date(log.logout_time), 'dd/MM/yyyy HH:mm')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span className="text-xs font-semibold text-emerald-700 whitespace-nowrap">Online</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="text-slate-700">{log.ip_address || '-'}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5" title="MAC address non disponibile dal browser web">
+                          MAC: {log.mac_address || 'N/D'}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {parseBrowser(log.user_agent)}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </div>
   );
