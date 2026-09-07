@@ -6791,18 +6791,18 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold mr-3">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
-                <div>
+                <div className="flex flex-col min-w-0">
                   <h3 className="font-bold text-slate-800">{user.username}</h3>
-                  <span className="text-xs text-slate-500">ID: {user.id.slice(0, 8)}…</span>
+                  <span className="text-xs text-slate-500 block">ID: {user.id.slice(0, 8)}…</span>
                   {userPresence[user.id]?.online ? (
-                    <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
+                    <span className="mt-1.5 self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       <span className="text-[11px] font-bold text-emerald-700">Online</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
+                    <span className="mt-1.5 self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
                       <Clock size={11} className="shrink-0" />
-                      <span className="text-[11px] font-semibold">
+                      <span className="text-[11px] font-semibold whitespace-nowrap">
                         Ultimo accesso: {userPresence[user.id]?.lastActiveAt ? format(new Date(userPresence[user.id].lastActiveAt), 'dd/MM/yyyy HH:mm') : userPresence[user.id]?.lastSignInAt ? format(new Date(userPresence[user.id].lastSignInAt), 'dd/MM/yyyy HH:mm') : 'mai'}
                       </span>
                     </span>
