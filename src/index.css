@@ -15,3 +15,11 @@
 .animate-slide-in-left {
   animation: slideInLeft 0.25s ease-out;
 }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down {
+  animation: slideDown 0.25s ease-out;
+}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, Fragment } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import {
   Users,
   Calendar as CalendarIcon,
@@ -17,6 +17,7 @@ import {
   BarChart3,
   Check,
   ChevronDown,
+  ChevronUp,
   Lock,
   LogOut,
   Shield,
@@ -1127,6 +1128,34 @@ function App() {
   // Resize State (Google Calendar style: drag the bottom edge to change duration)
   const [resizingShiftId, setResizingShiftId] = useState<string | null>(null);
   const resizeRef = useRef<{ shiftId: string; startEndMin: number; startY: number; endMin: number | null } | null>(null);
+
+  // Calendar header collapse: pannello collassato per default, si espande su hover (desktop) o tap (mobile)
+  const [calHeaderCollapsed, setCalHeaderCollapsed] = useState(true);
+  const calHeaderHoverRef = useRef(false);
+  const calHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const calHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
+  const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  const handleCalHeaderEnter = useCallback(() => {
+    if (isTouch) return;
+    calHeaderHoverRef.current = true;
+    if (calHeaderTimerRef.current) { clearTimeout(calHeaderTimerRef.current); calHeaderTimerRef.current = null; }
+    setCalHeaderCollapsed(false);
+  }, [isTouch]);
+
+  const handleCalHeaderLeave = useCallback(() => {
+    if (isTouch) return;
+    calHeaderHoverRef.current = false;
+    calHeaderTimerRef.current = setTimeout(() => {
+      if (!calHeaderHoverRef.current) setCalHeaderCollapsed(true);
+    }, 300);
+  }, [isTouch]);
+
+  const handleCalHeaderTap = useCallback(() => {
+    if (!isTouch) return;
+    calHeaderHoverRef.current = true;
+    setCalHeaderCollapsed(prev => !prev);
+  }, [isTouch]);
 
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
@@ -3105,10 +3134,49 @@ function App() {
     })();
 
     return (
-      <div className="space-y-3 md:space-y-6 h-[calc(100dvh-6rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
-        {/* Calendar Header Controls */}
-        <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 shrink-0">
+      <div className="space-y-3 md:space-y-4 h-[calc(100dvh-6rem)] md:h-[calc(100dvh-5rem)] flex flex-col">
+        {/* Calendar Header Controls (collassabile: hover su desktop, tap su touch) */}
+        <div
+          ref={calHeaderWrapperRef}
+          onMouseEnter={handleCalHeaderEnter}
+          onMouseLeave={handleCalHeaderLeave}
+          className="relative shrink-0"
+        >
+          {/* Mini-bar compatta quando il pannello è collassato */}
+          {calHeaderCollapsed ? (
+            <div onClick={handleCalHeaderTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
+              <div className={`p-1.5 rounded-lg text-white shadow-sm shrink-0 ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600' : 'bg-gradient-to-br from-indigo-500 to-violet-600'}`}>
+                {isPlan ? <CalendarIcon size={14} /> : <ClipboardCheck size={14} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-slate-800 leading-tight truncate">
+                  {isPlan ? 'Pianificazione Turni' : 'Consuntivo Turni'}
+                </p>
+                <p className="text-[11px] text-slate-400 font-medium leading-tight truncate">
+                  {isPlan
+                    ? weeklySD ? `Settimana tipo · ${weeklySD.name} · S ${weeklySD.single.toFixed(1)}h / D ${weeklySD.dbl.toFixed(1)}h`
+                      : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
+                    : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} – ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
+                </p>
+              </div>
+              <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
+                {isTouch ? 'Tocca per aprire' : 'Passa sopra per aprire'}
+              </span>
+              <ChevronDown size={16} className="text-slate-400 shrink-0" />
+            </div>
+          ) : (
+          <>
+          <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 animate-slide-down">
           <div className={`h-1.5 rounded-t-2xl ${isPlan ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400'}`}></div>
+          <div className="absolute top-2 right-3 z-10">
+            <button
+              onClick={(e) => { e.stopPropagation(); setCalHeaderCollapsed(true); }}
+              title="Riduci pannello"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            >
+              <ChevronUp size={16} />
+            </button>
+          </div>
           <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className={`p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
@@ -3487,6 +3555,10 @@ function App() {
             )}
           </div>
         )}
+
+        </>
+        )}
+        </div>
 
         {/* Weekly Time Matrix */}
         <div className="flex-1 min-h-[240px] md:min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
