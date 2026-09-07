@@ -5195,14 +5195,14 @@ function App() {
                   <p className="px-5 py-6 text-sm text-slate-400 italic">Nessun turno pianificato nella settimana tipo.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="text-sm">
                       <thead>
                         <tr className="bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                          <th className="px-5 py-2.5 font-bold w-40">Giorno</th>
-                          <th className="px-3 py-2.5 font-bold w-28">Orario</th>
-                          <th className="px-3 py-2.5 font-bold w-auto">Ragazzi</th>
-                          <th className="px-3 py-2.5 font-bold text-left w-24">Tipo</th>
-                          <th className="px-3 py-2.5 font-bold text-left w-36">Validità</th>
+                          <th className="px-5 py-2.5 font-bold">Giorno</th>
+                          <th className="px-3 py-2.5 font-bold">Orario</th>
+                          <th className="px-3 py-2.5 font-bold">Ragazzi</th>
+                          <th className="px-3 py-2.5 font-bold">Tipo</th>
+                          <th className="px-3 py-2.5 font-bold">Validità</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
