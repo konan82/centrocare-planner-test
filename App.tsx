@@ -6607,13 +6607,12 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     }
   };
 
-  // Aggiorna la presenza ogni 60s mentre si è in Gestione Utenti.
+  // Aggiorna la presenza ogni 60s. La view monta questo polling solo in Gestione Utenti.
   useEffect(() => {
-    if (view !== 'USER_MANAGEMENT') return;
     fetchPresence();
     const iv = setInterval(fetchPresence, 60 * 1000);
     return () => clearInterval(iv);
-  }, [view]);
+  }, []);
 
   const handleCreateUser = async () => {
     if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
