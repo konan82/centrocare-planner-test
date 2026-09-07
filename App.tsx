@@ -54,6 +54,8 @@ import {
   CalendarRange,
   CalendarClock,
   Maximize2,
+  Pencil,
+  ArrowRight,
   Download
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags } from './types';
@@ -293,6 +295,18 @@ const rangesAreGlobal = (ranges: { start: string; end: string }[][] | undefined)
 // le liste di stringhe (specialità, bisogni) e gli oggetti annidati.
 const formatAuditValue = (key: string, v: any) => {
   if (v == null) return '—';
+  if (typeof v === 'boolean') return v ? 'Sì' : 'No';
+  if (key === 'status') {
+    const map: Record<string, string> = {
+      attivo: 'Attivo',
+      pausa: 'In pausa',
+      archiviato: 'Archiviato',
+      pianificato: 'Pianificato',
+      cancellato: 'Cancellato',
+      concluso: 'Concluso',
+    };
+    return map[String(v)] || String(v);
+  }
   if (key === 'unavailable_ranges' || key === 'unavailableRanges') {
     const days = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
     const norm = normalizeUnavailableRanges(v);
@@ -6960,6 +6974,93 @@ const AUDIT_ACTION_STYLE: Record<string, { label: string; cls: string }> = {
   delete: { label: 'Cancellato', cls: 'bg-red-100 text-red-700 border-red-200' },
 };
 
+const AUDIT_FIELD_LABEL: Record<string, string> = {
+  name: 'Nome',
+  status: 'Stato',
+  role: 'Ruolo',
+  phone: 'Telefono',
+  email: 'Email',
+  notes: 'Note',
+  specialties: 'Specialità',
+  max_hours_per_week: 'Max ore / settimana',
+  min_hours_per_week: 'Min ore / settimana',
+  unavailable_days: 'Giorni non disponibili',
+  unavailable_ranges: 'Fasce orarie non disponibili',
+  required_hours_per_week: 'Ore richieste / settimana',
+  needs: 'Descrizione',
+  tutor_ids: 'Tutor associati',
+  date: 'Data',
+  start_time: 'Ora inizio',
+  end_time: 'Ora fine',
+  actual_start_time: 'Inizio effettivo',
+  actual_end_time: 'Fine effettiva',
+  is_template: 'Turno template',
+  tutor_id: 'Tutor assegnato',
+  activity: 'Attività',
+  aggregate: 'Ragazzi',
+};
+
+// Blocco diff per modifiche (create/update): mostra campo, vecchio valore → nuovo valore.
+function AuditDiffBlock({ oldRec, newRec }: { oldRec: any; newRec: any }) {
+  if (!oldRec || !newRec) return null;
+  const keys = Array.from(new Set([...Object.keys(oldRec), ...Object.keys(newRec)]));
+  const changed = keys.filter(key => JSON.stringify(oldRec[key]) !== JSON.stringify(newRec[key]));
+  if (changed.length === 0) return null;
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+        <Pencil size={12} />
+        {changed.length === 1 ? '1 campo modificato' : `${changed.length} campi modificati`}
+      </div>
+      <div className="rounded-xl border border-amber-200 divide-y divide-amber-100 overflow-hidden bg-white shadow-sm">
+        {changed.map(key => (
+          <div key={key} className="flex sm:items-center gap-1.5 sm:gap-3 px-3 py-2 bg-amber-50/50 hover:bg-amber-50 transition-colors flex-col sm:flex-row">
+            <span className="shrink-0 sm:w-44 text-[11px] font-bold text-slate-600 uppercase tracking-wide pt-0.5">
+              {AUDIT_FIELD_LABEL[key] || key}
+            </span>
+            <span className="flex flex-wrap items-center gap-1.5 min-w-0 text-xs">
+              <span className="px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-600 line-through decoration-red-300 decoration-1 font-medium">
+                {formatAuditValue(key, oldRec[key])}
+              </span>
+              <ArrowRight size={14} className="text-slate-400 shrink-0" />
+              <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold">
+                {formatAuditValue(key, newRec[key])}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Blocco per cancellazioni: elenca tutti i campi con etichetta leggibile.
+function AuditDeleteBlock({ oldRec }: { oldRec: any }) {
+  if (!oldRec) return null;
+  const entries = Object.entries(oldRec).filter(([, v]) => v != null && !(Array.isArray(v) && v.length === 0) && v !== '');
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-red-700">
+        <Trash2 size={12} />
+        Contenuto eliminato
+      </div>
+      <div className="rounded-xl border border-red-200 divide-y divide-red-100 overflow-hidden bg-white shadow-sm">
+        {entries.length === 0 && <div className="px-3 py-2 text-xs text-slate-400">Nessun dettaglio registrato.</div>}
+        {entries.map(([key, val]) => (
+          <div key={key} className="flex sm:items-center gap-1.5 sm:gap-3 px-3 py-2 bg-red-50/40 hover:bg-red-50 transition-colors flex-col sm:flex-row">
+            <span className="shrink-0 sm:w-44 text-[11px] font-bold text-red-700/70 uppercase tracking-wide pt-0.5">
+              {AUDIT_FIELD_LABEL[key] || key}
+            </span>
+            <span className="px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-red-600 font-medium text-xs break-all">
+              {formatAuditValue(key, val)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AuditView() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -7124,45 +7225,11 @@ function AuditView() {
                     <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
                   </div>
                   {log.details && log.details.old != null && log.details.new != null && (
-                    <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
-                      {(() => {
-                        const oldRec: any = log.details.old;
-                        const newRec: any = log.details.new;
-                        const keys = Array.from(new Set([...Object.keys(oldRec), ...Object.keys(newRec)]));
-                        try {
-                          return keys.map(key => {
-                            const ov = oldRec[key];
-                            const nv = newRec[key];
-                            const changed = JSON.stringify(ov) !== JSON.stringify(nv);
-                            if (!changed) return null;
-                            const fmt = (v: any) => formatAuditValue(key, v);
-                            return (
-                              <div key={key} className="contents">
-                                <span className="font-semibold text-slate-500 py-0.5">{key}</span>
-                                <span className="py-0.5">
-                                  <span className="text-red-500 line-through decoration-red-400">{fmt(ov)}</span>
-                                  <span className="mx-1.5 text-slate-400">→</span>
-                                  <span className="text-emerald-600 font-medium">{fmt(nv)}</span>
-                                </span>
-                              </div>
-                            );
-                          });
-                        } catch {
-                          return <span className="text-slate-400 font-mono">{JSON.stringify(log.details)}</span>;
-                        }
-                      })()}
-                    </div>
+                    <AuditDiffBlock oldRec={log.details.old} newRec={log.details.new} />
                   )}
-                  {/* delete: mostra solo il vecchio record */}
+                  {/* delete: mostra il vecchio record con etichette */}
                   {log.details && log.details.old != null && log.details.new == null && (
-                    <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
-                      {Object.entries(log.details.old).map(([key, val]: [string, any]) => (
-                        <div key={key} className="contents">
-                          <span className="font-semibold text-slate-500 py-0.5">{key}</span>
-                          <span className="py-0.5 text-red-600">{formatAuditValue(key, val)}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <AuditDeleteBlock oldRec={log.details.old} />
                   )}
                   {/* create/bulk: dettagli semplici senza diff */}
                   {log.details && log.details.old == null && log.details.new == null && (
