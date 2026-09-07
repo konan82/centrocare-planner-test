@@ -834,7 +834,17 @@ export default function AppWrapper() {
 }
 
 function App() {
-  const [view, setView] = useState<ViewState>('LOGIN');
+  const [view, setView] = useState<ViewState>(() => {
+    const saved = localStorage.getItem('centrocare_view');
+    return (saved && saved !== 'LOGIN') ? (saved as ViewState) : 'LOGIN';
+  });
+
+  // Persistenza della vista corrente: al refresh resta sul menu dove eri
+  useEffect(() => {
+    if (view && view !== 'LOGIN') {
+      localStorage.setItem('centrocare_view', view);
+    }
+  }, [view]);
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [youths, setYouths] = useState<Youth[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -967,7 +977,8 @@ function App() {
             tutorId: profile.tutor_id || null,
           });
           setToken(session.access_token);
-          setView('DASHBOARD');
+          const saved = localStorage.getItem('centrocare_view');
+          setView(saved && saved !== 'LOGIN' ? (saved as ViewState) : 'DASHBOARD');
           return;
         }
       }
