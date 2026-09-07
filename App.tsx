@@ -5058,11 +5058,20 @@ function App() {
   const renderReport = () => {
     const WEEK_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'] as const;
     const defaultWeeks = payRates.weeksPerMonth || 4;
+    const hasReportFilters = tutorFilter !== 'all' || youthFilter !== 'all';
+
+    const hasFilter = (s: Shift) => {
+      if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
+      if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
+      return true;
+    };
 
     const listTutors = (restrictedUserTutorId
       ? tutors.filter(t => t.id === restrictedUserTutorId)
       : tutors
-    ).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it'));
+    )
+      .filter(t => tutorFilter === 'all' || t.id === tutorFilter)
+      .slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it'));
 
     const templateOf = (tutorId: string) =>
       visibleShifts
@@ -5071,37 +5080,101 @@ function App() {
           const wd = s.templateWeekday || weekdayOf(s.date);
           return wd >= 1 && wd <= 6;
         })
+        .filter(hasFilter)
         .sort((a, b) =>
           (a.templateWeekday || weekdayOf(a.date)) - (b.templateWeekday || weekdayOf(b.date)) ||
           (a.startTime || '').localeCompare(b.startTime || '')
         );
 
+    const visibleTutors = listTutors.filter(t => {
+      if (youthFilter === 'all') return true;
+      return templateOf(t.id).length > 0;
+    });
+
+    const resetFilters = () => {
+      setTutorFilter('all');
+      setYouthFilter('all');
+    };
+
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Resoconto Turni</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.
-            </p>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Resoconto Turni</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.
+              </p>
+            </div>
+            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+              Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
+            </span>
           </div>
-          <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
-            Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
-          </span>
+
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2">
+            {restrictedUserTutorId ? (
+              <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                <UserCheck size={15} />
+                Solo i tuoi turni
+              </span>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <PersonCombo
+                  options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                  value={tutorFilter}
+                  onChange={setTutorFilter}
+                  placeholder="Tutti i tutor"
+                  colorOf={id => getTutorColor(id, tutors)}
+                  allowAll
+                  allLabel="Tutti i tutor"
+                  allValue="all"
+                  className="w-full sm:w-52"
+                />
+                <PersonCombo
+                  options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                  value={youthFilter}
+                  onChange={setYouthFilter}
+                  placeholder="Tutti i ragazzi"
+                  colorOf={id => getYouthColor(id, youths)}
+                  allowAll
+                  allLabel="Tutti i ragazzi"
+                  allValue="all"
+                  className="w-full sm:w-52"
+                />
+              </div>
+            )}
+            {hasReportFilters && (
+              <button
+                onClick={resetFilters}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
+              >
+                <FilterX size={15} /> Azzera filtri
+              </button>
+            )}
+          </div>
         </div>
 
-        {listTutors.length === 0 && (
+        {visibleTutors.length === 0 && (
           <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
             <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
               <List size={28} className="text-slate-400" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700">Nessun tutor</h3>
-            <p className="text-sm text-slate-500 mt-1">Crea un tutor in anagrafica per vedere il resoconto.</p>
+            <h3 className="text-lg font-bold text-slate-700">{hasReportFilters ? 'Nessun risultato' : 'Nessun tutor'}</h3>
+            <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+              {hasReportFilters
+                ? "Nessun turno corrisponde ai filtri attuali. Prova a modificare i filtri."
+                : "Crea un tutor in anagrafica per vedere il resoconto."}
+            </p>
+            {hasReportFilters && (
+              <button onClick={resetFilters} className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition shadow-sm">
+                <FilterX size={15} /> Azzera filtri
+              </button>
+            )}
           </div>
         )}
 
         <div className="space-y-6">
-          {listTutors.map(tutor => {
+          {visibleTutors.map(tutor => {
             const color = getTutorColor(tutor.id, tutors);
             const rows = templateOf(tutor.id);
             return (
@@ -5122,14 +5195,14 @@ function App() {
                   <p className="px-5 py-6 text-sm text-slate-400 italic">Nessun turno pianificato nella settimana tipo.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm whitespace-nowrap">
+                    <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
-                          <th className="px-5 py-2.5 font-bold">Giorno</th>
-                          <th className="px-3 py-2.5 font-bold">Orario</th>
-                          <th className="px-3 py-2.5 font-bold">Ragazzi</th>
-                          <th className="px-3 py-2.5 font-bold">Tipo</th>
-                          <th className="px-3 py-2.5 font-bold text-right">Validità</th>
+                          <th className="px-5 py-2.5 font-bold w-40">Giorno</th>
+                          <th className="px-3 py-2.5 font-bold w-28">Orario</th>
+                          <th className="px-3 py-2.5 font-bold w-auto">Ragazzi</th>
+                          <th className="px-3 py-2.5 font-bold w-24">Tipo</th>
+                          <th className="px-3 py-2.5 font-bold text-right w-36">Validità</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -5140,13 +5213,13 @@ function App() {
                           const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
                           return (
                             <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
-                              <td className="px-5 py-2.5">
+                              <td className="px-5 py-2.5 whitespace-nowrap">
                                 <span className={`inline-flex items-center gap-1.5 ${wd === 5 ? 'text-sky-700' : 'text-slate-700'}`}>
                                   <span className={`h-2 w-2 rounded-full ${wd === 5 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
                                   <span className="font-semibold">{WEEK_DAYS[wd]}</span>
                                 </span>
                               </td>
-                              <td className="px-3 py-2.5 tabular-nums font-semibold text-slate-700">
+                              <td className="px-3 py-2.5 whitespace-nowrap tabular-nums font-semibold text-slate-700">
                                 {s.startTime}–{s.endTime}
                               </td>
                               <td className="px-3 py-2.5">
@@ -5170,7 +5243,7 @@ function App() {
                                   })}
                                 </div>
                               </td>
-                              <td className="px-3 py-2.5">
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 {isDouble ? (
                                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">
                                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio
@@ -5181,7 +5254,7 @@ function App() {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 text-right">
+                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
                                 <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                   {weeks} sett.
                                   {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
