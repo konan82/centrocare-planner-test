@@ -6528,6 +6528,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userPresence, setUserPresence] = useState<Record<string, { online: boolean; lastSignInAt: string | null }>>({});
 
   const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
     if (!currentUser) return;
@@ -6564,6 +6565,55 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       console.error("Error fetching users:", error);
     }
   };
+
+  // Heartbeat: l'utente corrente segnala la propria presenza ogni 60s finché l'app è aperta.
+  useEffect(() => {
+    if (!currentUser) return;
+    const send = () => {
+      supabase.from('user_heartbeat').upsert(
+        { user_id: currentUser.id, last_seen: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      ).then(({ error }) => {
+        if (error) console.error('Heartbeat error:', error);
+      });
+    };
+    send();
+    const iv = setInterval(send, 60 * 1000);
+    return () => clearInterval(iv);
+  }, [currentUser?.id]);
+
+  const fetchPresence = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/users-presence`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({}),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.error) throw new Error(result.error || 'Error fetching presence');
+      const map: Record<string, { online: boolean; lastSignInAt: string | null }> = {};
+      (result.presence || []).forEach((p: any) => {
+        map[p.user_id] = { online: !!p.online, lastSignInAt: p.last_sign_in_at || null };
+      });
+      setUserPresence(map);
+    } catch (error) {
+      console.error('Error fetching presence:', error);
+    }
+  };
+
+  // Aggiorna la presenza ogni 60s mentre si è in Gestione Utenti.
+  useEffect(() => {
+    if (view !== 'USER_MANAGEMENT') return;
+    fetchPresence();
+    const iv = setInterval(fetchPresence, 60 * 1000);
+    return () => clearInterval(iv);
+  }, [view]);
 
   const handleCreateUser = async () => {
     if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
@@ -6735,7 +6785,20 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800">{user.username}</h3>
-                  <span className="text-xs text-slate-500">ID: {user.id}</span>
+                  <span className="text-xs text-slate-500">ID: {user.id.slice(0, 8)}…</span>
+                  {userPresence[user.id]?.online ? (
+                    <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-[11px] font-bold text-emerald-700">Online</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
+                      <Clock size={11} className="shrink-0" />
+                      <span className="text-[11px] font-semibold">
+                        Ultimo accesso: {userPresence[user.id]?.lastSignInAt ? format(new Date(userPresence[user.id].lastSignInAt), 'dd/MM/yyyy HH:mm') : 'mai'}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
               {user.username !== 'Admin' && (
