@@ -6528,7 +6528,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   const [pwMsg, setPwMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pwBusy, setPwBusy] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [userPresence, setUserPresence] = useState<Record<string, { online: boolean; lastSignInAt: string | null }>>({});
+  const [userPresence, setUserPresence] = useState<Record<string, { online: boolean; lastSignInAt: string | null; lastActiveAt: string | null }>>({});
 
   const auditLog = (action: 'create' | 'update' | 'delete', entity: 'user', entityId: string | undefined, entityName: string, details?: Record<string, any>) => {
     if (!currentUser) return;
@@ -6597,9 +6597,9 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       );
       const result = await response.json();
       if (!response.ok || result.error) throw new Error(result.error || 'Error fetching presence');
-      const map: Record<string, { online: boolean; lastSignInAt: string | null }> = {};
+      const map: Record<string, { online: boolean; lastSignInAt: string | null; lastActiveAt: string | null }> = {};
       (result.presence || []).forEach((p: any) => {
-        map[p.user_id] = { online: !!p.online, lastSignInAt: p.last_sign_in_at || null };
+        map[p.user_id] = { online: !!p.online, lastSignInAt: p.last_sign_in_at || null, lastActiveAt: p.last_active_at || null };
       });
       setUserPresence(map);
     } catch (error) {
@@ -6794,7 +6794,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                     <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
                       <Clock size={11} className="shrink-0" />
                       <span className="text-[11px] font-semibold">
-                        Ultimo accesso: {userPresence[user.id]?.lastSignInAt ? format(new Date(userPresence[user.id].lastSignInAt), 'dd/MM/yyyy HH:mm') : 'mai'}
+                        Ultimo accesso: {userPresence[user.id]?.lastActiveAt ? format(new Date(userPresence[user.id].lastActiveAt), 'dd/MM/yyyy HH:mm') : userPresence[user.id]?.lastSignInAt ? format(new Date(userPresence[user.id].lastSignInAt), 'dd/MM/yyyy HH:mm') : 'mai'}
                       </span>
                     </span>
                   )}

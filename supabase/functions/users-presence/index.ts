@@ -23,10 +23,19 @@ serve(async (req: Request) => {
     const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (usersError) throw usersError;
 
+    const userIds = (users?.users || []).map(u => u.id);
     const { data: beats, error: beatsError } = await supabaseAdmin
       .from("user_heartbeat")
       .select("user_id, last_seen");
     if (beatsError) throw beatsError;
+
+    const { data: active, error: activeError } = await supabaseAdmin.rpc("last_active_for_users", { user_ids: userIds });
+    if (activeError) throw activeError;
+
+    const activeMap: Record<string, string> = {};
+    (active || []).forEach((a: any) => {
+      activeMap[a.user_id] = a.last_active_at;
+    });
 
     const now = Date.now();
     const beatMap: Record<string, number> = {};
@@ -38,6 +47,7 @@ serve(async (req: Request) => {
       user_id: u.id,
       online: !!beatMap[u.id] && (now - beatMap[u.id] < ONLINE_WINDOW_MS),
       last_sign_in_at: u.last_sign_in_at || null,
+      last_active_at: activeMap[u.id] || null,
     }));
 
     return new Response(JSON.stringify({ presence }), {
