@@ -1470,9 +1470,10 @@ function App() {
       const { error } = await supabase.from('shifts').upsert(shiftData);
       if (error) throw error;
 
-      const youthNames = editingShift.youthIds?.length
-        ? editingShift.youthIds.map(id => youths.find(y => y.id === id)?.name || id).join(', ')
-        : (youths.find(y => y.id === youthIds[0])?.name || editingShift.youthId || '—');
+      const tutorName = tutors.find(t => t.id === editingShift.tutorId)?.name || editingShift.tutorId;
+      const youthIdsList = editingShift.youthIds?.length ? editingShift.youthIds : youthIds;
+      const youthNamesArr = youthIdsList.map(id => youths.find(y => y.id === id)?.name || id);
+      const youthNames = youthNamesArr.join(', ') || '—';
       const oldShift = editingShift.id ? shifts.find(s => s.id === editingShift.id) : undefined;
       auditLog(
         editingShift.id ? 'update' : 'create',
@@ -1486,8 +1487,9 @@ function App() {
                 { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, activity: editingShift.activity || 'Attività generica', status: shiftData.status, actual_start_time: shiftData.actual_start_time, actual_end_time: shiftData.actual_end_time, aggregate: youthIds }
               ),
               is_template: isPlan,
+              context: { tutor_name: tutorName, youth_names: youthNamesArr },
             }
-          : { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, is_template: isPlan }
+          : { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, is_template: isPlan, context: { tutor_name: tutorName, youth_names: youthNamesArr } }
       );
 
       const normalizedShift = {
@@ -1536,7 +1538,11 @@ function App() {
       const shiftToDelete = shifts.find(s => s.id === id);
       const { error } = await supabase.from('shifts').delete().eq('id', id);
       if (error) throw error;
-      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, shiftToDelete ? auditDiff({ date: shiftToDelete.date, start_time: shiftToDelete.startTime, end_time: shiftToDelete.endTime, actual_start_time: shiftToDelete.actualStartTime || null, actual_end_time: shiftToDelete.actualEndTime || null, is_template: !!shiftToDelete.isTemplate, tutor_id: shiftToDelete.tutorId }, null) : { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate });
+      const ctxDelete = shiftToDelete ? {
+        tutor_name: tutors.find(t => t.id === shiftToDelete.tutorId)?.name || shiftToDelete.tutorId,
+        youth_names: (shiftToDelete.youthIds?.length ? shiftToDelete.youthIds : [shiftToDelete.youthId]).filter(Boolean).map(yid => youths.find(y => y.id === yid)?.name || yid),
+      } : null;
+      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, shiftToDelete ? { ...auditDiff({ date: shiftToDelete.date, start_time: shiftToDelete.startTime, end_time: shiftToDelete.endTime, actual_start_time: shiftToDelete.actualStartTime || null, actual_end_time: shiftToDelete.actualEndTime || null, is_template: !!shiftToDelete.isTemplate, tutor_id: shiftToDelete.tutorId }, null), context: ctxDelete } : { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate, context: ctxDelete });
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
       if (shiftToDelete?.isTemplate) {
@@ -2174,7 +2180,11 @@ function App() {
             ...auditDiff(
               { date: shiftToUpdate.date, start_time: shiftToUpdate.startTime, end_time: shiftToUpdate.endTime, actual_start_time: shiftToUpdate.actualStartTime || null, actual_end_time: shiftToUpdate.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate },
               { date: updatedShift.date, start_time: updatedShift.startTime, end_time: updatedShift.endTime, actual_start_time: updatedShift.actualStartTime || null, actual_end_time: updatedShift.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate }
-            )
+            ),
+            context: {
+              tutor_name: tutors.find(t => t.id === shiftToUpdate.tutorId)?.name || shiftToUpdate.tutorId,
+              youth_names: (shiftToUpdate.youthIds?.length ? shiftToUpdate.youthIds : [shiftToUpdate.youthId]).filter(Boolean).map(yid => youths.find(y => y.id === yid)?.name || yid),
+            }
           });
           setShifts(prevShifts => prevShifts.map(s => s.id === shiftId ? updatedShift : s));
           if (shiftToUpdate.isTemplate) {
@@ -3938,7 +3948,11 @@ function App() {
                                                   ...auditDiff(
                                                     { end_time: shift.endTime, actual_end_time: shift.actualEndTime || null, is_template: shift.isTemplate },
                                                     shift.isTemplate ? { end_time: nEnd, actual_end_time: null, is_template: shift.isTemplate } : { end_time: shift.endTime, actual_end_time: nEnd, is_template: shift.isTemplate }
-                                                  )
+                                                  ),
+                                                  context: {
+                                                    tutor_name: tutors.find(t => t.id === shift.tutorId)?.name || shift.tutorId,
+                                                    youth_names: ((shift as any).youthIds?.length ? (shift as any).youthIds : [(shift as any).youthId]).filter(Boolean).map((yid: string) => youths.find(y => y.id === yid)?.name || yid),
+                                                  }
                                                 });
                                               });
                                           }}
@@ -7224,6 +7238,21 @@ function AuditView() {
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
                     <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
                   </div>
+                  {/* Context turni: tutor e ragazzi associati */}
+                  {log.entity === 'shift' && log.details?.context && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {log.details.context.tutor_name && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold">
+                          <UserCheck size={12} className="shrink-0" /> {log.details.context.tutor_name}
+                        </span>
+                      )}
+                      {log.details.context.youth_names?.length > 0 && log.details.context.youth_names.map((yn: string, i: number) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold">
+                          <Users size={12} className="shrink-0" /> {yn}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {log.details && log.details.old != null && log.details.new != null && (
                     <AuditDiffBlock oldRec={log.details.old} newRec={log.details.new} />
                   )}
