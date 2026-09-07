@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 const ONLINE_WINDOW_MS = 3 * 60 * 1000; // online = heartbeat aggiornato negli ultimi 3 minuti
+const SESSION_WINDOW_MS = 30 * 60 * 1000; // online anche se sessione auth aggiornata negli ultimi 30 minuti
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -43,12 +44,17 @@ serve(async (req: Request) => {
       beatMap[b.user_id] = new Date(b.last_seen).getTime();
     });
 
-    const presence = (users?.users || []).map(u => ({
-      user_id: u.id,
-      online: !!beatMap[u.id] && (now - beatMap[u.id] < ONLINE_WINDOW_MS),
-      last_sign_in_at: u.last_sign_in_at || null,
-      last_active_at: activeMap[u.id] || null,
-    }));
+    const presence = (users?.users || []).map(u => {
+      const beat = !!beatMap[u.id] && (now - beatMap[u.id] < ONLINE_WINDOW_MS);
+      const activeTs = activeMap[u.id] ? new Date(activeMap[u.id]).getTime() : 0;
+      const sess = activeTs > 0 && (now - activeTs < SESSION_WINDOW_MS);
+      return {
+        user_id: u.id,
+        online: beat || sess,
+        last_sign_in_at: u.last_sign_in_at || null,
+        last_active_at: activeMap[u.id] || null,
+      };
+    });
 
     return new Response(JSON.stringify({ presence }), {
       status: 200,
