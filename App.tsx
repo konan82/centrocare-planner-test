@@ -6662,6 +6662,11 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
     return ua.slice(0, 60);
   };
 
+  const formatIp = (ip: string | null) => {
+    if (!ip) return '-';
+    return ip.replace(/\/\d+$/, '');
+  };
+
   const handleCreateUser = async () => {
     if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
     try {
@@ -7105,7 +7110,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <tr>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Utente</th>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Login</th>
-                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Logout</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Logout / Scadenza</th>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600 uppercase">Dispositivo</th>
                 </tr>
               </thead>
@@ -7123,9 +7128,17 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                       </td>
                       <td className="px-3 py-2">
                         {log.logout_time ? (
-                          <span className="text-slate-500 whitespace-nowrap">
-                            {format(new Date(log.logout_time), 'dd/MM/yyyy HH:mm')}
-                          </span>
+                          <div>
+                            <span className="text-slate-500 whitespace-nowrap">
+                              {format(new Date(log.logout_time), 'dd/MM/yyyy HH:mm')}
+                            </span>
+                            {log.logout_reason === 'scadenza' && (
+                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 uppercase whitespace-nowrap">Scaduta</span>
+                            )}
+                            {log.logout_reason === 'logout' && (
+                              <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 uppercase whitespace-nowrap">Logout</span>
+                            )}
+                          </div>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -7134,7 +7147,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <div className="text-slate-700">{log.ip_address || '-'}</div>
+                        <div className="text-slate-700">{formatIp(log.ip_address)}</div>
                         <div className="text-[11px] text-slate-400 mt-0.5" title="MAC address non disponibile dal browser web">
                           MAC: {log.mac_address || 'N/D'}
                         </div>

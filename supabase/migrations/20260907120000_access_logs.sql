@@ -48,7 +48,7 @@ set search_path = public, auth
 as $$
 begin
   update public.access_logs
-  set logout_time = now()
+  set logout_time = now(), logout_reason = 'logout'
   where session_id = old.id and logout_time is null;
   return old;
 end;
