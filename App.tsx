@@ -1721,6 +1721,28 @@ function App() {
     setIsYouthModalOpen(true);
   }
 
+  // Navigazione rapida alla scheda (modale) di un tutor/ragazzo da qualunque vista.
+  const goToTutor = (t: Tutor | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (t) openEditTutorModal(t);
+  };
+  const goToYouth = (y: Youth | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (y) openEditYouthModal(y);
+  };
+  const goToTutorByName = (name: string | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!name) return;
+    const t = tutors.find(x => x.name?.toLowerCase() === name.toLowerCase());
+    if (t) openEditTutorModal(t);
+  };
+  const goToYouthByName = (name: string | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!name) return;
+    const y = youths.find(x => x.name?.toLowerCase() === name.toLowerCase());
+    if (y) openEditYouthModal(y);
+  };
+
   // Copia i turni della pianificazione (settimana tipo) su tutti i giorni del mese scelto (idempotente)
   const handleReplicateMonth = async () => {
     if (!replicateMonth) return;
@@ -3187,7 +3209,7 @@ function App() {
       let single = 0, dbl = 0;
       minuteYouths.forEach(set => { if (set.size >= 2) dbl += 1; else if (set.size === 1) single += 1; });
       const tutor = tutors.find(tt => tt.id === tid);
-      return { name: tutor ? tutor.name : '', single: single / 60, dbl: dbl / 60 };
+      return { id: tutor ? tutor.id : '', name: tutor ? tutor.name : '', single: single / 60, dbl: dbl / 60 };
     })();
 
     return (
@@ -3211,7 +3233,7 @@ function App() {
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium leading-tight truncate">
                   {isPlan
-                    ? weeklySD ? `Settimana tipo · ${weeklySD.name} · S ${weeklySD.single.toFixed(1)}h / D ${weeklySD.dbl.toFixed(1)}h`
+                    ? weeklySD && weeklySD.id ? <>Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD!.id), e)} className="font-bold text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button> · S {weeklySD.single.toFixed(1)}h / D {weeklySD.dbl.toFixed(1)}h</>
                       : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
                     : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} – ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
                 </p>
@@ -3481,7 +3503,7 @@ function App() {
 
         {weeklySD && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 shrink-0 text-sm">
-            <span className="font-extrabold text-slate-700 uppercase tracking-wide text-[11px]">Settimana tipo · {weeklySD.name}</span>
+            <span className="font-extrabold text-slate-700 uppercase tracking-wide text-[11px]">Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD.id), e)} className="uppercase font-extrabold text-slate-700 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button></span>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
               Turno singolo: <b className="tabular-nums text-amber-700">{weeklySD.single.toFixed(1)}h</b>
@@ -3852,12 +3874,20 @@ function App() {
                                       >
                                         <div className="flex h-full flex-col min-w-0 relative z-10">
                                           <div className="flex items-center gap-1.5 shrink-0">
-                                            <span className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm`}>
+                                            <button
+                                              onClick={(e) => goToTutor(tutor, e as unknown as React.MouseEvent)}
+                                              className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
+                                              title={`Apri scheda ${tutor?.name || 'tutor'}`}
+                                            >
                                               {getInitials(tutor?.name)}
-                                            </span>
-                                            <span className={`truncate font-bold text-slate-800 pointer-events-none text-[14px] leading-tight ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
+                                            </button>
+                                            <button
+                                              onClick={(e) => goToTutor(tutor, e as unknown as React.MouseEvent)}
+                                              className={`truncate min-w-0 font-bold text-slate-800 text-[14px] leading-tight cursor-pointer hover:text-teal-700 hover:underline ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}
+                                              title={`Apri scheda ${tutor?.name || 'tutor'}`}
+                                            >
                                               {tutor?.name || 'Sconosciuto'}
-                                            </span>
+                                            </button>
                                             {shiftStatus === 'cancellato' && (
                                               <span className="shrink-0 px-1.5 py-px rounded bg-red-100 text-red-600 text-[10px] font-bold uppercase">Annullato</span>
                                             )}
@@ -3907,9 +3937,13 @@ function App() {
                                                 return (
                                                   <div key={yid} className="flex items-center gap-1.5 min-w-0">
                                                     <span className={`h-2 w-2 rounded-full ${yc.badge} shrink-0`}></span>
-                                                    <span className={`truncate font-semibold text-slate-600 pointer-events-none ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
+                                                    <button
+                                                      onClick={(e) => goToYouth(yy, e as unknown as React.MouseEvent)}
+                                                      className={`truncate min-w-0 font-semibold text-slate-600 cursor-pointer hover:text-teal-700 hover:underline ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}
+                                                      title={`Apri scheda ${yy?.name || 'ragazzo'}`}
+                                                    >
                                                       {yy?.name || 'Sconosciuto'}
-                                                    </span>
+                                                    </button>
                                                   </div>
                                                 );
                                               })}
@@ -4286,13 +4320,17 @@ function App() {
                     {sr.singleH > 0 && (
                       <span className="inline-flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-teal-500 inline-block shrink-0"></span>
-                        <span className="text-slate-600">{sr.singleYouths.map(youthName).join(', ')}</span>
+                        <span className="text-slate-600">{sr.singleYouths.map(id => (
+                          <button key={id} onClick={(e) => goToYouth(youths.find(y => y.id === id), e as unknown as React.MouseEvent)} className="mx-0.5 inline text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{youthName(id)}</button>
+                        ))}</span>
                       </span>
                     )}
                     {sr.doubleH > 0 && (
                       <span className="inline-flex items-center gap-1.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-violet-500 inline-block shrink-0"></span>
-                        <span className="text-violet-700">{sr.doubleYouths.map(youthName).join(', ')}</span>
+                        <span className="text-violet-700">{sr.doubleYouths.map(id => (
+                          <button key={id} onClick={(e) => goToYouth(youths.find(y => y.id === id), e as unknown as React.MouseEvent)} className="mx-0.5 inline text-violet-700 hover:text-fuchsia-700 hover:underline cursor-pointer">{youthName(id)}</button>
+                        ))}</span>
                       </span>
                     )}
                     {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">—</span>}
@@ -4791,7 +4829,7 @@ function App() {
                             <span className={`h-7 w-7 shrink-0 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[11px] font-bold flex items-center justify-center`}>
                               {getInitials(r.tutor.name)}
                             </span>
-                            <span className="font-semibold text-slate-700 truncate">{r.tutor.name}</span>
+                            <button onClick={(e) => goToTutor(r.tutor, e as unknown as React.MouseEvent)} className="font-semibold text-slate-700 truncate hover:text-teal-700 hover:underline cursor-pointer" title={`Apri scheda ${r.tutor.name}`}>{r.tutor.name}</button>
                           </span>
                         </td>
                         <td className="text-right py-2.5 px-3 tabular-nums text-slate-600">{r.wSingle.toFixed(1)}h</td>
@@ -4947,7 +4985,7 @@ function App() {
               <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-full max-h-[90vh] overflow-auto">
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-slate-800">{zoomed.tutor.name}</span>
+                    <span className="text-lg font-bold text-slate-800"><button onClick={(e) => goToTutor(zoomed.tutor, e as unknown as React.MouseEvent)} className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer">{zoomed.tutor.name}</button></span>
                     <span className="text-sm text-slate-500">· settimana tipo · click sul calendario per ingrandire</span>
                   </div>
                   <button
@@ -4978,7 +5016,7 @@ function App() {
               <div className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-full max-h-[90vh] overflow-auto">
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-slate-800">{zoomed.tutor.name}</span>
+                    <span className="text-lg font-bold text-slate-800"><button onClick={(e) => goToTutor(zoomed.tutor, e as unknown as React.MouseEvent)} className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer">{zoomed.tutor.name}</button></span>
                     <span className="text-sm text-slate-500">· dettaglio paga · click sulla tabella per ingrandire</span>
                   </div>
                   <button
@@ -5174,7 +5212,7 @@ function App() {
                       <th key={t.id} colSpan={3} className="px-2 py-1.5 font-bold text-center border-l-2 border-slate-200">
                         <span className="flex items-center justify-center gap-1.5 min-w-0">
                           <span className={`h-4 w-4 rounded-full ${getTutorColor(t.id, tutors).bg} ${getTutorColor(t.id, tutors).text} text-[9px] font-bold flex items-center justify-center`}>{getInitials(t.name)}</span>
-                          <span className="truncate max-w-[8rem]">{t.name}</span>
+                          <button onClick={(e) => goToTutor(t, e as unknown as React.MouseEvent)} className="truncate max-w-[8rem] hover:text-teal-700 hover:underline cursor-pointer" title={`Apri scheda ${t.name}`}>{t.name}</button>
                         </span>
                       </th>
                     ))}
@@ -5203,7 +5241,7 @@ function App() {
                         <td className={`py-2.5 pr-3 sticky left-0 z-10 ${Math.abs(rtPlanned - rtExecuted) > 0.005 ? 'animate-row-flash' : 'bg-white group-hover:bg-lime-100/80'}`}>
                           <span className="flex items-center gap-2.5 min-w-0">
                             <span className={`h-7 w-7 shrink-0 rounded-full ${getYouthColor(y.id, youths).bg} ${getYouthColor(y.id, youths).text} text-[11px] font-bold flex items-center justify-center`}>{getInitials(y.name)}</span>
-                            <span className="font-semibold text-slate-700 truncate">{y.name}</span>
+                            <button onClick={(e) => goToYouth(y, e as unknown as React.MouseEvent)} className="font-semibold text-slate-700 truncate hover:text-teal-700 hover:underline cursor-pointer" title={`Apri scheda ${y.name}`}>{y.name}</button>
                           </span>
                         </td>
                         {rows.map(t => {
@@ -5383,15 +5421,24 @@ function App() {
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-slate-800 truncate">
-                  {editingShift?.tutorId ? (tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor') : 'Nuovo Turno'}
+                  {editingShift?.tutorId ? (
+                    <button
+                      onClick={(e) => goToTutor(tutors.find(t => t.id === editingShift!.tutorId), e as unknown as React.MouseEvent)}
+                      className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer truncate"
+                      title="Apri scheda tutor"
+                    >
+                      {tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor'}
+                    </button>
+                  ) : 'Nuovo Turno'}
                 </h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map(yid => {
                     const hc = getYouthColor(yid, youths);
+                    const yy = youths.find(y => y.id === yid);
                     return (
-                      <span key={yid} className={`px-2 py-0.5 rounded-full ${hc.bg} ${hc.text} text-xs font-semibold`}>
-                        {youths.find(y => y.id === yid)?.name || 'Ragazzo'}
-                      </span>
+                      <button key={yid} onClick={(e) => goToYouth(yy, e as unknown as React.MouseEvent)} className={`px-2 py-0.5 rounded-full ${hc.bg} ${hc.text} text-xs font-semibold hover:ring-2 hover:ring-teal-400 cursor-pointer transition`} title={`Apri scheda ${yy?.name || 'ragazzo'}`}>
+                        {yy?.name || 'Ragazzo'}
+                      </button>
                     );
                   })}
                   {editingShift?.startTime && (
@@ -6904,7 +6951,9 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 <UserCheck size={14} className={user.tutorId ? 'text-teal-600 shrink-0' : 'text-slate-300 shrink-0'} />
                 {user.tutorId ? (
                   <span className="text-slate-700">
-                    Tutor associato: <span className="font-semibold">{linkedTutor ? linkedTutor.name : 'non trovato'}</span>
+                    Tutor associato: {linkedTutor ? (
+                      <button onClick={(e) => goToTutor(linkedTutor, e as unknown as React.MouseEvent)} className="font-semibold hover:text-teal-700 hover:underline cursor-pointer">{linkedTutor.name}</button>
+                    ) : <span className="font-semibold">non trovato</span>}
                   </span>
                 ) : (
                   <span className="text-slate-400 italic">Nessun tutor associato</span>
@@ -7440,7 +7489,13 @@ function AuditView() {
                       {AUDIT_ENTITY_LABEL[log.entity] || log.entity}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-600 mt-1 break-words">{log.entity_name || '—'}</p>
+                  <p className="text-sm text-slate-600 mt-1 break-words">
+                    {log.entity === 'tutor' ? (
+                      <button onClick={(e) => goToTutorByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || '—'}</button>
+                    ) : log.entity === 'youth' ? (
+                      <button onClick={(e) => goToYouthByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || '—'}</button>
+                    ) : (log.entity_name || '—')}
+                  </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-400">
                     <span>{format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')}</span>
                   </div>
@@ -7448,14 +7503,14 @@ function AuditView() {
                   {log.entity === 'shift' && log.details?.context && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {log.details.context.tutor_name && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold">
+                        <button onClick={(e) => goToTutorByName(log.details.context.tutor_name, e as unknown as React.MouseEvent)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold hover:text-teal-700 hover:bg-sky-100 hover:underline transition cursor-pointer">
                           <UserCheck size={12} className="shrink-0" /> {log.details.context.tutor_name}
-                        </span>
+                        </button>
                       )}
                       {log.details.context.youth_names?.length > 0 && log.details.context.youth_names.map((yn: string, i: number) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold">
+                        <button key={i} onClick={(e) => goToYouthByName(yn, e as unknown as React.MouseEvent)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-violet-50 border border-violet-200 text-violet-700 text-xs font-semibold hover:text-teal-700 hover:bg-violet-100 hover:underline transition cursor-pointer">
                           <Users size={12} className="shrink-0" /> {yn}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}
