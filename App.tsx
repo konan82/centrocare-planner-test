@@ -5160,7 +5160,7 @@ function App() {
                                       <button
                                         key={yid}
                                         onClick={(e) => goToYouth(yy, e as unknown as React.MouseEvent)}
-                                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${yc.badge} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
+                                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${yc.bg} ${yc.text} border ${yc.border} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
                                         title={`Apri scheda ${yy?.name || 'ragazzo'}`}
                                       >
                                         <span className={`h-1.5 w-1.5 rounded-full ${yc.badge.split(' ')[0]}`}></span>
