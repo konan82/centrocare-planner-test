@@ -57,7 +57,8 @@ import {
   Pencil,
   ArrowRight,
   Download,
-  History
+  History,
+  List
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
@@ -2328,6 +2329,7 @@ function App() {
     const navItems: { view: ViewState; perm: string; label: string; icon: React.ElementType; chipText: string }[] = [
       { view: 'DASHBOARD', perm: 'PIANIFICAZIONE', label: 'Pianificazione Turni', icon: CalendarIcon, chipText: 'text-teal-600' },
       { view: 'VALIDATION', perm: 'CONSUNTIVO', label: 'Consuntivo Turni', icon: ClipboardCheck, chipText: 'text-indigo-600' },
+      { view: 'REPORT', perm: 'PIANIFICAZIONE', label: 'Resoconto Turni', icon: List, chipText: 'text-orange-600' },
       { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
@@ -2498,6 +2500,7 @@ function App() {
   const renderMobileHeader = () => {
     const viewLabel = view === 'DASHBOARD' ? 'Pianificazione Turni'
       : view === 'VALIDATION' ? 'Consuntivo Turni'
+      : view === 'REPORT' ? 'Resoconto Turni'
       : view === 'TUTORS' ? 'Gestione Tutor'
       : view === 'YOUTHS' ? 'Anagrafica Ragazzi'
       : view === 'SUMMARY' ? 'Riepilogo Ore'
@@ -5052,6 +5055,155 @@ function App() {
     );
   };
 
+  const renderReport = () => {
+    const WEEK_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'] as const;
+    const defaultWeeks = payRates.weeksPerMonth || 4;
+
+    const listTutors = (restrictedUserTutorId
+      ? tutors.filter(t => t.id === restrictedUserTutorId)
+      : tutors
+    ).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it'));
+
+    const templateOf = (tutorId: string) =>
+      visibleShifts
+        .filter(s => s.isTemplate && s.tutorId === tutorId)
+        .filter(s => {
+          const wd = s.templateWeekday || weekdayOf(s.date);
+          return wd >= 1 && wd <= 6;
+        })
+        .sort((a, b) =>
+          (a.templateWeekday || weekdayOf(a.date)) - (b.templateWeekday || weekdayOf(b.date)) ||
+          (a.startTime || '').localeCompare(b.startTime || '')
+        );
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Resoconto Turni</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.
+            </p>
+          </div>
+          <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+            Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
+          </span>
+        </div>
+
+        {listTutors.length === 0 && (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
+              <List size={28} className="text-slate-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-700">Nessun tutor</h3>
+            <p className="text-sm text-slate-500 mt-1">Crea un tutor in anagrafica per vedere il resoconto.</p>
+          </div>
+        )}
+
+        <div className="space-y-6">
+          {listTutors.map(tutor => {
+            const color = getTutorColor(tutor.id, tutors);
+            const rows = templateOf(tutor.id);
+            return (
+              <Card key={tutor.id} className="overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                  <div className={`w-11 h-11 rounded-2xl ${color.bg} ${color.text} flex items-center justify-center font-bold text-lg shadow-sm`}>
+                    {tutor.name?.charAt(0).toUpperCase() || '?'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <button onClick={(e) => goToTutor(tutor, e as unknown as React.MouseEvent)} className="font-bold text-lg text-slate-800 hover:text-teal-700 hover:underline cursor-pointer truncate">
+                      {tutor.name}
+                    </button>
+                    <p className="text-xs text-slate-400">{tutor.role || 'Tutor'} · {rows.length} turni</p>
+                  </div>
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="px-5 py-6 text-sm text-slate-400 italic">Nessun turno pianificato nella settimana tipo.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-[10px] uppercase tracking-wide text-slate-500">
+                          <th className="px-5 py-2.5 font-bold">Giorno</th>
+                          <th className="px-3 py-2.5 font-bold">Orario</th>
+                          <th className="px-3 py-2.5 font-bold">Ragazzi</th>
+                          <th className="px-3 py-2.5 font-bold">Tipo</th>
+                          <th className="px-3 py-2.5 font-bold text-right">Validità</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {rows.map(s => {
+                          const wd = (s.templateWeekday || weekdayOf(s.date)) - 1;
+                          const yids = shiftYouthIds(s);
+                          const isDouble = yids.length >= 2;
+                          const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+                          return (
+                            <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="px-5 py-2.5">
+                                <span className={`inline-flex items-center gap-1.5 ${wd === 5 ? 'text-sky-700' : 'text-slate-700'}`}>
+                                  <span className={`h-2 w-2 rounded-full ${wd === 5 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
+                                  <span className="font-semibold">{WEEK_DAYS[wd]}</span>
+                                </span>
+                              </td>
+                              <td className="px-3 py-2.5 tabular-nums font-semibold text-slate-700">
+                                {s.startTime}–{s.endTime}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {yids.length === 0 ? (
+                                    <span className="text-slate-400 italic">—</span>
+                                  ) : yids.map(yid => {
+                                    const yy = youths.find(y => y.id === yid);
+                                    const yc = getYouthColor(yid, youths);
+                                    return (
+                                      <button
+                                        key={yid}
+                                        onClick={(e) => goToYouth(yy, e as unknown as React.MouseEvent)}
+                                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${yc.badge} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
+                                        title={`Apri scheda ${yy?.name || 'ragazzo'}`}
+                                      >
+                                        <span className={`h-1.5 w-1.5 rounded-full ${yc.badge.split(' ')[0]}`}></span>
+                                        {yy?.name || 'Sconosciuto'}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                {isDouble ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold border border-teal-200">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span> Singolo
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2.5 text-right">
+                                <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
+                                  {weeks} sett.
+                                  {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
+                                    <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold">(personalizzata)</span>
+                                  )}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderSummary = () => {
     // Helper to calculate hours from "HH:mm" - "HH:mm"
     const getHours = (start: string, end: string) => {
@@ -5341,6 +5493,7 @@ function App() {
           <div className="p-3 sm:p-4 md:p-8">
             {view === 'DASHBOARD' && renderCalendar('plan')}
             {view === 'VALIDATION' && renderCalendar('validate')}
+            {view === 'REPORT' && renderReport()}
             {view === 'TUTORS' && renderTutorsList()}
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}

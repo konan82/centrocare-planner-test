@@ -111,7 +111,7 @@ export interface AccessLogEntry {
   user_agent: string | null;
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT' | 'REPORT';
 
 export interface PaySettings {
   rateSingle: number;
