@@ -318,6 +318,12 @@ const formatAuditValue = (key: string, v: any) => {
     });
     return parts.length ? parts.join(' · ') : 'nessuna fascia';
   }
+  if (key === 'unavailable_days' || key === 'unavailableDays') {
+    const days = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+    if (!Array.isArray(v)) return String(v);
+    const mapped = v.map(d => days[Number(d)] ?? String(d));
+    return mapped.length ? mapped.join(', ') : '—';
+  }
   if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v);
