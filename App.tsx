@@ -1215,6 +1215,33 @@ function App() {
     setCalHeaderCollapsed(prev => !prev);
   }, [isTouch]);
 
+  // Report header collapse: stesso pattern del calendario (hover su desktop, tap su touch)
+  const [reportHeaderCollapsed, setReportHeaderCollapsed] = useState(true);
+  const reportHeaderHoverRef = useRef(false);
+  const reportHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reportHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const handleReportHeaderEnter = useCallback(() => {
+    if (isTouch) return;
+    reportHeaderHoverRef.current = true;
+    if (reportHeaderTimerRef.current) { clearTimeout(reportHeaderTimerRef.current); reportHeaderTimerRef.current = null; }
+    setReportHeaderCollapsed(false);
+  }, [isTouch]);
+
+  const handleReportHeaderLeave = useCallback(() => {
+    if (isTouch) return;
+    reportHeaderHoverRef.current = false;
+    reportHeaderTimerRef.current = setTimeout(() => {
+      if (!reportHeaderHoverRef.current) setReportHeaderCollapsed(true);
+    }, 300);
+  }, [isTouch]);
+
+  const handleReportHeaderTap = useCallback(() => {
+    if (!isTouch) return;
+    reportHeaderHoverRef.current = true;
+    setReportHeaderCollapsed(prev => !prev);
+  }, [isTouch]);
+
   // Tutor Filter State ('all' or a tutor id)
   const [tutorFilter, setTutorFilter] = useState<string>('all');
   const [tutorSearch, setTutorSearch] = useState('');
@@ -5100,83 +5127,131 @@ function App() {
     };
 
     return (
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">Resoconto Turni</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                {reportView === 'tutor'
-                  ? 'Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.'
-                  : 'Settimana tipo per giorno: dal lunedì al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validità in settimane.'}
-              </p>
-            </div>
-            <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
-              Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
-            </span>
-            <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-              {([
-                { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
-                { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
-              ] as const).map(opt => {
-                const Icon = opt.icon;
-                const active = reportView === opt.key;
-                return (
-                  <button
-                    key={opt.key}
-                    onClick={() => setReportView(opt.key)}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                      active ? opt.active : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Icon size={14} /> {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2">
-            {restrictedUserTutorId ? (
-              <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                <UserCheck size={15} />
-                Solo i tuoi turni
-              </span>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <PersonCombo
-                  options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                  value={tutorFilter}
-                  onChange={setTutorFilter}
-                  placeholder="Tutti i tutor"
-                  colorOf={id => getTutorColor(id, tutors)}
-                  allowAll
-                  allLabel="Tutti i tutor"
-                  allValue="all"
-                  className="w-full sm:w-52"
-                />
-                <PersonCombo
-                  options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                  value={youthFilter}
-                  onChange={setYouthFilter}
-                  placeholder="Tutti i ragazzi"
-                  colorOf={id => getYouthColor(id, youths)}
-                  allowAll
-                  allLabel="Tutti i ragazzi"
-                  allValue="all"
-                  className="w-full sm:w-52"
-                />
+      <div className="space-y-3 md:space-y-4">
+        {/* Report Header Controls (collassabile: hover su desktop, tap su touch) */}
+        <div
+          ref={reportHeaderWrapperRef}
+          onMouseEnter={handleReportHeaderEnter}
+          onMouseLeave={handleReportHeaderLeave}
+          className="relative shrink-0"
+        >
+          {reportHeaderCollapsed ? (
+            <div onClick={handleReportHeaderTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
+              <div className="p-1.5 rounded-lg text-white shadow-sm shrink-0 bg-gradient-to-br from-orange-500 to-amber-600">
+                <List size={14} />
               </div>
-            )}
-            {hasReportFilters && (
-              <button
-                onClick={resetFilters}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
-              >
-                <FilterX size={15} /> Azzera filtri
-              </button>
-            )}
-          </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-slate-800 leading-tight truncate">Resoconto Turni</p>
+                <p className="text-[11px] text-slate-400 font-medium leading-tight truncate">
+                  {reportView === 'tutor'
+                    ? 'Vista Tutor · settimana tipo per tutor · validità ' + defaultWeeks + ' sett.'
+                    : 'Vista settimanale · turni per giorno · validità ' + defaultWeeks + ' sett.'}
+                </p>
+              </div>
+              <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
+                {isTouch ? 'Tocca per aprire' : 'Passa sopra per aprire'}
+              </span>
+              <ChevronDown size={16} className="text-slate-400 shrink-0" />
+            </div>
+          ) : (
+            <>
+              <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 animate-slide-down">
+                <div className="h-1.5 rounded-t-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-400"></div>
+                <div className="absolute top-2 right-3 z-10">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setReportHeaderCollapsed(true); }}
+                    title="Riduci pannello"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
+                <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-200">
+                      <List size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight leading-tight">Resoconto Turni</h2>
+                      <p className="text-[11px] sm:text-xs text-slate-400 font-medium leading-snug">
+                        {reportView === 'tutor'
+                          ? 'Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.'
+                          : 'Settimana tipo per giorno: dal lunedì al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validità in settimane.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
+                    <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                      Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
+                    </span>
+                    <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                      {([
+                        { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
+                        { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
+                      ] as const).map(opt => {
+                        const Icon = opt.icon;
+                        const active = reportView === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => setReportView(opt.key)}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
+                              active ? opt.active : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            <Icon size={14} /> {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 border-t border-slate-100 px-4 sm:px-5 py-3">
+                  {restrictedUserTutorId ? (
+                    <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                      <UserCheck size={15} />
+                      Solo i tuoi turni
+                    </span>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <PersonCombo
+                        options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                        value={tutorFilter}
+                        onChange={setTutorFilter}
+                        placeholder="Tutti i tutor"
+                        colorOf={id => getTutorColor(id, tutors)}
+                        allowAll
+                        allLabel="Tutti i tutor"
+                        allValue="all"
+                        className="w-full sm:w-52"
+                      />
+                      <PersonCombo
+                        options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                        value={youthFilter}
+                        onChange={setYouthFilter}
+                        placeholder="Tutti i ragazzi"
+                        colorOf={id => getYouthColor(id, youths)}
+                        allowAll
+                        allLabel="Tutti i ragazzi"
+                        allValue="all"
+                        className="w-full sm:w-52"
+                      />
+                    </div>
+                  )}
+                  {hasReportFilters && (
+                    <button
+                      onClick={resetFilters}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
+                    >
+                      <FilterX size={15} /> Azzera filtri
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {reportView === 'week' && (
