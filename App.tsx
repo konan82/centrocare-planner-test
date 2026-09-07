@@ -976,6 +976,31 @@ function App() {
     checkAuth();
   }, []);
 
+  // Heartbeat sempre attivo finché l'utente è loggato (presenza online in Gestione Utenti),
+  // indipendentemente dalla vista corrente. Invio immediato + ogni 60s.
+  useEffect(() => {
+    if (!currentUser) return;
+    const send = () => {
+      supabase.from('user_heartbeat').upsert(
+        { user_id: currentUser.id, last_seen: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      ).then(({ error }) => {
+        if (error) console.error('Heartbeat error:', error);
+      });
+    };
+    send();
+    const iv = setInterval(send, 60 * 1000);
+    const onFocus = () => send();
+    const onVis = () => { if (!document.hidden) send(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [currentUser?.id]);
+
   // Load data from Supabase on mount
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -6565,22 +6590,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       console.error("Error fetching users:", error);
     }
   };
-
-  // Heartbeat: l'utente corrente segnala la propria presenza ogni 60s finché l'app è aperta.
-  useEffect(() => {
-    if (!currentUser) return;
-    const send = () => {
-      supabase.from('user_heartbeat').upsert(
-        { user_id: currentUser.id, last_seen: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      ).then(({ error }) => {
-        if (error) console.error('Heartbeat error:', error);
-      });
-    };
-    send();
-    const iv = setInterval(send, 60 * 1000);
-    return () => clearInterval(iv);
-  }, [currentUser?.id]);
 
   const fetchPresence = async () => {
     try {
