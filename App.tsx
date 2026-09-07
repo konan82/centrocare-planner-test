@@ -1227,6 +1227,9 @@ function App() {
   // Calendar time-slot view: Mattina (08-13), Pomeriggio (13-19), Tutto (08-19)
   const [dayPart, setDayPart] = useState<'tutto' | 'mattina' | 'pomeriggio'>('tutto');
 
+  // Resoconto Turni: vista per tutor o vista settimanale
+  const [reportView, setReportView] = useState<'tutor' | 'week'>('tutor');
+
   // WhatsApp share state
   const [isWhatsAppSending, setIsWhatsAppSending] = useState(false);
 
@@ -5103,12 +5106,34 @@ function App() {
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Resoconto Turni</h2>
               <p className="text-sm text-slate-500 mt-1">
-                Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.
+                {reportView === 'tutor'
+                  ? 'Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.'
+                  : 'Settimana tipo per giorno: dal lunedì al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validità in settimane.'}
               </p>
             </div>
             <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
               Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
             </span>
+            <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+              {([
+                { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
+              ] as const).map(opt => {
+                const Icon = opt.icon;
+                const active = reportView === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    onClick={() => setReportView(opt.key)}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
+                      active ? opt.active : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon size={14} /> {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2">
@@ -5154,7 +5179,113 @@ function App() {
           </div>
         </div>
 
-        {visibleTutors.length === 0 && (
+        {reportView === 'week' && (
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            {WEEK_DAYS.map((dayLabel, dayIdx) => {
+              const wd = dayIdx + 1;
+              const dayShifts = visibleShifts
+                .filter(s => s.isTemplate)
+                .filter(s => (s.templateWeekday || weekdayOf(s.date)) === wd)
+                .filter(hasFilter)
+                .filter(s => {
+                  if (restrictedUserTutorId) return s.tutorId === restrictedUserTutorId;
+                  return true;
+                })
+                .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+              const tutorOf = (t: Shift) => tutors.find(x => x.id === t.tutorId);
+              const hasShifts = dayShifts.length > 0;
+
+              return (
+                <Card key={wd} className="overflow-hidden flex-1 min-w-[260px]">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                    <span className="inline-flex items-center gap-1.5 font-bold text-sm text-slate-800">
+                      <span className={`h-2 w-2 rounded-full ${wd === 6 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
+                      {dayLabel}
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-400 tabular-nums">{hasShifts ? dayShifts.length : 0} turni</span>
+                  </div>
+
+                  {!hasShifts ? (
+                    <p className="px-4 py-6 text-sm text-slate-400 italic">Nessun turno.</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {dayShifts.map(s => {
+                        const tt = tutorOf(s);
+                        const tColor = getTutorColor(tt?.id || s.tutorId, tutors);
+                        const yids = shiftYouthIds(s);
+                        const isDouble = yids.length >= 2;
+                        const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+                        return (
+                          <div key={s.id} className="px-4 py-3 hover:bg-slate-50/70 transition-colors">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="tabular-nums font-bold text-slate-800 text-sm">
+                                {s.startTime}–{s.endTime}
+                              </span>
+                              {isDouble ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold border border-violet-200">
+                                  Doppio
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-semibold border border-teal-200">
+                                  Singolo
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                              <span className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[9px] font-bold flex items-center justify-center`}>
+                                {getInitials(tt?.name)}
+                              </span>
+                              <button
+                                onClick={(e) => goToTutor(tt, e as unknown as React.MouseEvent)}
+                                className="min-w-0 text-left text-[13px] font-semibold text-slate-700 hover:text-teal-700 hover:underline cursor-pointer truncate"
+                                title={`Apri scheda ${tt?.name || 'tutor'}`}
+                              >
+                                {tt?.name || 'Sconosciuto'}
+                              </button>
+                            </div>
+
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {yids.length === 0 ? (
+                                <span className="text-xs text-slate-400 italic">Nessun ragazzo</span>
+                              ) : yids.map(yid => {
+                                const yy = youths.find(y => y.id === yid);
+                                const yc = getYouthColor(yid, youths);
+                                return (
+                                  <button
+                                    key={yid}
+                                    onClick={(e) => goToYouth(yy, e as unknown as React.MouseEvent)}
+                                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text} border ${yc.border} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
+                                    title={`Apri scheda ${yy?.name || 'ragazzo'}`}
+                                  >
+                                    <span className={`h-1.5 w-1.5 rounded-full ${yc.badge.split(' ')[0]}`}></span>
+                                    {yy?.name || 'Sconosciuto'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <div className="mt-1 flex items-center gap-1">
+                              <span className={`text-[11px] tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
+                                {weeks} sett.
+                                {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
+                                  <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold"> (personalizzata)</span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {reportView === 'tutor' && visibleTutors.length === 0 && (
           <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-12 text-center">
             <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
               <List size={28} className="text-slate-400" />
@@ -5173,8 +5304,9 @@ function App() {
           </div>
         )}
 
-        <div className="space-y-6">
-          {visibleTutors.map(tutor => {
+        {reportView === 'tutor' && (
+          <div className="space-y-6">
+            {visibleTutors.map(tutor => {
             const color = getTutorColor(tutor.id, tutors);
             const rows = templateOf(tutor.id);
             return (
@@ -5272,7 +5404,8 @@ function App() {
               </Card>
             );
           })}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
