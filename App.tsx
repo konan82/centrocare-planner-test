@@ -5202,7 +5202,7 @@ function App() {
                           <th className="px-3 py-2.5 font-bold w-28">Orario</th>
                           <th className="px-3 py-2.5 font-bold w-auto">Ragazzi</th>
                           <th className="px-3 py-2.5 font-bold w-24">Tipo</th>
-                          <th className="px-3 py-2.5 font-bold text-right w-36">Validità</th>
+                          <th className="px-3 py-2.5 font-bold w-36">Validità</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -5254,7 +5254,7 @@ function App() {
                                   </span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                   {weeks} sett.
                                   {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
