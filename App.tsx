@@ -2130,6 +2130,21 @@ function App() {
     if (e) e.stopPropagation();
     if (y) openEditYouthModal(y);
   };
+  // Navigazione rapida all'agenda (planner) filtrata su un tutor/ragazzo.
+  const goToTutorAgenda = (t: Tutor | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!t) return;
+    setYouthFilter('all');
+    setTutorFilter(t.id);
+    setView('DASHBOARD');
+  };
+  const goToYouthAgenda = (y: Youth | undefined, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!y) return;
+    setTutorFilter('all');
+    setYouthFilter(y.id);
+    setView('DASHBOARD');
+  };
   const goToTutorByName = (name: string | undefined, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!name) return;
@@ -3219,11 +3234,21 @@ function App() {
                       </button>
                     </div>
                     <div className="flex items-center mb-4">
-                      <div className={`w-12 h-12 ${color.bg} ${color.text} rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm`}>
+                      <button
+                        onClick={(e) => goToTutorAgenda(tutor, e)}
+                        className={`w-12 h-12 ${color.bg} ${color.text} rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm shrink-0 transition cursor-pointer hover:ring-2 hover:ring-teal-400`}
+                        title="Apri l'agenda del tutor"
+                      >
                         {tutor.name?.charAt(0).toUpperCase() || '?'}
-                      </div>
+                      </button>
                       <div className="ml-4 min-w-0">
-                        <h3 className="font-bold text-lg text-slate-800 truncate">{tutor.name}</h3>
+                        <button
+                          onClick={(e) => openEditTutorModal(tutor)}
+                          className="font-bold text-lg text-slate-800 truncate block text-left w-full hover:text-teal-700 hover:underline transition cursor-pointer"
+                          title="Apri la scheda del tutor"
+                        >
+                          {tutor.name}
+                        </button>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           {tutor.role && (
                             <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border inline-flex items-center gap-1 ${roleStyle.badge}`}>
@@ -3491,11 +3516,21 @@ function App() {
                       </button>
                     </div>
                     <div className="flex items-center mb-4">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm ${youthColor.bg} ${youthColor.text}`}>
+                      <button
+                        onClick={(e) => goToYouthAgenda(youth, e)}
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg shadow-sm shrink-0 ${youthColor.bg} ${youthColor.text} transition cursor-pointer hover:ring-2 hover:ring-teal-400`}
+                        title="Apri l'agenda del ragazzo"
+                      >
                         {youth.name?.charAt(0).toUpperCase() || '?'}
-                      </div>
+                      </button>
                       <div className="ml-4 min-w-0">
-                        <h3 className="font-bold text-lg text-slate-800 truncate">{youth.name}</h3>
+                        <button
+                          onClick={(e) => openEditYouthModal(youth)}
+                          className="font-bold text-lg text-slate-800 truncate block text-left w-full hover:text-teal-700 hover:underline transition cursor-pointer"
+                          title="Apri la scheda del ragazzo"
+                        >
+                          {youth.name}
+                        </button>
                         <p className="text-sm text-slate-500">
                           {youth.requiredHoursPerWeek}h / settimana
                           {getAge(youth.birthDate) !== null && ` · ${getAge(youth.birthDate)} anni`}
@@ -4427,9 +4462,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                         <div className="flex h-full flex-col min-w-0 relative z-10">
                                           <div className="flex items-center gap-1.5 shrink-0">
                                             <button
-                                              onClick={(e) => goToTutor(tutor, e as unknown as React.MouseEvent)}
+                                              onClick={(e) => goToTutorAgenda(tutor, e as unknown as React.MouseEvent)}
                                               className={`h-5 w-5 shrink-0 rounded-full ${tColor.bg} ${tColor.text} text-[10px] font-bold flex items-center justify-center shadow-sm cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
-                                              title={`Apri scheda ${tutor?.name || 'tutor'}`}
+                                              title={`Apri l'agenda di ${tutor?.name || 'tutor'}`}
                                             >
                                               {getInitials(tutor?.name)}
                                             </button>
