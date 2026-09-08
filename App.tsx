@@ -1368,6 +1368,7 @@ function App() {
   const [youthFilter, setYouthFilter] = useState<string>('all');
   // Calendar time-slot view: Mattina (08-13), Pomeriggio (13-19), Tutto (08-19)
   const [dayPart, setDayPart] = useState<'tutto' | 'mattina' | 'pomeriggio'>('tutto');
+  const [calView, setCalView] = useState<'week' | 'today'>('week');
 
   // Resoconto Turni: vista per tutor o vista settimanale
   const [reportView, setReportView] = useState<'tutor' | 'week'>('tutor');
@@ -3313,6 +3314,15 @@ function App() {
   const renderCalendar = (mode: 'plan' | 'validate') => {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
+    // Vista "Oggi": colonna unica del giorno corrente (settimana tipo → giorno della settimana di oggi)
+    const todayIdx = (() => {
+      if (isPlan) {
+        const wd = new Date().getDay(); // 0=Dom..6=Sab
+        return Math.min((wd + 6) % 7, 5); // 0=Lun..5=Sab
+      }
+      return calendarDays.findIndex(d => isSameDay(d, new Date()));
+    })();
+    const colIndexes = calView === 'today' && todayIdx >= 0 ? [todayIdx] : [0, 1, 2, 3, 4, 5];
     // Giorni NON disponibili del tutor filtrato (nel calendario mostriamo Lun..Sab = colonne 0..5)
     const tutorUnavailableWeekdays = new Set<number>();
     const filteredTutor = tutorFilter && tutorFilter !== 'all' ? tutors.find(t => t.id === tutorFilter) : null;
@@ -3395,8 +3405,12 @@ function App() {
                 <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
                   {isPlan
                     ? weeklySD && weeklySD.id ? <>Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD!.id), e)} className="font-bold text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button> · S {weeklySD.single.toFixed(1)}h / D {weeklySD.dbl.toFixed(1)}h</>
-                      : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
-                    : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} – ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
+                      : calView === 'today'
+                        ? `Settimana tipo · Oggi · ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]}`
+                        : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
+                    : calView === 'today'
+                      ? `Oggi ${format(new Date(), 'dd MMM yyyy', { locale: it })}`
+                      : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} – ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
                 </p>
               </div>
               <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
@@ -3428,11 +3442,15 @@ function App() {
                 </h2>
                 <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
                   {isPlan
-                    ? `Settimana tipo LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · ripetuta ogni settimana`
-                    : `Fascia oraria LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · copia della pianificazione`}
+                    ? calView === 'today'
+                      ? `Settimana tipo · oggi ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]} · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'}`
+                      : `Settimana tipo LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · ripetuta ogni settimana`
+                    : calView === 'today'
+                      ? `Oggi ${format(new Date(), 'EEEE d MMMM yyyy', { locale: it })} · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'}`
+                      : `Fascia oraria LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · copia della pianificazione`}
                 </p>
               </div>
-              {!isPlan && (
+              {!isPlan && calView === 'week' && (
                 <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto ml-0 lg:ml-3">
                   <button
                     onClick={() => setCurrentDate(d => addDays(d, -7))}
@@ -3505,6 +3523,35 @@ function App() {
                   />
                 </div>
               )}
+
+              {/* Toggle Settimanale / Oggi */}
+              <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                {([
+                  { key: 'week' as const, label: 'Settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                  { key: 'today' as const, label: 'Oggi', icon: Sunrise, active: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200' },
+                ] as const).map(opt => {
+                  const Icon = opt.icon;
+                  const active = calView === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => {
+                        setCalView(opt.key);
+                        if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
+                      }}
+                      title={opt.key === 'today'
+                        ? 'Mostra solo la giornata di oggi, più leggibile'
+                        : 'Mostra l\'intera settimana LUN-SAB'}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
+                        active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon size={14} />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Selettore fascia oraria ad alto impatto */}
               <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
@@ -3809,8 +3856,9 @@ function App() {
                   <th className="sticky left-0 top-0 z-40 border-b border-r border-slate-200 bg-slate-50/80 backdrop-blur p-2 w-16">
                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Orario</span>
                   </th>
-                  {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'].map((label, i) => {
-                    const isToday = !isPlan && isSameDay(calendarDays[i], new Date());
+                  {colIndexes.map((i) => {
+                    const label = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][i];
+                    const isToday = calView === 'today' || (!isPlan && isSameDay(calendarDays[i], new Date()));
                     const highlightCol = tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i);
                     return (
                       <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
@@ -3948,7 +3996,8 @@ function App() {
                             {slotLabel}
                           </span>
                         </td>
-                        {dayLayouts.map((layout, i) => {
+                        {colIndexes.map((i) => {
+                          const layout = dayLayouts[i];
                           const isDragOver = dragOverCoords?.dateStr === layout.dateStr && dragOverCoords?.minutes === minutes;
 
                           return (
