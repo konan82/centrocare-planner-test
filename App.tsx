@@ -471,6 +471,44 @@ const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ icon, iconCls, to
   );
 };
 
+interface GuideButtonProps {
+  title: string;
+  intro?: string;
+  items: { btn: string; icon: string; desc: string }[];
+}
+
+const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        title="Apri la guida: spiega cosa fa ogni pulsante"
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-teal-700 border border-teal-200 shadow-sm hover:bg-teal-50 text-sm font-bold transition-all active:scale-95 shrink-0"
+      >
+        <BookOpen size={16} />
+        <span className="hidden sm:inline">Guida</span>
+      </button>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg">
+        <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
+          {intro && <p>{intro}</p>}
+          <div className="space-y-3">
+            {items.map(item => (
+              <div key={item.btn} className="flex items-start gap-3 rounded-xl bg-white border border-teal-100 px-4 py-3">
+                <span className="mt-0.5 shrink-0 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[11px] font-bold uppercase tracking-wide">{item.icon}</span>
+                <div>
+                  <div className="font-bold text-teal-700">{item.btn}</div>
+                  <div className="text-sm text-slate-600">{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+};
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1277,7 +1315,6 @@ function App() {
 
   // Calendar header collapse: pannello collassato per default, si espande su hover (desktop) o tap (mobile)
   const [calHeaderCollapsed, setCalHeaderCollapsed] = useState(true);
-  const [showPlanGuide, setShowPlanGuide] = useState(false);
   const calHeaderHoverRef = useRef(false);
   const calHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -2854,9 +2891,24 @@ function App() {
           title="Elenco Tutor"
           subtitle="Educatori e operatori del centro"
           actions={
-            <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-              <Plus size={18} className="mr-2" /> Nuovo Tutor
-            </button>
+            <>
+              <GuideButton
+                title="Guida · Gestione Tutor"
+                intro="Anagrafica degli educatori/operatori che svolgono i turni. Ecco cosa fa ogni elemento di questa sezione:"
+                items={[
+                  { btn: 'Nuovo Tutor', icon: 'Crea', desc: 'Apre il modulo per creare un nuovo tutor con nome, ruolo, stato e disponibilità.' },
+                  { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
+                  { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome; combinata con i filtri di stato e ruolo per trovare rapidamente un tutor.' },
+                  { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
+                  { btn: 'Scheda tutor', icon: 'Dettaglio', desc: 'Cliccando su un tutor apri il modulo per modificarlo: dati anagrafici, disponibilità e colore distintivo (usato nei calendari).' },
+                  { btn: 'Elimina tutor', icon: 'Cancella', desc: 'Rimuove un tutor dall\'elenco (le azioni delicate chiedono conferma).' },
+                  { btn: 'Associa utente', icon: 'Collega', desc: 'Collega un account a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
+                ]}
+              />
+              <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+                <Plus size={18} className="mr-2" /> Nuovo Tutor
+              </button>
+            </>
           }
         >
         {/* Contatori stato */}
@@ -3109,9 +3161,23 @@ function App() {
           title="Elenco Ragazzi"
           subtitle="Anagrafiche dei minori e percorsi al centro"
           actions={
-            <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-              <Plus size={18} className="mr-2" /> Nuovo Profilo
-            </button>
+            <>
+              <GuideButton
+                title="Guida · Anagrafica Ragazzi"
+                intro="Elenco dei ragazzi/centri seguiti dal centro. Ogni ragazzo ha un monte ore che viene aggiornato con i turni erogati e le relative riduzioni/extra. Ecco cosa fa ogni elemento:"
+                items={[
+                  { btn: 'Nuovo Profilo', icon: 'Crea', desc: 'Apre il modulo per creare una nuova scheda ragazzo con i dati anagrafici e il monte ore.' },
+                  { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
+                  { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome per trovare rapidamente un ragazzo.' },
+                  { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
+                  { btn: 'Scheda ragazzo', icon: 'Dettaglio', desc: 'Cliccando su una scheda apri il modulo per modificarla o consultare il consuntivo (ore pianificate, erogate, delta).' },
+                  { btn: 'Elimina ragazzo', icon: 'Cancella', desc: 'Rimuove una scheda (le azioni delicate chiedono conferma).' },
+                ]}
+              />
+              <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+                <Plus size={18} className="mr-2" /> Nuovo Profilo
+              </button>
+            </>
           }
         >
         {/* Contatori stato */}
@@ -3705,15 +3771,39 @@ function App() {
                     Reset consuntivo
                   </button>
                 )}
-                {isPlan && (
-                  <button
-                    onClick={() => setShowPlanGuide(true)}
-                    title="Apri la guida: spiega cosa fa ogni pulsante di questo header"
-                    className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
-                  >
-                    <BookOpen size={16} />
-                    Guida
-                  </button>
+                {isPlan ? (
+                  <GuideButton
+                    title="Guida · Pianificazione Turni"
+                    intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. Ecco cosa fa ogni pulsante dell'header:"
+                    items={[
+                      { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                      { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                      { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
+                      { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
+                      { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
+                      { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
+                      { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
+                      { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
+                      { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
+                      { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
+                    ]}
+                  />
+                ) : (
+                  <GuideButton
+                    title="Guida · Consuntivo Turni"
+                    intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. Ecco cosa fa ogni pulsante dell'header:"
+                    items={[
+                      { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
+                      { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                      { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                      { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
+                      { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
+                      { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
+                      { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
+                      { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
+                      { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
+                    ]}
+                  />
                 )}
               </div>
             </div>
@@ -4272,43 +4362,6 @@ function App() {
             </table>
           </div>
         </div>
-
-        {/* Guida rapida: cosa fa ogni pulsante dell'header */}
-        <Modal isOpen={showPlanGuide} onClose={() => setShowPlanGuide(false)} title="Guida · Pianificazione Turni" size="lg">
-          <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
-            <p>
-              Questa sezione gestisce la <span className="font-bold">settimana tipo</span> del centro: una copertura
-              settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo.
-              Ecco cosa fa ogni pulsante dell'header:
-            </p>
-            <div className="space-y-3">
-              {[
-                { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor (per pianificare le disponibilità). Se un tutor non è disponibile in alcuni giorni/fasce, le relative celle appaiono in rosso.' },
-                { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
-                { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
-                { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
-                { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y). Non elimina il bisogno di salvare: opera sullo stato appena modificato.' },
-                { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) oppure lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
-                { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Cancella TUTTI i turni della settimana tipo. Chiede conferma; è un\'azione distruttiva (sebbene possa essere annullata con Undo).' },
-                { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con un punteggio 0–100 e un elenco dei problemi.' },
-                { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo su tutte le giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica i turni già copiati.' },
-                { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività). Utile se la settimana tipo manca o è incompleta.' },
-                { btn: 'Guida', icon: 'Info', desc: 'Questo pannello: la spiegazione di ogni pulsante dell\'header.' },
-              ].map(item => (
-                <div key={item.btn} className="flex items-start gap-3 rounded-xl bg-white border border-teal-100 px-4 py-3">
-                  <span className="mt-0.5 shrink-0 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[11px] font-bold uppercase tracking-wide">{item.icon}</span>
-                  <div>
-                    <div className="font-bold text-teal-700">{item.btn}</div>
-                    <div className="text-sm text-slate-600">{item.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-slate-400">
-              Suggerimento: i pulsanti di ricerca/filtro (tutor e ragazzo) elencano sempre tutte le opzioni in ordine alfabetico.
-            </p>
-          </div>
-        </Modal>
       </div>
     );
   };
@@ -4807,6 +4860,16 @@ function App() {
           subtitle={`${format(payMonth, 'MMMM yyyy', { locale: it })} · retribuzioni mensili per tutor`}
           actions={
             <>
+              <GuideButton
+                title="Guida · Calcolo Paga"
+                intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. Ecco cosa fa ogni elemento:"
+                items={[
+                  { btn: 'Report PDF', icon: 'Scarica', desc: 'Genera e scarica il report mensile con le ore e i compensi di ogni tutor, con tanto di note su sovrapposizioni.' },
+                  { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
+                  { btn: 'Tabella tutor', icon: 'Dettaglio', desc: 'Per ogni tutor: giorni lavorati, ore normali/doppie/notte, compenso lordo (con eventuale extra/quota riservata) e la percentuale/importo anticipato.' },
+                  { btn: 'Pulsanti riga (report)', icon: 'Attività', desc: 'Ti permettono di generare un riepilogo oppure un report PDF dedicato al singolo tutor.' },
+                ]}
+              />
               <button
                 onClick={generatePdf}
                 title="Genera il report Calcolo Paga in PDF"
@@ -5404,6 +5467,17 @@ function App() {
                     <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
                       Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
                     </span>
+                    <GuideButton
+                      title="Guida · Resoconto Turni"
+                      intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. Ecco cosa fa ogni elemento:"
+                      items={[
+                        { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
+                        { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                        { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
+                      ]}
+                    />
                     <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
                       {([
                         { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
@@ -5846,6 +5920,16 @@ function App() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <GuideButton
+                      title="Guida · Riepilogo Ore"
+                      intro="Prospetto mensile delle ore: una matrice Tutor × Ragazzo che confronta le ore pianificate (settimana tipo) con quelle eseguite (consuntivo). Ecco cosa fa ogni elemento:"
+                      items={[
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra la matrice solo per un tutor specifico.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo le colonne di un determinato ragazzo.' },
+                        { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Cambia il mese del riepilogo; il pulsante centrale torna al mese corrente.' },
+                        { btn: 'Legenda colori', icon: 'Legenda', desc: 'Pian = pianificate · Erogate = effettivamente svolte · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
+                      ]}
+                    />
                     <PersonCombo
                       options={tutors}
                       value={summaryTutorFilter}
@@ -7586,6 +7670,17 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
         subtitle="Utenti, permessi e presenza online"
         actions={
           <>
+            <GuideButton
+              title="Guida · Gestione Utenti"
+              intro="Creazione e gestione degli account di accesso al portale, con permessi granulari per voce di menu. Ecco cosa fa ogni elemento:"
+              items={[
+                { btn: 'Log Accessi', icon: 'Storico', desc: 'Apre la finestra con l\'elenco degli accessi registrati (data, utente, esito), utile per il controllo.' },
+                { btn: 'Nuovo Utente', icon: 'Crea', desc: 'Crea un account: username, password, tipologia di permessi e, facoltativo, l\'associazione a un tutor.' },
+                { btn: 'Scheda utente (modifica)', icon: 'Dettaglio', desc: 'Consente di cambiare permessi, email, tutor associato o password di un utente esistente.' },
+                { btn: 'Presenza online', icon: 'Stato', desc: 'Mostra se un utente ha il portale aperto ora e quando è stata l\'ultima attività.' },
+                { btn: 'Elimina utente', icon: 'Cancella', desc: 'Rimuove l\'account (con conferma); non elimina il tutor associato.' },
+              ]}
+            />
             <button
               onClick={openAccessLog}
               className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
