@@ -58,7 +58,8 @@ import {
   ArrowRight,
   Download,
   History,
-  List
+  List,
+  GripVertical
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
@@ -69,6 +70,9 @@ import { startOfWeek, addDays, addMonths, format, parseISO, isSameDay, isSameMon
 import { it } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const waHref = (phone: string) => {
   let digits = (phone || '').replace(/\D/g, '');
@@ -560,6 +564,49 @@ const HeaderGroup: React.FC<HeaderGroupProps> = ({ label, danger, color, classNa
     </div>
   );
 };
+
+interface SortableGroupProps {
+  id: string;
+  label: string;
+  danger?: boolean;
+  dragging: boolean;
+  children: React.ReactNode;
+}
+
+const SortableGroup: React.FC<SortableGroupProps> = ({ id, label, danger, dragging, children }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const theme = GROUP_THEMES[danger ? 'rose' : LABEL_COLORS[label] || 'teal'];
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex flex-col gap-1.5 shrink-0 rounded-2xl border p-2 ${danger ? 'border-rose-300 bg-rose-50/80' : theme.panel} ${
+        isDragging ? 'opacity-40 shadow-lg ring-2 ring-teal-400' : ''
+      } ${dragging ? (danger ? 'border-rose-500 bg-rose-100/90 shadow-lg shadow-rose-200/60 scale-[1.02]' : 'border-teal-400 bg-teal-50 shadow-lg shadow-teal-200/60 scale-[1.02]') : ''}`}
+    >
+      <div className="flex items-center gap-1">
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-widest ${danger ? GROUP_THEMES.rose.chip : theme.chip}`}>
+          {danger && <AlertTriangle size={11} />}
+          {label}
+        </span>
+        <button
+          {...attributes}
+          {...listeners}
+          title="Trascina per riordinare questo pannello"
+          className="ml-auto p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 cursor-grab active:cursor-grabbing touch-none"
+          aria-label={`Trascina ${label}`}
+        >
+          <GripVertical size={14} />
+        </button>
+      </div>
+      <div className="flex-1 flex flex-wrap items-center gap-2">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const DEFAULT_CAL_GROUPS = ["FILTRA", "VISTA", "MODIFICA", "STRUMENTI", "CONDIVIDI"];
 
 interface ModalProps {
   isOpen: boolean;
@@ -1133,6 +1180,9 @@ function App() {
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [headerLayout, setHeaderLayout] = useState<string[]>(DEFAULT_CAL_GROUPS);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // Check Auth on Mount
   useEffect(() => {
@@ -1155,6 +1205,9 @@ function App() {
             permMatrix: profile.perm_matrix || null,
             tutorId: profile.tutor_id || null,
           });
+          if (Array.isArray(profile.header_layout) && profile.header_layout.length > 0) {
+            setHeaderLayout(profile.header_layout as string[]);
+          }
           setToken(session.access_token);
           const saved = localStorage.getItem('centrocare_view');
           setView(saved && saved !== 'LOGIN' ? (saved as ViewState) : 'DASHBOARD');
@@ -1197,6 +1250,51 @@ function App() {
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [currentUser?.id]);
+
+  const headerDragStart = (event: any) => {
+    setActiveGroupId(String(event.active.id));
+  };
+
+  const headerDragEnd = (event: any) => {
+    setActiveGroupId(null);
+    const { active, over } = event;
+    if (!over) return;
+    if (String(active.id) === String(over.id)) return;
+    setHeaderLayout(prev => {
+      const oldIndex = prev.indexOf(String(active.id));
+      const newIndex = prev.indexOf(String(over.id));
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  };
+
+  useEffect(() => {
+    if (!currentUser || !headerLayout) return;
+    const t = setTimeout(() => {
+      supabase.from('profiles').update({ header_layout: headerLayout as never }).eq('id', currentUser.id)
+        .then(({ error }) => {
+          if (error) console.error('Errore salvataggio layout header (debounce):', error);
+        });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [headerLayout, currentUser?.id]);
+
+  const [headerLayoutInited, setHeaderLayoutInited] = useState(false);
+  useEffect(() => {
+    setHeaderLayoutInited(true);
+  }, []);
+  useEffect(() => {
+    if (!headerLayoutInited) return;
+    if (!currentUser?.id) return;
+    const t = setTimeout(() => {
+      supabase.from('profiles').update({ header_layout: headerLayout as never }).eq('id', currentUser.id)
+        .then(({ error }) => {
+          if (error) console.error('Errore salvataggio layout header:', error);
+        });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [headerLayout, headerLayoutInited]);
+
 
   // Load data from Supabase on mount
   const [isLoading, setIsLoading] = useState(false);
@@ -3706,175 +3804,194 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
 
             <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-200 pt-3">
-              {/* FILTRA */}
-              <HeaderGroup label="FILTRA">
-                {restrictedUserTutorId ? (
-                  <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                    <UserCheck size={15} />
-                    Solo i tuoi turni
-                  </span>
-                ) : (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <PersonCombo
-                      options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                      value={tutorFilter}
-                      onChange={setTutorFilter}
-                      placeholder="Tutti i tutor"
-                      colorOf={id => getTutorColor(id, tutors)}
-                      allowAll
-                      allLabel="Tutti i tutor"
-                      allValue="all"
-                      className="w-full sm:w-52"
-                    />
-                    <PersonCombo
-                      options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                      value={youthFilter}
-                      onChange={setYouthFilter}
-                      placeholder="Tutti i ragazzi"
-                      colorOf={id => getYouthColor(id, youths)}
-                      allowAll
-                      allLabel="Tutti i ragazzi"
-                      allValue="all"
-                      className="w-full sm:w-52"
-                    />
-                  </div>
-                )}
-              </HeaderGroup>
-
-              {/* VISTA */}
-              <HeaderGroup label="VISTA">
-                <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                  {([
-                    { key: 'week' as const, label: 'Settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
-                    { key: 'today' as const, label: 'Oggi', icon: Sunrise, active: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200' },
-                  ] as const).map(opt => {
-                    const Icon = opt.icon;
-                    const active = calView === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        onClick={() => {
-                          setCalView(opt.key);
-                          if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
-                        }}
-                        title={opt.key === 'today'
-                          ? 'Mostra solo la giornata di oggi, più leggibile'
-                          : 'Mostra l\'intera settimana LUN-SAB'}
-                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
-                          active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                        }`}
+              <DndContext
+                sensors={dragSensors}
+                collisionDetection={closestCenter}
+                onDragStart={headerDragStart}
+                onDragCancel={() => setActiveGroupId(null)}
+                onDragEnd={headerDragEnd}
+              >
+                <SortableContext items={headerLayout} strategy={verticalListSortingStrategy}>
+                  {(() => {
+                    const available = headerLayout.filter(id => id !== 'STRUMENTI' || isPlan);
+                    const byLabel: Record<string, React.ReactNode> = {
+                      FILTRA: (
+                        <>{restrictedUserTutorId ? (
+                          <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                            <UserCheck size={15} />
+                            Solo i tuoi turni
+                          </span>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <PersonCombo
+                              options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                              value={tutorFilter}
+                              onChange={setTutorFilter}
+                              placeholder="Tutti i tutor"
+                              colorOf={id => getTutorColor(id, tutors)}
+                              allowAll
+                              allLabel="Tutti i tutor"
+                              allValue="all"
+                              className="w-full sm:w-52"
+                            />
+                            <PersonCombo
+                              options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                              value={youthFilter}
+                              onChange={setYouthFilter}
+                              placeholder="Tutti i ragazzi"
+                              colorOf={id => getYouthColor(id, youths)}
+                              allowAll
+                              allLabel="Tutti i ragazzi"
+                              allValue="all"
+                              className="w-full sm:w-52"
+                            />
+                          </div>
+                        )}</>
+                      ),
+                      VISTA: (
+                        <>
+                          <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                            {([
+                              { key: 'week' as const, label: 'Settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                              { key: 'today' as const, label: 'Oggi', icon: Sunrise, active: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200' },
+                            ] as const).map(opt => {
+                              const Icon = opt.icon;
+                              const active = calView === opt.key;
+                              return (
+                                <button
+                                  key={opt.key}
+                                  onClick={() => {
+                                    setCalView(opt.key);
+                                    if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
+                                  }}
+                                  title={opt.key === 'today'
+                                    ? 'Mostra solo la giornata di oggi, più leggibile'
+                                    : 'Mostra l\'intera settimana LUN-SAB'}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
+                                    active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <Icon size={14} />
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                            {([
+                              { key: 'mattina', label: 'Mattina', icon: Sunrise, active: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-orange-200' },
+                              { key: 'pomeriggio', label: 'Pomeriggio', icon: Sunset, active: 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200' },
+                              { key: 'tutto', label: 'Tutto', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                            ] as const).map(opt => {
+                              const Icon = opt.icon;
+                              const active = dayPart === opt.key;
+                              return (
+                                <button
+                                  key={opt.key}
+                                  onClick={() => setDayPart(opt.key)}
+                                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                                    active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <Icon size={14} />
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      ),
+                      MODIFICA: (
+                        <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                          <button
+                            onClick={handleUndo}
+                            disabled={undoStack.length === 0}
+                            title="Annulla ultima azione (Ctrl+Z)"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
+                          >
+                            <Undo2 size={14} />
+                            Undo
+                          </button>
+                          <button
+                            onClick={handleRedo}
+                            disabled={redoStack.length === 0}
+                            title="Rifai ultima azione (Ctrl+Y)"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
+                          >
+                            <Redo2 size={14} />
+                            Redo
+                          </button>
+                        </div>
+                      ),
+                      STRUMENTI: (
+                        <>
+                          <button
+                            onClick={handleAnalyze}
+                            disabled={isAnalyzing}
+                            className={`${BTN} w-full sm:w-auto bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50`}
+                          >
+                            {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
+                            Analizza Conflitti
+                          </button>
+                          <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                            <input
+                              type="month"
+                              value={replicateMonth}
+                              onChange={e => setReplicateMonth(e.target.value)}
+                              title="Mese su cui copiare la pianificazione settimanale"
+                              className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-300"
+                            />
+                            <button
+                              onClick={handleReplicateMonth}
+                              title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
+                              className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
+                            >
+                              <CalendarPlus size={16} />
+                              Copia su tutto il mese
+                            </button>
+                          </div>
+                          <button
+                            onClick={handleRegenTemplates}
+                            title="Crea la settimana tipo ricavandola dai turni di consuntivo esistenti"
+                            className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
+                          >
+                            <CalendarClock size={16} />
+                            Rigenera settimana tipo
+                          </button>
+                        </>
+                      ),
+                      CONDIVIDI: (
+                        <>
+                          <button
+                            onClick={handleWhatsAppSend}
+                            disabled={isWhatsAppSending}
+                            title="Cattura lo screenshot dei turni e invialo via WhatsApp"
+                            className={`${BTN} w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-green-200/60 disabled:opacity-50`}
+                          >
+                            {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
+                            {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
+                          </button>
+                          {!isPlan && tutorFilter !== 'all' && tutorFilter && (
+                            <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
+                              Trascina o apri un turno per registrare il consuntivo
+                            </div>
+                          )}
+                        </>
+                      ),
+                    };
+                    return available.map(id => (
+                      <SortableGroup
+                        key={id}
+                        id={id}
+                        label={id}
+                        dragging={activeGroupId !== null}
                       >
-                        <Icon size={14} />
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                  {([
-                    { key: 'mattina', label: 'Mattina', icon: Sunrise, active: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-orange-200' },
-                    { key: 'pomeriggio', label: 'Pomeriggio', icon: Sunset, active: 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200' },
-                    { key: 'tutto', label: 'Tutto', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
-                  ] as const).map(opt => {
-                    const Icon = opt.icon;
-                    const active = dayPart === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        onClick={() => setDayPart(opt.key)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                          active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <Icon size={14} />
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </HeaderGroup>
-
-              {/* MODIFICA */}
-              <HeaderGroup label="MODIFICA">
-                <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                  <button
-                    onClick={handleUndo}
-                    disabled={undoStack.length === 0}
-                    title="Annulla ultima azione (Ctrl+Z)"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
-                  >
-                    <Undo2 size={14} />
-                    Undo
-                  </button>
-                  <button
-                    onClick={handleRedo}
-                    disabled={redoStack.length === 0}
-                    title="Rifai ultima azione (Ctrl+Y)"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
-                  >
-                    <Redo2 size={14} />
-                    Redo
-                  </button>
-                </div>
-              </HeaderGroup>
-
-              {/* STRUMENTI (solo Pianificazione) */}
-              {isPlan && (
-                <HeaderGroup label="STRUMENTI">
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing}
-                    className={`${BTN} w-full sm:w-auto bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50`}
-                  >
-                    {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
-                    Analizza Conflitti
-                  </button>
-                  <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                    <input
-                      type="month"
-                      value={replicateMonth}
-                      onChange={e => setReplicateMonth(e.target.value)}
-                      title="Mese su cui copiare la pianificazione settimanale"
-                      className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-300"
-                    />
-                    <button
-                      onClick={handleReplicateMonth}
-                      title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
-                      className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
-                    >
-                      <CalendarPlus size={16} />
-                      Copia su tutto il mese
-                    </button>
-                  </div>
-                  <button
-                    onClick={handleRegenTemplates}
-                    title="Crea la settimana tipo ricavandola dai turni di consuntivo esistenti"
-                    className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
-                  >
-                    <CalendarClock size={16} />
-                    Rigenera settimana tipo
-                  </button>
-                </HeaderGroup>
-              )}
-
-              {/* CONDIVIDI */}
-              <HeaderGroup label="CONDIVIDI">
-                <button
-                  onClick={handleWhatsAppSend}
-                  disabled={isWhatsAppSending}
-                  title="Cattura lo screenshot dei turni e invialo via WhatsApp"
-                  className={`${BTN} w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-green-200/60 disabled:opacity-50`}
-                >
-                  {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
-                  {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
-                </button>
-                {!isPlan && tutorFilter !== 'all' && tutorFilter && (
-                  <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
-                    Trascina o apri un turno per registrare il consuntivo
-                  </div>
-                )}
-              </HeaderGroup>
-
+                        {byLabel[id]}
+                      </SortableGroup>
+                    ));
+                  })()}
+                </SortableContext>
+              </DndContext>
               </div>
           </div>
         </div>
