@@ -484,10 +484,9 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
       <button
         onClick={() => setOpen(true)}
         title="Apri la guida: spiega cosa fa ogni pulsante"
-        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-teal-700 border border-teal-200 shadow-sm hover:bg-teal-50 text-sm font-bold transition-all active:scale-95 shrink-0"
+        className="w-11 h-11 rounded-full inline-flex items-center justify-center bg-white text-teal-700 border-2 border-teal-300 shadow-md hover:bg-teal-50 hover:scale-105 transition-all active:scale-95 shrink-0"
       >
-        <BookOpen size={16} />
-        <span className="hidden sm:inline">Guida</span>
+        <BookOpen size={22} />
       </button>
       <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg">
         <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
@@ -519,12 +518,16 @@ interface HeaderGroupProps {
 const HeaderGroup: React.FC<HeaderGroupProps> = ({ label, danger, className, children }) => (
   <div className={`flex flex-col gap-1.5 shrink-0 ${className || ''}`}>
     {label && (
-      <span className={`inline-flex items-center gap-1 px-2 text-[9px] font-extrabold uppercase tracking-widest ${danger ? 'text-rose-500' : 'text-slate-400'}`}>
-        {danger && <AlertTriangle size={10} />}
+      <span className={`inline-flex items-center gap-1 uppercase tracking-widest text-[10px] font-extrabold ${
+        danger
+          ? 'self-start px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-300'
+          : 'px-1 text-slate-400'
+      }`}>
+        {danger && <AlertTriangle size={11} />}
         {label}
       </span>
     )}
-    <div className={`flex-1 flex flex-wrap items-center gap-2 rounded-2xl border p-2 ${danger ? 'border-rose-200 bg-rose-50/70' : 'border-slate-200 bg-white'}`}>
+    <div className={`flex-1 flex flex-wrap items-center gap-2 rounded-2xl border p-2 ${danger ? 'border-rose-300 bg-rose-50/80' : 'border-slate-200 bg-white'}`}>
       {children}
     </div>
   </div>
@@ -3756,59 +3759,8 @@ function App() {
                 )}
               </HeaderGroup>
 
-              {/* PERICOLO isolato a destra + Guida */}
+              {/* Guida (prima) + PERICOLO isolato a destra */}
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch gap-3 xl:ms-auto">
-                {isPlan ? (
-                  <HeaderGroup danger label="PERICOLO">
-                    <button
-                      onClick={async () => {
-                        if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
-                        snapshotBeforeMutation();
-                        try {
-                          const { error } = await supabase.from('shifts').delete().eq('is_template', true);
-                          if (error) throw error;
-                          alert(`Turni pianificati cancellati con successo!`);
-                          setShifts(prev => prev.filter(s => !s.isTemplate));
-                        } catch (error) {
-                          console.error(error);
-                          alert("Errore durante la cancellazione");
-                        }
-                      }}
-                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                    >
-                      <Trash2 size={16} />
-                      Cancella Tutti
-                    </button>
-                  </HeaderGroup>
-                ) : (
-                  <HeaderGroup danger label="PERICOLO">
-                    <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                      <input
-                        type="month"
-                        value={clearMonth}
-                        onChange={e => setClearMonth(e.target.value)}
-                        title="Mese di cui cancellare tutti i turni del consuntivo"
-                        className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
-                      />
-                      <button
-                        onClick={handleClearMonthShifts}
-                        title="Cancella tutti i turni del consuntivo nel mese selezionato"
-                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                      >
-                        <Trash2 size={16} />
-                        Cancella tutto il mese
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleClearAllConsuntivo}
-                      title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
-                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                    >
-                      <Trash2 size={16} />
-                      Reset consuntivo
-                    </button>
-                  </HeaderGroup>
-                )}
                 <div className="flex items-center xl:self-center">
                   {isPlan ? (
                     <GuideButton
@@ -3845,6 +3797,57 @@ function App() {
                     />
                   )}
                 </div>
+                {isPlan ? (
+                  <HeaderGroup danger label="PERICOLO">
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                        snapshotBeforeMutation();
+                        try {
+                          const { error } = await supabase.from('shifts').delete().eq('is_template', true);
+                          if (error) throw error;
+                          alert(`Turni pianificati cancellati con successo!`);
+                          setShifts(prev => prev.filter(s => !s.isTemplate));
+                        } catch (error) {
+                          console.error(error);
+                          alert("Errore durante la cancellazione");
+                        }
+                      }}
+                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={15} />
+                      Cancella Tutti
+                    </button>
+                  </HeaderGroup>
+                ) : (
+                  <HeaderGroup danger label="PERICOLO">
+                    <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                      <input
+                        type="month"
+                        value={clearMonth}
+                        onChange={e => setClearMonth(e.target.value)}
+                        title="Mese di cui cancellare tutti i turni del consuntivo"
+                        className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
+                      />
+                      <button
+                        onClick={handleClearMonthShifts}
+                        title="Cancella tutti i turni del consuntivo nel mese selezionato"
+                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                      >
+                        <Trash2 size={15} />
+                        Cancella tutto il mese
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleClearAllConsuntivo}
+                      title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
+                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={15} />
+                      Reset consuntivo
+                    </button>
+                  </HeaderGroup>
+                )}
               </div>
             </div>
           </div>
