@@ -484,12 +484,10 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
       <button
         onClick={() => setOpen(true)}
         title="Apri la guida: spiega cosa fa ogni pulsante"
-        className="inline-flex items-center gap-2 h-11 rounded-full bg-white text-teal-700 border-2 border-teal-300 pl-2.5 pr-4 shadow-md hover:bg-teal-50 hover:scale-105 transition-all active:scale-95 shrink-0"
+        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95 bg-white text-teal-700 border-2 border-teal-300 hover:bg-teal-50 shrink-0"
       >
-        <span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center">
-          <BookOpen size={16} />
-        </span>
-        <span className="text-sm font-bold leading-none">Guida</span>
+        <BookOpen size={16} />
+        Guida
       </button>
       <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg">
         <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
@@ -511,30 +509,57 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
   );
 };
 
+type GroupColor = 'sky' | 'indigo' | 'amber' | 'emerald' | 'teal' | 'fuchsia' | 'violet' | 'rose' | 'slate';
+
+const GROUP_THEMES: Record<GroupColor, { chip: string; panel: string }> = {
+  sky: { chip: 'bg-sky-100 text-sky-700', panel: 'border-sky-200 bg-sky-50/70' },
+  indigo: { chip: 'bg-indigo-100 text-indigo-700', panel: 'border-indigo-200 bg-indigo-50/70' },
+  amber: { chip: 'bg-amber-100 text-amber-800', panel: 'border-amber-200 bg-amber-50/70' },
+  emerald: { chip: 'bg-emerald-100 text-emerald-700', panel: 'border-emerald-200 bg-emerald-50/70' },
+  teal: { chip: 'bg-teal-100 text-teal-700', panel: 'border-teal-200 bg-teal-50/70' },
+  fuchsia: { chip: 'bg-fuchsia-100 text-fuchsia-700', panel: 'border-fuchsia-200 bg-fuchsia-50/70' },
+  violet: { chip: 'bg-violet-100 text-violet-700', panel: 'border-violet-200 bg-violet-50/70' },
+  rose: { chip: 'bg-rose-100 text-rose-700', panel: 'border-rose-300 bg-rose-50/80' },
+  slate: { chip: 'bg-slate-200 text-slate-600', panel: 'border-slate-200 bg-white' },
+};
+
+const LABEL_COLORS: Record<string, GroupColor> = {
+  FILTRA: 'sky',
+  VISTA: 'indigo',
+  MODIFICA: 'amber',
+  STRUMENTI: 'emerald',
+  CONDIVIDI: 'fuchsia',
+  PERIODO: 'violet',
+  ESPORTA: 'sky',
+  CONTROLLO: 'violet',
+  CREA: 'emerald',
+  CERCA: 'sky',
+};
+
 interface HeaderGroupProps {
   label?: string;
   danger?: boolean;
+  color?: GroupColor;
   className?: string;
   children: React.ReactNode;
 }
 
-const HeaderGroup: React.FC<HeaderGroupProps> = ({ label, danger, className, children }) => (
-  <div className={`flex flex-col gap-1.5 shrink-0 ${className || ''}`}>
-    {label && (
-      <span className={`inline-flex items-center gap-1 uppercase tracking-widest text-[10px] font-extrabold ${
-        danger
-          ? 'self-start px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-300'
-          : 'px-1 text-slate-400'
-      }`}>
-        {danger && <AlertTriangle size={11} />}
-        {label}
-      </span>
-    )}
-    <div className={`flex-1 flex flex-wrap items-center gap-2 rounded-2xl border p-2 ${danger ? 'border-rose-300 bg-rose-50/80' : 'border-slate-200 bg-white'}`}>
-      {children}
+const HeaderGroup: React.FC<HeaderGroupProps> = ({ label, danger, color, className, children }) => {
+  const theme = danger ? GROUP_THEMES.rose : GROUP_THEMES[color || LABEL_COLORS[((label || '').toUpperCase())] || 'teal'];
+  return (
+    <div className={`flex flex-col gap-1.5 shrink-0 ${className || ''}`}>
+      {label && (
+        <span className={`inline-flex items-center gap-1 self-start px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-widest ${theme.chip}`}>
+          {danger && <AlertTriangle size={11} />}
+          {label}
+        </span>
+      )}
+      <div className={`flex-1 flex flex-wrap items-center gap-2 rounded-2xl border p-2 ${theme.panel}`}>
+        {children}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface ModalProps {
   isOpen: boolean;
@@ -3452,9 +3477,7 @@ function App() {
     const isTutorUnavailableAt = (dayIdx: number, minutes: number) =>
       filteredTutor !== null && (tutorUnavailableRanges[dayIdx] || []).some(r => minutes >= r.start && minutes < r.end);
     // Sistema bottoni standard: stessa forma/size, colore per ruolo
-    const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
-    const BTN_SM = "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
-
+const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all duration-150 active:scale-95";
     // Ore settimanali (settimana tipo) singolo/doppio per il tutor filtrato nella Pianificazione Turni
     const weeklySD = (() => {
       const tid = tutorFilter && tutorFilter !== 'all' ? tutorFilter : null;
@@ -3522,7 +3545,7 @@ function App() {
             </div>
           ) : (
           <>
-          <div className="relative rounded-2xl bg-white shadow-md ring-1 ring-slate-200 animate-slide-down">
+          <div className="relative rounded-2xl bg-gradient-to-br from-white via-slate-50/60 to-slate-100/50 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200/70 animate-slide-down">
           <div className={`h-1.5 rounded-t-2xl ${isPlan ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400'}`}></div>
           <div className="absolute top-2 right-3 z-10">
             <button
@@ -3533,7 +3556,7 @@ function App() {
               <ChevronUp size={16} />
             </button>
           </div>
-          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+          <div className="flex flex-col gap-2 px-4 sm:px-5 py-3 sm:py-4">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className={`p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-200' : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-200'}`}>
                 {isPlan ? <CalendarIcon size={18} /> : <ClipboardCheck size={18} />}
@@ -3644,7 +3667,7 @@ function App() {
                           alert("Errore durante la cancellazione");
                         }
                       }}
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
                     >
                       <Trash2 size={15} />
                       Cancella Tutti
@@ -3663,7 +3686,7 @@ function App() {
                       <button
                         onClick={handleClearMonthShifts}
                         title="Cancella tutti i turni del consuntivo nel mese selezionato"
-                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                        className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
                       >
                         <Trash2 size={15} />
                         Cancella tutto il mese
@@ -3672,7 +3695,7 @@ function App() {
                     <button
                       onClick={handleClearAllConsuntivo}
                       title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
                     >
                       <Trash2 size={15} />
                       Reset consuntivo
@@ -3682,7 +3705,7 @@ function App() {
               </div>
             </div>
 
-            <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-100 px-4 sm:px-5 py-3">
+            <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-200 pt-3">
               {/* FILTRA */}
               <HeaderGroup label="FILTRA">
                 {restrictedUserTutorId ? (
@@ -3817,7 +3840,7 @@ function App() {
                     <button
                       onClick={handleReplicateMonth}
                       title="Copia i turni della settimana tipo in tutte le settimane del mese selezionato"
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
+                      className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
                     >
                       <CalendarPlus size={16} />
                       Copia su tutto il mese
