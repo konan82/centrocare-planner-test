@@ -299,7 +299,22 @@ const rangesAreGlobal = (ranges: { start: string; end: string }[][] | undefined)
 
 // Formatta un valore dell'audit in modo leggibile; gestisce le fasce orarie non disponibili,
 // le liste di stringhe (specialità, bisogni) e gli oggetti annidati.
-const formatAuditValue = (key: string, v: any) => {
+// Mappe per tradurre gli id (tutor/ragazzi) nei relativi nomi nei log di audit.
+type AuditNameLookup = {
+  tutors: Map<string, string>;
+  youths: Map<string, string>;
+};
+
+// Traduce un singolo id (tutor o ragazzo) nel nome, se noto.
+const auditResolveName = (key: string, id: any, lookup?: AuditNameLookup | null): any => {
+  if (lookup && typeof id === 'string') {
+    if ((key === 'tutor_id' || key === 'tutor_ids' || key === 'referring_tutor_id') && lookup.tutors.has(id)) return lookup.tutors.get(id);
+    if ((key === 'aggregate' || key === 'youth_id' || key === 'youth_ids') && lookup.youths.has(id)) return lookup.youths.get(id);
+  }
+  return id;
+};
+
+const formatAuditValue = (key: string, v: any, lookup?: AuditNameLookup | null) => {
   if (v == null) return '—';
   if (typeof v === 'boolean') return v ? 'Sì' : 'No';
   if (key === 'status') {
@@ -329,9 +344,12 @@ const formatAuditValue = (key: string, v: any) => {
     const mapped = v.map(d => days[Number(d)] ?? String(d));
     return mapped.length ? mapped.join(', ') : '—';
   }
-  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (Array.isArray(v)) {
+    const mapped = v.map(item => auditResolveName(key, item, lookup));
+    return mapped.length ? mapped.join(', ') : '—';
+  }
   if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
+  return String(auditResolveName(key, v, lookup));
 };
 
 const getEffectiveHours = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
@@ -8366,7 +8384,7 @@ const AUDIT_FIELD_LABEL: Record<string, string> = {
 };
 
 // Blocco diff per modifiche (create/update): mostra campo, vecchio valore → nuovo valore.
-function AuditDiffBlock({ oldRec, newRec }: { oldRec: any; newRec: any }) {
+function AuditDiffBlock({ oldRec, newRec, lookup }: { oldRec: any; newRec: any; lookup?: AuditNameLookup | null }) {
   if (!oldRec || !newRec) return null;
   const keys = Array.from(new Set([...Object.keys(oldRec), ...Object.keys(newRec)]));
   const changed = keys.filter(key => JSON.stringify(oldRec[key]) !== JSON.stringify(newRec[key]));
@@ -8385,11 +8403,11 @@ function AuditDiffBlock({ oldRec, newRec }: { oldRec: any; newRec: any }) {
             </span>
             <span className="flex flex-wrap items-center gap-1.5 min-w-0 text-xs">
               <span className="px-2 py-1 rounded-lg bg-red-50 border border-red-200 text-red-600 line-through decoration-red-300 decoration-1 font-medium">
-                {formatAuditValue(key, oldRec[key])}
+                {formatAuditValue(key, oldRec[key], lookup)}
               </span>
               <ArrowRight size={14} className="text-slate-400 shrink-0" />
               <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold">
-                {formatAuditValue(key, newRec[key])}
+                {formatAuditValue(key, newRec[key], lookup)}
               </span>
             </span>
           </div>
@@ -8400,7 +8418,7 @@ function AuditDiffBlock({ oldRec, newRec }: { oldRec: any; newRec: any }) {
 }
 
 // Blocco per cancellazioni: elenca tutti i campi con etichetta leggibile.
-function AuditDeleteBlock({ oldRec }: { oldRec: any }) {
+function AuditDeleteBlock({ oldRec, lookup }: { oldRec: any; lookup?: AuditNameLookup | null }) {
   if (!oldRec) return null;
   const entries = Object.entries(oldRec).filter(([, v]) => v != null && !(Array.isArray(v) && v.length === 0) && v !== '');
   return (
@@ -8417,7 +8435,7 @@ function AuditDeleteBlock({ oldRec }: { oldRec: any }) {
               {AUDIT_FIELD_LABEL[key] || key}
             </span>
             <span className="px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-red-600 font-medium text-xs break-all">
-              {formatAuditValue(key, val)}
+              {formatAuditValue(key, val, lookup)}
             </span>
           </div>
         ))}
@@ -8435,6 +8453,8 @@ function AuditView() {
   const [filterUser, setFilterUser] = useState<string>('all');
   const [filterFrom, setFilterFrom] = useState<string>('');
   const [filterTo, setFilterTo] = useState<string>('');
+
+  const [lookup, setLookup] = useState<AuditNameLookup | null>(null);
 
   const applyPreset = (days: number) => {
     const end = new Date();
@@ -8465,6 +8485,24 @@ function AuditView() {
   };
 
   useEffect(() => { fetchLogs(); }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [tRes, yRes] = await Promise.all([
+          supabase.from('tutors').select('id, name'),
+          supabase.from('youths').select('id, name'),
+        ]);
+        const tutors = new Map<string, string>();
+        const youths = new Map<string, string>();
+        (tRes.data || []).forEach((t: any) => tutors.set(t.id, t.name));
+        (yRes.data || []).forEach((y: any) => youths.set(y.id, y.name));
+        setLookup({ tutors, youths });
+      } catch (e: any) {
+        console.error('Audit lookup load error:', e);
+      }
+    })();
+  }, []);
 
   const visible = logs.filter(l => {
     if (filterEntity !== 'all' && l.entity !== filterEntity) return false;
@@ -8625,11 +8663,11 @@ function AuditView() {
                     </div>
                   )}
                   {log.details && log.details.old != null && log.details.new != null && (
-                    <AuditDiffBlock oldRec={log.details.old} newRec={log.details.new} />
+                    <AuditDiffBlock oldRec={log.details.old} newRec={log.details.new} lookup={lookup} />
                   )}
                   {/* delete: mostra il vecchio record con etichette */}
                   {log.details && log.details.old != null && log.details.new == null && (
-                    <AuditDeleteBlock oldRec={log.details.old} />
+                    <AuditDeleteBlock oldRec={log.details.old} lookup={lookup} />
                   )}
                   {/* create/bulk: dettagli semplici senza diff */}
                   {log.details && log.details.old == null && log.details.new == null && (
