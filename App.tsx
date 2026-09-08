@@ -2034,29 +2034,41 @@ function App() {
     }
   };
 
-  // Duplica il turno in modifica nello stesso giorno, spostando l'orario di un'ora avanti.
+  // Duplica il turno usando i valori del form (Giorno/Data, Inizio/Fine pianificata). Se per nessun
+  // campo di data/orario sono stati fatti cambiamenti rispetto all'originale, sposta l'orario di 1 ora
+  // per evitare di creare un doppione identico sovrapposto.
   const handleDuplicateShift = async () => {
     if (!editingShift || !editingShift.id) return;
     const isPlan = shiftModalMode === 'plan';
     if (!assertCan(isPlan ? 'PIANIFICAZIONE' : 'CONSUNTIVO', 'w')) return;
 
-    const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
-    const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+    const original = shifts.find(s => s.id === editingShift.id);
+    const targetDate = editingShift.date || original?.date || '';
+    let targetStart = editingShift.startTime || original?.startTime || '15:00';
+    let targetEnd = editingShift.endTime || original?.endTime || '17:00';
+    const targetWeekday = isPlan ? (editingShift.templateWeekday ?? weekdayOf(targetDate)) : null;
 
-    const startMin = toMin(editingShift.startTime);
-    const endMin = toMin(editingShift.endTime);
-    const durationMin = Math.max(endMin - startMin, 60);
+    const unchanged =
+      targetDate === original?.date &&
+      targetStart === original?.startTime &&
+      targetEnd === original?.endTime &&
+      (isPlan ? targetWeekday === (original?.templateWeekday ?? weekdayOf(original?.date)) : true);
 
-    const shiftedStart = startMin + 60;
-    const fits = shiftedStart + durationMin <= 24 * 60;
-    const newStart = fmt(fits ? shiftedStart : startMin);
-    const newEnd = fmt((fits ? shiftedStart : startMin) + durationMin);
+    if (unchanged) {
+      const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+      const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-    const newTemplateWeekday = isPlan
-      ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
-      : null;
+      const startMin = toMin(targetStart);
+      const endMin = toMin(targetEnd);
+      const durationMin = Math.max(endMin - startMin, 60);
 
-    const created = await insertShiftClone(editingShift, editingShift.date, newStart, newEnd, newTemplateWeekday);
+      const shiftedStart = startMin + 60;
+      const fits = shiftedStart + durationMin <= 24 * 60;
+      targetStart = fmt(fits ? shiftedStart : startMin);
+      targetEnd = fmt((fits ? shiftedStart : startMin) + durationMin);
+    }
+
+    const created = await insertShiftClone(editingShift, targetDate, targetStart, targetEnd, targetWeekday);
     if (created) {
       setIsShiftModalOpen(false);
       setEditingShift(null);
@@ -6952,7 +6964,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               Annulla
             </button>
             {editingShift?.id && (
-              <button onClick={handleDuplicateShift} className="flex-1 py-2.5 rounded-lg border border-sky-300 bg-sky-50 text-sky-700 font-semibold hover:bg-sky-100 transition flex items-center justify-center gap-2" title="Crea una copia del turno nello stesso giorno, un'ora dopo">
+              <button onClick={handleDuplicateShift} className="flex-1 py-2.5 rounded-lg border border-sky-300 bg-sky-50 text-sky-700 font-semibold hover:bg-sky-100 transition flex items-center justify-center gap-2" title="Crea una copia del turno con i campi correnti (Giorno/Data e orari come da modulo)">
                 <Copy size={16} /> Duplica
               </button>
             )}
