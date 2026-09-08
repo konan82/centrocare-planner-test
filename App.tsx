@@ -8330,6 +8330,15 @@ const AUDIT_ACTION_STYLE: Record<string, { label: string; cls: string }> = {
   delete: { label: 'Cancellato', cls: 'bg-red-100 text-red-700 border-red-200' },
 };
 
+// Determina lo stato template (boolean | null se non ricavabile) di un log turno.
+function auditShiftIsTemplate(details: Record<string, any> | null): boolean | null {
+  if (!details) return null;
+  if (details.old && typeof details.old.is_template !== 'undefined') return !!details.old.is_template;
+  if (details.new && typeof details.new.is_template !== 'undefined') return !!details.new.is_template;
+  if (typeof details.is_template !== 'undefined') return !!details.is_template;
+  return null;
+}
+
 const AUDIT_FIELD_LABEL: Record<string, string> = {
   name: 'Nome',
   status: 'Stato',
@@ -8575,6 +8584,15 @@ function AuditView() {
                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold border border-slate-200">
                       {AUDIT_ENTITY_LABEL[log.entity] || log.entity}
                     </span>
+                    {log.entity === 'shift' && auditShiftIsTemplate(log.details) != null && (
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
+                        auditShiftIsTemplate(log.details)
+                          ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                          : 'bg-slate-100 text-slate-500 border-slate-200'
+                      }`}>
+                        {auditShiftIsTemplate(log.details) ? 'Template' : 'Consuntivo'}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-600 mt-1 break-words">
                     {log.entity === 'tutor' ? (
