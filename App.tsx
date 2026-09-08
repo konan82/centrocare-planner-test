@@ -575,7 +575,7 @@ const PersonCombo: React.FC<PersonComboProps> = ({ options, value, onChange, pla
           type="text"
           value={open ? search : (selected?.name || '')}
           placeholder={selected ? '' : placeholder}
-          onFocus={() => { setOpen(true); setSearch(selected?.name || ''); }}
+          onFocus={() => { setOpen(true); setSearch(''); }}
           onChange={e => { setOpen(true); setSearch(e.target.value); }}
           onKeyDown={e => {
             if (e.key === 'Escape') { setOpen(false); setSearch(selected?.name || ''); }
