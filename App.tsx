@@ -7505,7 +7505,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             </button>
           </>
         }
-      >
+      ></CollapsibleHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {users.map(user => {
@@ -7584,7 +7584,6 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           );
         })}
       </div>
-      </CollapsibleHeader>
 
       {/* Create User Modal */}
       <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
