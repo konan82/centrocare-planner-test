@@ -509,6 +509,27 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
   );
 };
 
+interface HeaderGroupProps {
+  label?: string;
+  danger?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const HeaderGroup: React.FC<HeaderGroupProps> = ({ label, danger, className, children }) => (
+  <div className={`flex flex-col gap-1.5 shrink-0 ${className || ''}`}>
+    {label && (
+      <span className={`inline-flex items-center gap-1 px-2 text-[9px] font-extrabold uppercase tracking-widest ${danger ? 'text-rose-500' : 'text-slate-400'}`}>
+        {danger && <AlertTriangle size={10} />}
+        {label}
+      </span>
+    )}
+    <div className={`flex-1 flex flex-wrap items-center gap-2 rounded-2xl border p-2 ${danger ? 'border-rose-200 bg-rose-50/70' : 'border-slate-200 bg-white'}`}>
+      {children}
+    </div>
+  </div>
+);
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -2892,22 +2913,26 @@ function App() {
           subtitle="Educatori e operatori del centro"
           actions={
             <>
-              <GuideButton
-                title="Guida · Gestione Tutor"
-                intro="Anagrafica degli educatori/operatori che svolgono i turni. Ecco cosa fa ogni elemento di questa sezione:"
-                items={[
-                  { btn: 'Nuovo Tutor', icon: 'Crea', desc: 'Apre il modulo per creare un nuovo tutor con nome, ruolo, stato e disponibilità.' },
-                  { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
-                  { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome; combinata con i filtri di stato e ruolo per trovare rapidamente un tutor.' },
-                  { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
-                  { btn: 'Scheda tutor', icon: 'Dettaglio', desc: 'Cliccando su un tutor apri il modulo per modificarlo: dati anagrafici, disponibilità e colore distintivo (usato nei calendari).' },
-                  { btn: 'Elimina tutor', icon: 'Cancella', desc: 'Rimuove un tutor dall\'elenco (le azioni delicate chiedono conferma).' },
-                  { btn: 'Associa utente', icon: 'Collega', desc: 'Collega un account a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
-                ]}
-              />
-              <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-                <Plus size={18} className="mr-2" /> Nuovo Tutor
-              </button>
+              <HeaderGroup label="CREA">
+                <button onClick={openNewTutorModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+                  <Plus size={18} className="mr-2" /> Nuovo Tutor
+                </button>
+              </HeaderGroup>
+              <div className="flex items-center xl:self-center">
+                <GuideButton
+                  title="Guida · Gestione Tutor"
+                  intro="Anagrafica degli educatori/operatori che svolgono i turni. Ecco cosa fa ogni elemento di questa sezione:"
+                  items={[
+                    { btn: 'Nuovo Tutor', icon: 'Crea', desc: 'Apre il modulo per creare un nuovo tutor con nome, ruolo, stato e disponibilità.' },
+                    { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
+                    { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome; combinata con i filtri di stato e ruolo per trovare rapidamente un tutor.' },
+                    { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
+                    { btn: 'Scheda tutor', icon: 'Dettaglio', desc: 'Cliccando su un tutor apri il modulo per modificarlo: dati anagrafici, disponibilità e colore distintivo (usato nei calendari).' },
+                    { btn: 'Elimina tutor', icon: 'Cancella', desc: 'Rimuove un tutor dall\'elenco (le azioni delicate chiedono conferma).' },
+                    { btn: 'Associa utente', icon: 'Collega', desc: 'Collega un account a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
+                  ]}
+                />
+              </div>
             </>
           }
         >
@@ -2931,7 +2956,7 @@ function App() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-wrap">
+        <HeaderGroup label="CERCA & FILTRA" className="w-full">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -2981,7 +3006,7 @@ function App() {
           <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
             {filtered.length} su {allTutors.length} profili
           </span>
-        </div>
+        </HeaderGroup>
         </CollapsibleHeader>
 
         {/* Griglia card */}
@@ -3162,21 +3187,25 @@ function App() {
           subtitle="Anagrafiche dei minori e percorsi al centro"
           actions={
             <>
-              <GuideButton
-                title="Guida · Anagrafica Ragazzi"
-                intro="Elenco dei ragazzi/centri seguiti dal centro. Ogni ragazzo ha un monte ore che viene aggiornato con i turni erogati e le relative riduzioni/extra. Ecco cosa fa ogni elemento:"
-                items={[
-                  { btn: 'Nuovo Profilo', icon: 'Crea', desc: 'Apre il modulo per creare una nuova scheda ragazzo con i dati anagrafici e il monte ore.' },
-                  { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
-                  { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome per trovare rapidamente un ragazzo.' },
-                  { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
-                  { btn: 'Scheda ragazzo', icon: 'Dettaglio', desc: 'Cliccando su una scheda apri il modulo per modificarla o consultare il consuntivo (ore pianificate, erogate, delta).' },
-                  { btn: 'Elimina ragazzo', icon: 'Cancella', desc: 'Rimuove una scheda (le azioni delicate chiedono conferma).' },
-                ]}
-              />
-              <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
-                <Plus size={18} className="mr-2" /> Nuovo Profilo
-              </button>
+              <HeaderGroup label="CREA">
+                <button onClick={openNewYouthModal} className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center shadow-md shadow-teal-200 transition-all">
+                  <Plus size={18} className="mr-2" /> Nuovo Profilo
+                </button>
+              </HeaderGroup>
+              <div className="flex items-center xl:self-center">
+                <GuideButton
+                  title="Guida · Anagrafica Ragazzi"
+                  intro="Elenco dei ragazzi/centri seguiti dal centro. Ogni ragazzo ha un monte ore che viene aggiornato con i turni erogati e le relative riduzioni/extra. Ecco cosa fa ogni elemento:"
+                  items={[
+                    { btn: 'Nuovo Profilo', icon: 'Crea', desc: 'Apre il modulo per creare una nuova scheda ragazzo con i dati anagrafici e il monte ore.' },
+                    { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
+                    { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome per trovare rapidamente un ragazzo.' },
+                    { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
+                    { btn: 'Scheda ragazzo', icon: 'Dettaglio', desc: 'Cliccando su una scheda apri il modulo per modificarla o consultare il consuntivo (ore pianificate, erogate, delta).' },
+                    { btn: 'Elimina ragazzo', icon: 'Cancella', desc: 'Rimuove una scheda (le azioni delicate chiedono conferma).' },
+                  ]}
+                />
+              </div>
             </>
           }
         >
@@ -3200,7 +3229,7 @@ function App() {
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-wrap">
+        <HeaderGroup label="CERCA & FILTRA" className="w-full">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -3253,7 +3282,7 @@ function App() {
           <span className="px-3.5 py-2 rounded-full bg-slate-100 text-slate-600 text-sm font-semibold">
             {filtered.length} su {allYouths.length} profili
           </span>
-        </div>
+        </HeaderGroup>
         </CollapsibleHeader>
 
         {/* Griglia card */}
@@ -3557,172 +3586,122 @@ function App() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3">
-              {/* Filtri tutor + ragazzo */}
-              {restrictedUserTutorId ? (
-                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                  <UserCheck size={15} />
-                  Solo i tuoi turni
-                </span>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <PersonCombo
-                    options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                    value={tutorFilter}
-                    onChange={setTutorFilter}
-                    placeholder="Tutti i tutor"
-                    colorOf={id => getTutorColor(id, tutors)}
-                    allowAll
-                    allLabel="Tutti i tutor"
-                    allValue="all"
-                    className="w-full sm:w-52"
-                  />
-                  <PersonCombo
-                    options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                    value={youthFilter}
-                    onChange={setYouthFilter}
-                    placeholder="Tutti i ragazzi"
-                    colorOf={id => getYouthColor(id, youths)}
-                    allowAll
-                    allLabel="Tutti i ragazzi"
-                    allValue="all"
-                    className="w-full sm:w-52"
-                  />
-                </div>
-              )}
-
-              {/* Toggle Settimanale / Oggi */}
-              <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                {([
-                  { key: 'week' as const, label: 'Settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
-                  { key: 'today' as const, label: 'Oggi', icon: Sunrise, active: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200' },
-                ] as const).map(opt => {
-                  const Icon = opt.icon;
-                  const active = calView === opt.key;
-                  return (
-                    <button
-                      key={opt.key}
-                      onClick={() => {
-                        setCalView(opt.key);
-                        if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
-                      }}
-                      title={opt.key === 'today'
-                        ? 'Mostra solo la giornata di oggi, più leggibile'
-                        : 'Mostra l\'intera settimana LUN-SAB'}
-                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
-                        active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon size={14} />
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selettore fascia oraria ad alto impatto */}
-              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                {([
-                  { key: 'mattina', label: 'Mattina', icon: Sunrise, active: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-orange-200' },
-                  { key: 'pomeriggio', label: 'Pomeriggio', icon: Sunset, active: 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200' },
-                  { key: 'tutto', label: 'Tutto', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
-                ] as const).map(opt => {
-                  const Icon = opt.icon;
-                  const active = dayPart === opt.key;
-                  return (
-                    <button
-                      key={opt.key}
-                      onClick={() => setDayPart(opt.key)}
-                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                        active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon size={14} />
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* UNDO / REDO */}
-              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                <button
-                  onClick={handleUndo}
-                  disabled={undoStack.length === 0}
-                  title="Annulla ultima azione (Ctrl+Z)"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
-                >
-                  <Undo2 size={14} />
-                  Undo
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={redoStack.length === 0}
-                  title="Rifai ultima azione (Ctrl+Y)"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
-                >
-                  <Redo2 size={14} />
-                  Redo
-                </button>
-              </div>
-
-              {/* Azioni */}
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <button
-                  onClick={handleWhatsAppSend}
-                  disabled={isWhatsAppSending}
-                  title="Cattura lo screenshot dei turni e invialo via WhatsApp"
-                  className={`${BTN} w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-green-200/60 disabled:opacity-50`}
-                >
-                  {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
-                  {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
-                </button>
-                {!isPlan && tutorFilter !== 'all' && tutorFilter && (
-                  <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
-                    Trascina o apri un turno per registrare il consuntivo
-                  </div>
-                )}
-                {!isPlan && (
-                  <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                    <input
-                      type="month"
-                      value={clearMonth}
-                      onChange={e => setClearMonth(e.target.value)}
-                      title="Mese di cui cancellare tutti i turni del consuntivo"
-                      className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
+            <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-100 px-4 sm:px-5 py-3">
+              {/* FILTRA */}
+              <HeaderGroup label="FILTRA">
+                {restrictedUserTutorId ? (
+                  <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                    <UserCheck size={15} />
+                    Solo i tuoi turni
+                  </span>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <PersonCombo
+                      options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                      value={tutorFilter}
+                      onChange={setTutorFilter}
+                      placeholder="Tutti i tutor"
+                      colorOf={id => getTutorColor(id, tutors)}
+                      allowAll
+                      allLabel="Tutti i tutor"
+                      allValue="all"
+                      className="w-full sm:w-52"
                     />
-                    <button
-                      onClick={handleClearMonthShifts}
-                      title="Cancella tutti i turni del consuntivo nel mese selezionato"
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                    >
-                      <Trash2 size={16} />
-                      Cancella tutto il mese
-                    </button>
+                    <PersonCombo
+                      options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                      value={youthFilter}
+                      onChange={setYouthFilter}
+                      placeholder="Tutti i ragazzi"
+                      colorOf={id => getYouthColor(id, youths)}
+                      allowAll
+                      allLabel="Tutti i ragazzi"
+                      allValue="all"
+                      className="w-full sm:w-52"
+                    />
                   </div>
                 )}
-                {isPlan && (
+              </HeaderGroup>
+
+              {/* VISTA */}
+              <HeaderGroup label="VISTA">
+                <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                  {([
+                    { key: 'week' as const, label: 'Settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                    { key: 'today' as const, label: 'Oggi', icon: Sunrise, active: 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200' },
+                  ] as const).map(opt => {
+                    const Icon = opt.icon;
+                    const active = calView === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => {
+                          setCalView(opt.key);
+                          if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
+                        }}
+                        title={opt.key === 'today'
+                          ? 'Mostra solo la giornata di oggi, più leggibile'
+                          : 'Mostra l\'intera settimana LUN-SAB'}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
+                          active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                  {([
+                    { key: 'mattina', label: 'Mattina', icon: Sunrise, active: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-orange-200' },
+                    { key: 'pomeriggio', label: 'Pomeriggio', icon: Sunset, active: 'bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-200' },
+                    { key: 'tutto', label: 'Tutto', icon: CalendarRange, active: 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-200' },
+                  ] as const).map(opt => {
+                    const Icon = opt.icon;
+                    const active = dayPart === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setDayPart(opt.key)}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                          active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Icon size={14} />
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </HeaderGroup>
+
+              {/* MODIFICA */}
+              <HeaderGroup label="MODIFICA">
+                <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
                   <button
-                    onClick={async () => {
-                      if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
-                      snapshotBeforeMutation();
-                      try {
-                        const { error } = await supabase.from('shifts').delete().eq('is_template', true);
-                        if (error) throw error;
-                        alert(`Turni pianificati cancellati con successo!`);
-                        setShifts(prev => prev.filter(s => !s.isTemplate));
-                      } catch (error) {
-                        console.error(error);
-                        alert("Errore durante la cancellazione");
-                      }
-                    }}
-                    className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    onClick={handleUndo}
+                    disabled={undoStack.length === 0}
+                    title="Annulla ultima azione (Ctrl+Z)"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
                   >
-                    <Trash2 size={16} />
-                    Cancella Tutti
+                    <Undo2 size={14} />
+                    Undo
                   </button>
-                )}
-                {isPlan && (
+                  <button
+                    onClick={handleRedo}
+                    disabled={redoStack.length === 0}
+                    title="Rifai ultima azione (Ctrl+Y)"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-600 hover:bg-slate-100"
+                  >
+                    <Redo2 size={14} />
+                    Redo
+                  </button>
+                </div>
+              </HeaderGroup>
+
+              {/* STRUMENTI (solo Pianificazione) */}
+              {isPlan && (
+                <HeaderGroup label="STRUMENTI">
                   <button
                     onClick={handleAnalyze}
                     disabled={isAnalyzing}
@@ -3731,8 +3710,6 @@ function App() {
                     {isAnalyzing ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div> : <AlertTriangle size={16} />}
                     Analizza Conflitti
                   </button>
-                )}
-                {isPlan && (
                   <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
                     <input
                       type="month"
@@ -3750,8 +3727,6 @@ function App() {
                       Copia su tutto il mese
                     </button>
                   </div>
-                )}
-                {isPlan && (
                   <button
                     onClick={handleRegenTemplates}
                     title="Crea la settimana tipo ricavandola dai turni di consuntivo esistenti"
@@ -3760,51 +3735,116 @@ function App() {
                     <CalendarClock size={16} />
                     Rigenera settimana tipo
                   </button>
+                </HeaderGroup>
+              )}
+
+              {/* CONDIVIDI */}
+              <HeaderGroup label="CONDIVIDI">
+                <button
+                  onClick={handleWhatsAppSend}
+                  disabled={isWhatsAppSending}
+                  title="Cattura lo screenshot dei turni e invialo via WhatsApp"
+                  className={`${BTN} w-full sm:w-auto bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-green-200/60 disabled:opacity-50`}
+                >
+                  {isWhatsAppSending ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <MessageCircle size={16} />}
+                  {isWhatsAppSending ? 'Genero immagine...' : 'Invia su WhatsApp'}
+                </button>
+                {!isPlan && tutorFilter !== 'all' && tutorFilter && (
+                  <div className="hidden sm:block w-full sm:w-auto text-xs text-slate-400 italic">
+                    Trascina o apri un turno per registrare il consuntivo
+                  </div>
                 )}
-                {!isPlan && (
-                  <button
-                    onClick={handleClearAllConsuntivo}
-                    title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
-                    className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                  >
-                    <Trash2 size={16} />
-                    Reset consuntivo
-                  </button>
-                )}
+              </HeaderGroup>
+
+              {/* PERICOLO isolato a destra + Guida */}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch gap-3 xl:ms-auto">
                 {isPlan ? (
-                  <GuideButton
-                    title="Guida · Pianificazione Turni"
-                    intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. Ecco cosa fa ogni pulsante dell'header:"
-                    items={[
-                      { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
-                      { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
-                      { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
-                      { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
-                      { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
-                      { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
-                      { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
-                      { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
-                      { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
-                      { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
-                    ]}
-                  />
+                  <HeaderGroup danger label="PERICOLO">
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                        snapshotBeforeMutation();
+                        try {
+                          const { error } = await supabase.from('shifts').delete().eq('is_template', true);
+                          if (error) throw error;
+                          alert(`Turni pianificati cancellati con successo!`);
+                          setShifts(prev => prev.filter(s => !s.isTemplate));
+                        } catch (error) {
+                          console.error(error);
+                          alert("Errore durante la cancellazione");
+                        }
+                      }}
+                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={16} />
+                      Cancella Tutti
+                    </button>
+                  </HeaderGroup>
                 ) : (
-                  <GuideButton
-                    title="Guida · Consuntivo Turni"
-                    intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. Ecco cosa fa ogni pulsante dell'header:"
-                    items={[
-                      { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
-                      { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
-                      { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
-                      { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
-                      { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
-                      { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
-                      { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
-                      { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
-                      { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
-                    ]}
-                  />
+                  <HeaderGroup danger label="PERICOLO">
+                    <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                      <input
+                        type="month"
+                        value={clearMonth}
+                        onChange={e => setClearMonth(e.target.value)}
+                        title="Mese di cui cancellare tutti i turni del consuntivo"
+                        className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
+                      />
+                      <button
+                        onClick={handleClearMonthShifts}
+                        title="Cancella tutti i turni del consuntivo nel mese selezionato"
+                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                      >
+                        <Trash2 size={16} />
+                        Cancella tutto il mese
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleClearAllConsuntivo}
+                      title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
+                      className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={16} />
+                      Reset consuntivo
+                    </button>
+                  </HeaderGroup>
                 )}
+                <div className="flex items-center xl:self-center">
+                  {isPlan ? (
+                    <GuideButton
+                      title="Guida · Pianificazione Turni"
+                      intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, STRUMENTI, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO a destra. Ecco cosa fa ogni pulsante:"
+                      items={[
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
+                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
+                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
+                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
+                        { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
+                        { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
+                        { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
+                        { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
+                      ]}
+                    />
+                  ) : (
+                    <GuideButton
+                      title="Guida · Consuntivo Turni"
+                      intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO a destra. Ecco cosa fa ogni pulsante:"
+                      items={[
+                        { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
+                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
+                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
+                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
+                        { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
+                        { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
+                      ]}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -4860,54 +4900,60 @@ function App() {
           subtitle={`${format(payMonth, 'MMMM yyyy', { locale: it })} · retribuzioni mensili per tutor`}
           actions={
             <>
-              <GuideButton
-                title="Guida · Calcolo Paga"
-                intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. Ecco cosa fa ogni elemento:"
-                items={[
-                  { btn: 'Report PDF', icon: 'Scarica', desc: 'Genera e scarica il report mensile con le ore e i compensi di ogni tutor, con tanto di note su sovrapposizioni.' },
-                  { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
-                  { btn: 'Tabella tutor', icon: 'Dettaglio', desc: 'Per ogni tutor: giorni lavorati, ore normali/doppie/notte, compenso lordo (con eventuale extra/quota riservata) e la percentuale/importo anticipato.' },
-                  { btn: 'Pulsanti riga (report)', icon: 'Attività', desc: 'Ti permettono di generare un riepilogo oppure un report PDF dedicato al singolo tutor.' },
-                ]}
-              />
-              <button
-                onClick={generatePdf}
-                title="Genera il report Calcolo Paga in PDF"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold shadow-md hover:from-rose-700 hover:to-red-700 active:scale-95 transition-all"
-              >
-                <Download size={16} /> <span className="hidden sm:inline">Report PDF</span>
-              </button>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <button
-                  onClick={() => setPayMonth(addMonths(payMonth, -1))}
-                  title="Mese precedente"
-                  className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  onClick={() => setPayMonth(startOfMonth(new Date()))}
-                  title="Torna al mese corrente"
-                  className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
-                    isSameMonth(payMonth, new Date())
-                      ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
-                      : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 md:gap-2">
-                    <CalendarIcon size={14} className="text-teal-600 shrink-0" />
-                    <span className="tracking-tight whitespace-nowrap capitalize">
-                      {format(payMonth, 'MMMM yyyy', { locale: it })}
+              <HeaderGroup label="PERIODO">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <button
+                    onClick={() => setPayMonth(addMonths(payMonth, -1))}
+                    title="Mese precedente"
+                    className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={() => setPayMonth(startOfMonth(new Date()))}
+                    title="Torna al mese corrente"
+                    className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                      isSameMonth(payMonth, new Date())
+                        ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                        : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 md:gap-2">
+                      <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                      <span className="tracking-tight whitespace-nowrap capitalize">
+                        {format(payMonth, 'MMMM yyyy', { locale: it })}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    onClick={() => setPayMonth(addMonths(payMonth, 1))}
+                    title="Mese successivo"
+                    className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </HeaderGroup>
+              <HeaderGroup label="ESPORTA">
                 <button
-                  onClick={() => setPayMonth(addMonths(payMonth, 1))}
-                  title="Mese successivo"
-                  className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                  onClick={generatePdf}
+                  title="Genera il report Calcolo Paga in PDF"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 text-white text-sm font-bold shadow-md hover:from-rose-700 hover:to-red-700 active:scale-95 transition-all"
                 >
-                  <ChevronRight size={20} />
+                  <Download size={16} /> <span className="hidden sm:inline">Report PDF</span>
                 </button>
+              </HeaderGroup>
+              <div className="flex items-center xl:self-center">
+                <GuideButton
+                  title="Guida · Calcolo Paga"
+                  intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. I comandi sono raggruppati per funzione (PERIODO, ESPORTA). Ecco cosa fa ogni elemento:"
+                  items={[
+                    { btn: 'Periodo (‹ ›)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
+                    { btn: 'Report PDF', icon: 'Scarica', desc: 'Genera e scarica il report mensile con le ore e i compensi di ogni tutor, con tanto di note su sovrapposizioni.' },
+                    { btn: 'Tabella tutor', icon: 'Dettaglio', desc: 'Per ogni tutor: giorni lavorati, ore normali/doppie/notte, compenso lordo (con eventuale extra/quota riservata) e la percentuale/importo anticipato.' },
+                    { btn: 'Pulsanti riga (report)', icon: 'Attività', desc: 'Ti permettono di generare un riepilogo oppure un report PDF dedicato al singolo tutor.' },
+                  ]}
+                />
               </div>
             </>
           }
@@ -5467,80 +5513,86 @@ function App() {
                     <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
                       Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
                     </span>
-                    <GuideButton
-                      title="Guida · Resoconto Turni"
-                      intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. Ecco cosa fa ogni elemento:"
-                      items={[
-                        { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
-                        { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
-                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
-                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
-                        { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
-                      ]}
-                    />
-                    <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                      {([
-                        { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
-                        { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
-                      ] as const).map(opt => {
-                        const Icon = opt.icon;
-                        const active = reportView === opt.key;
-                        return (
-                          <button
-                            key={opt.key}
-                            onClick={() => setReportView(opt.key)}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                              active ? opt.active : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            <Icon size={14} /> {opt.label}
-                          </button>
-                        );
-                      })}
+                    <HeaderGroup label="VISTA">
+                      <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                        {([
+                          { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
+                          { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
+                        ] as const).map(opt => {
+                          const Icon = opt.icon;
+                          const active = reportView === opt.key;
+                          return (
+                            <button
+                              key={opt.key}
+                              onClick={() => setReportView(opt.key)}
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
+                                active ? opt.active : 'text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Icon size={14} /> {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </HeaderGroup>
+                    <div className="flex items-center xl:self-center">
+                      <GuideButton
+                        title="Guida · Resoconto Turni"
+                        intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. I comandi sono raggruppati per funzione (VISTA, FILTRA). Ecco cosa fa ogni elemento:"
+                        items={[
+                          { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
+                          { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
+                          { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
+                          { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                          { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 border-t border-slate-100 px-4 sm:px-5 py-3">
-                  {restrictedUserTutorId ? (
-                    <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                      <UserCheck size={15} />
-                      Solo i tuoi turni
-                    </span>
-                  ) : (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <PersonCombo
-                        options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                        value={tutorFilter}
-                        onChange={setTutorFilter}
-                        placeholder="Tutti i tutor"
-                        colorOf={id => getTutorColor(id, tutors)}
-                        allowAll
-                        allLabel="Tutti i tutor"
-                        allValue="all"
-                        className="w-full sm:w-52"
-                      />
-                      <PersonCombo
-                        options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                        value={youthFilter}
-                        onChange={setYouthFilter}
-                        placeholder="Tutti i ragazzi"
-                        colorOf={id => getYouthColor(id, youths)}
-                        allowAll
-                        allLabel="Tutti i ragazzi"
-                        allValue="all"
-                        className="w-full sm:w-52"
-                      />
-                    </div>
-                  )}
-                  {hasReportFilters && (
-                    <button
-                      onClick={resetFilters}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
-                    >
-                      <FilterX size={15} /> Azzera filtri
-                    </button>
-                  )}
+                <div className="border-t border-slate-100 px-4 sm:px-5 py-3">
+                  <HeaderGroup label="FILTRA">
+                    {restrictedUserTutorId ? (
+                      <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                        <UserCheck size={15} />
+                        Solo i tuoi turni
+                      </span>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <PersonCombo
+                          options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                          value={tutorFilter}
+                          onChange={setTutorFilter}
+                          placeholder="Tutti i tutor"
+                          colorOf={id => getTutorColor(id, tutors)}
+                          allowAll
+                          allLabel="Tutti i tutor"
+                          allValue="all"
+                          className="w-full sm:w-52"
+                        />
+                        <PersonCombo
+                          options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                          value={youthFilter}
+                          onChange={setYouthFilter}
+                          placeholder="Tutti i ragazzi"
+                          colorOf={id => getYouthColor(id, youths)}
+                          allowAll
+                          allLabel="Tutti i ragazzi"
+                          allValue="all"
+                          className="w-full sm:w-52"
+                        />
+                      </div>
+                    )}
+                    {hasReportFilters && (
+                      <button
+                        onClick={resetFilters}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
+                      >
+                        <FilterX size={15} /> Azzera filtri
+                      </button>
+                    )}
+                  </HeaderGroup>
                 </div>
               </div>
             </>
@@ -5920,69 +5972,75 @@ function App() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 shrink-0">
-                    <GuideButton
-                      title="Guida · Riepilogo Ore"
-                      intro="Prospetto mensile delle ore: una matrice Tutor × Ragazzo che confronta le ore pianificate (settimana tipo) con quelle eseguite (consuntivo). Ecco cosa fa ogni elemento:"
-                      items={[
-                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra la matrice solo per un tutor specifico.' },
-                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo le colonne di un determinato ragazzo.' },
-                        { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Cambia il mese del riepilogo; il pulsante centrale torna al mese corrente.' },
-                        { btn: 'Legenda colori', icon: 'Legenda', desc: 'Pian = pianificate · Erogate = effettivamente svolte · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
-                      ]}
-                    />
-                    <PersonCombo
-                      options={tutors}
-                      value={summaryTutorFilter}
-                      onChange={setSummaryTutorFilter}
-                      placeholder="Tutti i tutor"
-                      colorOf={id => getTutorColor(id, tutors)}
-                      allowAll
-                      allLabel="Tutti i tutor"
-                      allValue="all"
-                      className="w-full sm:w-48"
-                    />
-                    <PersonCombo
-                      options={youths}
-                      value={summaryYouthFilter}
-                      onChange={setSummaryYouthFilter}
-                      placeholder="Tutti i ragazzi"
-                      colorOf={id => getYouthColor(id, youths)}
-                      allowAll
-                      allLabel="Tutti i ragazzi"
-                      allValue="all"
-                      className="w-full sm:w-48"
-                    />
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <button
-                        onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
-                        title="Mese precedente"
-                        className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-                      >
-                        <ChevronLeft size={20} />
-                      </button>
-                      <button
-                        onClick={() => setSummaryMonthRange(new Date())}
-                        title="Torna al mese corrente"
-                        className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
-                          isSameMonth(summaryMonth, new Date())
-                            ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
-                            : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="flex items-center gap-1.5 md:gap-2">
-                          <CalendarIcon size={14} className="text-teal-600 shrink-0" />
-                          <span className="tracking-tight whitespace-nowrap capitalize">
-                            {format(summaryMonth, 'MMMM yyyy', { locale: it })}
+                    <HeaderGroup label="FILTRA">
+                      <PersonCombo
+                        options={tutors}
+                        value={summaryTutorFilter}
+                        onChange={setSummaryTutorFilter}
+                        placeholder="Tutti i tutor"
+                        colorOf={id => getTutorColor(id, tutors)}
+                        allowAll
+                        allLabel="Tutti i tutor"
+                        allValue="all"
+                        className="w-full sm:w-48"
+                      />
+                      <PersonCombo
+                        options={youths}
+                        value={summaryYouthFilter}
+                        onChange={setSummaryYouthFilter}
+                        placeholder="Tutti i ragazzi"
+                        colorOf={id => getYouthColor(id, youths)}
+                        allowAll
+                        allLabel="Tutti i ragazzi"
+                        allValue="all"
+                        className="w-full sm:w-48"
+                      />
+                    </HeaderGroup>
+                    <HeaderGroup label="PERIODO">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <button
+                          onClick={() => setSummaryMonthRange(addMonths(summaryMonth, -1))}
+                          title="Mese precedente"
+                          className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                        >
+                          <ChevronLeft size={20} />
+                        </button>
+                        <button
+                          onClick={() => setSummaryMonthRange(new Date())}
+                          title="Torna al mese corrente"
+                          className={`flex-1 sm:flex-none px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                            isSameMonth(summaryMonth, new Date())
+                              ? 'text-teal-700 bg-gradient-to-br from-teal-50 to-white border-2 border-teal-400 shadow-teal-100'
+                              : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 md:gap-2">
+                            <CalendarIcon size={14} className="text-teal-600 shrink-0" />
+                            <span className="tracking-tight whitespace-nowrap capitalize">
+                              {format(summaryMonth, 'MMMM yyyy', { locale: it })}
+                            </span>
                           </span>
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setSummaryMonthRange(addMonths(summaryMonth, 1))}
-                        title="Mese successivo"
-                        className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
-                      >
-                        <ChevronRight size={20} />
-                      </button>
+                        </button>
+                        <button
+                          onClick={() => setSummaryMonthRange(addMonths(summaryMonth, 1))}
+                          title="Mese successivo"
+                          className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-teal-50 hover:border-teal-400 hover:text-teal-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+                        >
+                          <ChevronRight size={20} />
+                        </button>
+                      </div>
+                    </HeaderGroup>
+                    <div className="flex items-center xl:self-center">
+                      <GuideButton
+                        title="Guida · Riepilogo Ore"
+                        intro="Prospetto mensile delle ore: una matrice Tutor × Ragazzo che confronta le ore pianificate (settimana tipo) con quelle eseguite (consuntivo). I comandi sono raggruppati per funzione (FILTRA, PERIODO). Ecco cosa fa ogni elemento:"
+                        items={[
+                          { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra la matrice solo per un tutor specifico.' },
+                          { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo le colonne di un determinato ragazzo.' },
+                          { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Cambia il mese del riepilogo; il pulsante centrale torna al mese corrente.' },
+                          { btn: 'Legenda colori', icon: 'Legenda', desc: 'Pian = pianificate · Erogate = effettivamente svolte · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>
@@ -7670,31 +7728,37 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
         subtitle="Utenti, permessi e presenza online"
         actions={
           <>
-            <GuideButton
-              title="Guida · Gestione Utenti"
-              intro="Creazione e gestione degli account di accesso al portale, con permessi granulari per voce di menu. Ecco cosa fa ogni elemento:"
-              items={[
-                { btn: 'Log Accessi', icon: 'Storico', desc: 'Apre la finestra con l\'elenco degli accessi registrati (data, utente, esito), utile per il controllo.' },
-                { btn: 'Nuovo Utente', icon: 'Crea', desc: 'Crea un account: username, password, tipologia di permessi e, facoltativo, l\'associazione a un tutor.' },
-                { btn: 'Scheda utente (modifica)', icon: 'Dettaglio', desc: 'Consente di cambiare permessi, email, tutor associato o password di un utente esistente.' },
-                { btn: 'Presenza online', icon: 'Stato', desc: 'Mostra se un utente ha il portale aperto ora e quando è stata l\'ultima attività.' },
-                { btn: 'Elimina utente', icon: 'Cancella', desc: 'Rimuove l\'account (con conferma); non elimina il tutor associato.' },
-              ]}
-            />
-            <button
-              onClick={openAccessLog}
-              className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
-            >
-              <History size={20} className="mr-2" />
-              Log Accessi
-            </button>
-            <button
-              onClick={() => setIsUserModalOpen(true)}
-              className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
-            >
-              <UserPlus size={20} className="mr-2" />
-              Nuovo Utente
-            </button>
+            <HeaderGroup label="CONTROLLO">
+              <button
+                onClick={openAccessLog}
+                className="bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-slate-700 transition-colors shadow-sm"
+              >
+                <History size={20} className="mr-2" />
+                Log Accessi
+              </button>
+            </HeaderGroup>
+            <HeaderGroup label="CREA">
+              <button
+                onClick={() => setIsUserModalOpen(true)}
+                className="bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-teal-700 transition-colors shadow-sm"
+              >
+                <UserPlus size={20} className="mr-2" />
+                Nuovo Utente
+              </button>
+            </HeaderGroup>
+            <div className="flex items-center xl:self-center">
+              <GuideButton
+                title="Guida · Gestione Utenti"
+                intro="Creazione e gestione degli account di accesso al portale, con permessi granulari per voce di menu. I comandi sono raggruppati per funzione (CONTROLLO, CREA). Ecco cosa fa ogni elemento:"
+                items={[
+                  { btn: 'Log Accessi', icon: 'Storico', desc: 'Apre la finestra con l\'elenco degli accessi registrati (data, utente, esito), utile per il controllo.' },
+                  { btn: 'Nuovo Utente', icon: 'Crea', desc: 'Crea un account: username, password, tipologia di permessi e, facoltativo, l\'associazione a un tutor.' },
+                  { btn: 'Scheda utente (modifica)', icon: 'Dettaglio', desc: 'Consente di cambiare permessi, email, tutor associato o password di un utente esistente.' },
+                  { btn: 'Presenza online', icon: 'Stato', desc: 'Mostra se un utente ha il portale aperto ora e quando è stata l\'ultima attività.' },
+                  { btn: 'Elimina utente', icon: 'Cancella', desc: 'Rimuove l\'account (con conferma); non elimina il tutor associato.' },
+                ]}
+              />
+            </div>
           </>
         }
       ></CollapsibleHeader>
