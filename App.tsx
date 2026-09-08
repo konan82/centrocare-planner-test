@@ -607,6 +607,7 @@ const SortableGroup: React.FC<SortableGroupProps> = ({ id, label, danger, draggi
 };
 
 const DEFAULT_CAL_GROUPS = ["GUIDA", "FILTRA", "VISTA", "MODIFICA", "STRUMENTI", "CONDIVIDI", "ATTENZIONE"];
+const DEFAULT_REPORT_GROUPS = ["VISTA", "FILTRA", "GUIDA"];
 
 interface ModalProps {
   isOpen: boolean;
@@ -1181,6 +1182,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [headerLayout, setHeaderLayout] = useState<string[]>(DEFAULT_CAL_GROUPS);
+  const [reportLayout, setReportLayout] = useState<string[]>(DEFAULT_REPORT_GROUPS);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -1211,6 +1213,12 @@ function App() {
             if (!merged.includes('GUIDA')) merged.push('GUIDA');
             if (!merged.includes('ATTENZIONE')) merged.push('ATTENZIONE');
             setHeaderLayout(merged);
+          }
+          if (Array.isArray(profile.report_header_layout) && profile.report_header_layout.length > 0) {
+            const saved = profile.report_header_layout as string[];
+            const merged = [...saved];
+            if (!merged.includes('GUIDA')) merged.push('GUIDA');
+            setReportLayout(merged);
           }
           setToken(session.access_token);
           const saved = localStorage.getItem('centrocare_view');
@@ -1271,6 +1279,30 @@ function App() {
       return arrayMove(prev, oldIndex, newIndex);
     });
   };
+
+  const reportDragEnd = (event: any) => {
+    setActiveGroupId(null);
+    const { active, over } = event;
+    if (!over) return;
+    if (String(active.id) === String(over.id)) return;
+    setReportLayout(prev => {
+      const oldIndex = prev.indexOf(String(active.id));
+      const newIndex = prev.indexOf(String(over.id));
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  };
+
+  useEffect(() => {
+    if (!currentUser || !reportLayout) return;
+    const t = setTimeout(() => {
+      supabase.from('profiles').update({ report_header_layout: reportLayout as never }).eq('id', currentUser.id)
+        .then(({ error }) => {
+          if (error) console.error('Errore salvataggio layout resoconto (debounce):', error);
+        });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [reportLayout, currentUser?.id]);
 
   useEffect(() => {
     if (!currentUser || !headerLayout) return;
@@ -5664,86 +5696,114 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
                       Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
                     </span>
-                    <HeaderGroup label="VISTA">
-                      <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
-                        {([
-                          { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
-                          { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
-                        ] as const).map(opt => {
-                          const Icon = opt.icon;
-                          const active = reportView === opt.key;
-                          return (
-                            <button
-                              key={opt.key}
-                              onClick={() => setReportView(opt.key)}
-                              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
-                                active ? opt.active : 'text-slate-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              <Icon size={14} /> {opt.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </HeaderGroup>
-                    <div className="flex items-center xl:self-center">
-                      <GuideButton
-                        title="Guida · Resoconto Turni"
-                        intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. I comandi sono raggruppati per funzione (VISTA, FILTRA). Ecco cosa fa ogni elemento:"
-                        items={[
-                          { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
-                          { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
-                          { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
-                          { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
-                          { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
-                        ]}
-                      />
-                    </div>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 px-4 sm:px-5 py-3">
-                  <HeaderGroup label="FILTRA">
-                    {restrictedUserTutorId ? (
-                      <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                        <UserCheck size={15} />
-                        Solo i tuoi turni
-                      </span>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <PersonCombo
-                          options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                          value={tutorFilter}
-                          onChange={setTutorFilter}
-                          placeholder="Tutti i tutor"
-                          colorOf={id => getTutorColor(id, tutors)}
-                          allowAll
-                          allLabel="Tutti i tutor"
-                          allValue="all"
-                          className="w-full sm:w-52"
-                        />
-                        <PersonCombo
-                          options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                          value={youthFilter}
-                          onChange={setYouthFilter}
-                          placeholder="Tutti i ragazzi"
-                          colorOf={id => getYouthColor(id, youths)}
-                          allowAll
-                          allLabel="Tutti i ragazzi"
-                          allValue="all"
-                          className="w-full sm:w-52"
-                        />
-                      </div>
-                    )}
-                    {hasReportFilters && (
-                      <button
-                        onClick={resetFilters}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
-                      >
-                        <FilterX size={15} /> Azzera filtri
-                      </button>
-                    )}
-                  </HeaderGroup>
+                <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-200 pt-3">
+                  <DndContext
+                    sensors={dragSensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={headerDragStart}
+                    onDragCancel={() => setActiveGroupId(null)}
+                    onDragEnd={reportDragEnd}
+                  >
+                    <SortableContext items={reportLayout} strategy={verticalListSortingStrategy}>
+                      {(() => {
+                        const byLabel: Record<string, React.ReactNode> = {
+                          VISTA: (
+                            <div className="inline-flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-sm shrink-0">
+                              {([
+                                { key: 'tutor' as const, label: 'Vista Tutor', icon: UserCheck, active: 'bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md shadow-orange-200' },
+                                { key: 'week' as const, label: 'Vista settimanale', icon: CalendarRange, active: 'bg-gradient-to-br from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-200' },
+                              ] as const).map(opt => {
+                                const Icon = opt.icon;
+                                const active = reportView === opt.key;
+                                return (
+                                  <button
+                                    key={opt.key}
+                                    onClick={() => setReportView(opt.key)}
+                                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 active:scale-95 ${
+                                      active ? opt.active : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <Icon size={14} /> {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ),
+                          FILTRA: (
+                            <>
+                              {restrictedUserTutorId ? (
+                                <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                                  <UserCheck size={15} />
+                                  Solo i tuoi turni
+                                </span>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <PersonCombo
+                                    options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                                    value={tutorFilter}
+                                    onChange={setTutorFilter}
+                                    placeholder="Tutti i tutor"
+                                    colorOf={id => getTutorColor(id, tutors)}
+                                    allowAll
+                                    allLabel="Tutti i tutor"
+                                    allValue="all"
+                                    className="w-full sm:w-52"
+                                  />
+                                  <PersonCombo
+                                    options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                                    value={youthFilter}
+                                    onChange={setYouthFilter}
+                                    placeholder="Tutti i ragazzi"
+                                    colorOf={id => getYouthColor(id, youths)}
+                                    allowAll
+                                    allLabel="Tutti i ragazzi"
+                                    allValue="all"
+                                    className="w-full sm:w-52"
+                                  />
+                                </div>
+                              )}
+                              {hasReportFilters && (
+                                <button
+                                  onClick={resetFilters}
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 shadow-sm hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 transition"
+                                >
+                                  <FilterX size={15} /> Azzera filtri
+                                </button>
+                              )}
+                            </>
+                          ),
+                          GUIDA: (
+                            <GuideButton
+                              title="Guida · Resoconto Turni"
+                              intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. I comandi sono raggruppati per funzione (VISTA, FILTRA) e riordinabili trascinando la maniglia. Ecco cosa fa ogni elemento:"
+                              items={[
+                                { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
+                                { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
+                                { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
+                                { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                                { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
+                              ]}
+                            />
+                          ),
+                        };
+                        return reportLayout
+                          .filter(id => byLabel[id])
+                          .map(id => (
+                            <SortableGroup
+                              key={id}
+                              id={id}
+                              label={id}
+                              dragging={activeGroupId !== null}
+                            >
+                              {byLabel[id]}
+                            </SortableGroup>
+                          ));
+                      })()}
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
             </>
