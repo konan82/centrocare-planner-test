@@ -1277,6 +1277,7 @@ function App() {
 
   // Calendar header collapse: pannello collassato per default, si espande su hover (desktop) o tap (mobile)
   const [calHeaderCollapsed, setCalHeaderCollapsed] = useState(true);
+  const [showPlanGuide, setShowPlanGuide] = useState(false);
   const calHeaderHoverRef = useRef(false);
   const calHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -3704,6 +3705,16 @@ function App() {
                     Reset consuntivo
                   </button>
                 )}
+                {isPlan && (
+                  <button
+                    onClick={() => setShowPlanGuide(true)}
+                    title="Apri la guida: spiega cosa fa ogni pulsante di questo header"
+                    className={`${BTN} w-full sm:w-auto bg-white text-teal-700 border border-teal-200 hover:bg-teal-50`}
+                  >
+                    <BookOpen size={16} />
+                    Guida
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -4261,6 +4272,43 @@ function App() {
             </table>
           </div>
         </div>
+
+        {/* Guida rapida: cosa fa ogni pulsante dell'header */}
+        <Modal isOpen={showPlanGuide} onClose={() => setShowPlanGuide(false)} title="Guida · Pianificazione Turni" size="lg">
+          <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
+            <p>
+              Questa sezione gestisce la <span className="font-bold">settimana tipo</span> del centro: una copertura
+              settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo.
+              Ecco cosa fa ogni pulsante dell'header:
+            </p>
+            <div className="space-y-3">
+              {[
+                { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor (per pianificare le disponibilità). Se un tutor non è disponibile in alcuni giorni/fasce, le relative celle appaiono in rosso.' },
+                { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
+                { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
+                { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y). Non elimina il bisogno di salvare: opera sullo stato appena modificato.' },
+                { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) oppure lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
+                { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Cancella TUTTI i turni della settimana tipo. Chiede conferma; è un\'azione distruttiva (sebbene possa essere annullata con Undo).' },
+                { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con un punteggio 0–100 e un elenco dei problemi.' },
+                { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo su tutte le giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica i turni già copiati.' },
+                { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività). Utile se la settimana tipo manca o è incompleta.' },
+                { btn: 'Guida', icon: 'Info', desc: 'Questo pannello: la spiegazione di ogni pulsante dell\'header.' },
+              ].map(item => (
+                <div key={item.btn} className="flex items-start gap-3 rounded-xl bg-white border border-teal-100 px-4 py-3">
+                  <span className="mt-0.5 shrink-0 px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 text-[11px] font-bold uppercase tracking-wide">{item.icon}</span>
+                  <div>
+                    <div className="font-bold text-teal-700">{item.btn}</div>
+                    <div className="text-sm text-slate-600">{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400">
+              Suggerimento: i pulsanti di ricerca/filtro (tutor e ragazzo) elencano sempre tutte le opzioni in ordine alfabetico.
+            </p>
+          </div>
+        </Modal>
       </div>
     );
   };
