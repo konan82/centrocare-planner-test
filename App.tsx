@@ -484,9 +484,12 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
       <button
         onClick={() => setOpen(true)}
         title="Apri la guida: spiega cosa fa ogni pulsante"
-        className="w-11 h-11 rounded-full inline-flex items-center justify-center bg-white text-teal-700 border-2 border-teal-300 shadow-md hover:bg-teal-50 hover:scale-105 transition-all active:scale-95 shrink-0"
+        className="inline-flex items-center gap-2 h-11 rounded-full bg-white text-teal-700 border-2 border-teal-300 pl-2.5 pr-4 shadow-md hover:bg-teal-50 hover:scale-105 transition-all active:scale-95 shrink-0"
       >
-        <BookOpen size={22} />
+        <span className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center">
+          <BookOpen size={16} />
+        </span>
+        <span className="text-sm font-bold leading-none">Guida</span>
       </button>
       <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg">
         <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
@@ -3587,6 +3590,96 @@ function App() {
                   </button>
                 </div>
               )}
+
+              <div className="w-full sm:w-auto ml-auto flex flex-col sm:flex-row sm:flex-wrap items-center gap-3 lg:pr-10">
+                <div className="flex items-center">
+                  {isPlan ? (
+                    <GuideButton
+                      title="Guida · Pianificazione Turni"
+                      intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, STRUMENTI, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO in alto a destra. Ecco cosa fa ogni pulsante:"
+                      items={[
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
+                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
+                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
+                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
+                        { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
+                        { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
+                        { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
+                        { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO in alto a destra: cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
+                      ]}
+                    />
+                  ) : (
+                    <GuideButton
+                      title="Guida · Consuntivo Turni"
+                      intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO in alto a destra. Ecco cosa fa ogni pulsante:"
+                      items={[
+                        { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
+                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
+                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
+                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
+                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
+                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
+                        { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO in alto a destra: annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
+                        { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO in alto a destra: cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
+                      ]}
+                    />
+                  )}
+                </div>
+                {isPlan ? (
+                  <HeaderGroup danger label="PERICOLO">
+                    <button
+                      onClick={async () => {
+                        if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
+                        snapshotBeforeMutation();
+                        try {
+                          const { error } = await supabase.from('shifts').delete().eq('is_template', true);
+                          if (error) throw error;
+                          alert(`Turni pianificati cancellati con successo!`);
+                          setShifts(prev => prev.filter(s => !s.isTemplate));
+                        } catch (error) {
+                          console.error(error);
+                          alert("Errore durante la cancellazione");
+                        }
+                      }}
+                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={15} />
+                      Cancella Tutti
+                    </button>
+                  </HeaderGroup>
+                ) : (
+                  <HeaderGroup danger label="PERICOLO">
+                    <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                      <input
+                        type="month"
+                        value={clearMonth}
+                        onChange={e => setClearMonth(e.target.value)}
+                        title="Mese di cui cancellare tutti i turni del consuntivo"
+                        className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
+                      />
+                      <button
+                        onClick={handleClearMonthShifts}
+                        title="Cancella tutti i turni del consuntivo nel mese selezionato"
+                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                      >
+                        <Trash2 size={15} />
+                        Cancella tutto il mese
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleClearAllConsuntivo}
+                      title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
+                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
+                    >
+                      <Trash2 size={15} />
+                      Reset consuntivo
+                    </button>
+                  </HeaderGroup>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col xl:flex-row xl:items-stretch xl:flex-wrap gap-3 border-t border-slate-100 px-4 sm:px-5 py-3">
@@ -3759,97 +3852,7 @@ function App() {
                 )}
               </HeaderGroup>
 
-              {/* Guida (prima) + PERICOLO isolato a destra */}
-              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch gap-3 xl:ms-auto">
-                <div className="flex items-center xl:self-center">
-                  {isPlan ? (
-                    <GuideButton
-                      title="Guida · Pianificazione Turni"
-                      intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, STRUMENTI, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO a destra. Ecco cosa fa ogni pulsante:"
-                      items={[
-                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
-                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
-                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
-                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
-                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
-                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
-                        { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
-                        { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
-                        { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
-                        { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
-                      ]}
-                    />
-                  ) : (
-                    <GuideButton
-                      title="Guida · Consuntivo Turni"
-                      intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. I comandi dell'header sono raggruppati per funzione (FILTRA, VISTA, MODIFICA, CONDIVIDI); le cancellazioni di massa stanno isolate nel pannello rosso PERICOLO a destra. Ecco cosa fa ogni pulsante:"
-                      items={[
-                        { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
-                        { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
-                        { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
-                        { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
-                        { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
-                        { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
-                        { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
-                        { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
-                        { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Nel pannello rosso PERICOLO: cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
-                      ]}
-                    />
-                  )}
-                </div>
-                {isPlan ? (
-                  <HeaderGroup danger label="PERICOLO">
-                    <button
-                      onClick={async () => {
-                        if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
-                        snapshotBeforeMutation();
-                        try {
-                          const { error } = await supabase.from('shifts').delete().eq('is_template', true);
-                          if (error) throw error;
-                          alert(`Turni pianificati cancellati con successo!`);
-                          setShifts(prev => prev.filter(s => !s.isTemplate));
-                        } catch (error) {
-                          console.error(error);
-                          alert("Errore durante la cancellazione");
-                        }
-                      }}
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                    >
-                      <Trash2 size={15} />
-                      Cancella Tutti
-                    </button>
-                  </HeaderGroup>
-                ) : (
-                  <HeaderGroup danger label="PERICOLO">
-                    <div className="flex w-full sm:w-auto items-center gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                      <input
-                        type="month"
-                        value={clearMonth}
-                        onChange={e => setClearMonth(e.target.value)}
-                        title="Mese di cui cancellare tutti i turni del consuntivo"
-                        className="px-2 py-1.5 text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
-                      />
-                      <button
-                        onClick={handleClearMonthShifts}
-                        title="Cancella tutti i turni del consuntivo nel mese selezionato"
-                        className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                      >
-                        <Trash2 size={15} />
-                        Cancella tutto il mese
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleClearAllConsuntivo}
-                      title="Cancella TUTTI i turni del consuntivo in tutto il database (reset)"
-                      className={`${BTN_SM} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
-                    >
-                      <Trash2 size={15} />
-                      Reset consuntivo
-                    </button>
-                  </HeaderGroup>
-                )}
               </div>
-            </div>
           </div>
         </div>
 
