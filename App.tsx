@@ -59,7 +59,8 @@ import {
   Download,
   History,
   List,
-  GripVertical
+  GripVertical,
+  Copy
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
@@ -1511,6 +1512,7 @@ function App() {
 
   // Drag and Drop State
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
+  const [dragCopyMode, setDragCopyMode] = useState(false);
   const [dragOverCoords, setDragOverCoords] = useState<{ dateStr: string, minutes: number } | null>(null);
 
   // Resize State (Google Calendar style: drag the bottom edge to change duration)
@@ -1959,6 +1961,105 @@ function App() {
     } catch (error) {
       console.error("Error saving shift:", error);
       alert("Errore nel salvataggio del turno");
+    }
+  };
+
+  // Crea una copia di un turno esistente su una data/orari di destinazione.
+  const insertShiftClone = async (source: any, newDate: string, newStart: string, newEnd: string, newTemplateWeekday?: number | null) => {
+    const isPlan = !!source.isTemplate;
+    if (!assertCan(isPlan ? 'PIANIFICAZIONE' : 'CONSUNTIVO', 'w')) return null;
+    const youthIds = source.youthIds && source.youthIds.length > 0
+      ? source.youthIds
+      : (source.youthId ? [source.youthId] : []);
+    if (!source.tutorId || youthIds.length === 0 || !newStart || !newEnd || !newDate) return null;
+
+    const newId = Math.random().toString(36).slice(2, 11);
+    const cloneData = {
+      id: newId,
+      tutor_id: source.tutorId,
+      youth_id: youthIds[0] || null,
+      youth_ids: youthIds,
+      date: newDate,
+      start_time: newStart,
+      end_time: newEnd,
+      activity: source.activity || 'Attività generica',
+      status: 'pianificato',
+      actual_start_time: null,
+      actual_end_time: null,
+      actual_notes: '',
+      is_template: isPlan,
+      template_weekday: isPlan ? (newTemplateWeekday ?? weekdayOf(newDate)) : null,
+      template_shift_id: null,
+      duration_weeks: isPlan ? (source.durationWeeks || payRates.weeksPerMonth || 4) : null,
+    };
+
+    snapshotBeforeMutation();
+    try {
+      const { error } = await supabase.from('shifts').upsert(cloneData);
+      if (error) throw error;
+
+      const tutorName = tutors.find(t => t.id === source.tutorId)?.name || source.tutorId;
+      const youthNamesArr = youthIds.map(id => youths.find(y => y.id === id)?.name || id);
+      auditLog('create', 'shift', newId, `${newDate} ${newStart}–${newEnd} ${youthNamesArr.join(', ')}`, {
+        tutor_id: source.tutorId,
+        date: newDate,
+        start_time: newStart,
+        end_time: newEnd,
+        is_template: isPlan,
+        context: { tutor_name: tutorName, youth_names: youthNamesArr },
+      });
+
+      const normalizedClone = {
+        ...cloneData,
+        tutorId: cloneData.tutor_id,
+        youthId: cloneData.youth_id,
+        youthIds: cloneData.youth_ids,
+        startTime: cloneData.start_time,
+        endTime: cloneData.end_time,
+        status: cloneData.status,
+        actualStartTime: cloneData.actual_start_time,
+        actualEndTime: cloneData.actual_end_time,
+        actualNotes: cloneData.actual_notes,
+        isTemplate: cloneData.is_template,
+        templateWeekday: cloneData.template_weekday,
+        templateShiftId: cloneData.template_shift_id,
+        durationWeeks: cloneData.duration_weeks,
+      };
+      setShifts(prev => [...prev, normalizedClone]);
+      return normalizedClone;
+    } catch (error) {
+      console.error("Error cloning shift:", error);
+      alert("Errore nella copia del turno");
+      return null;
+    }
+  };
+
+  // Duplica il turno in modifica nello stesso giorno, spostando l'orario di un'ora avanti.
+  const handleDuplicateShift = async () => {
+    if (!editingShift || !editingShift.id) return;
+    const isPlan = shiftModalMode === 'plan';
+    if (!assertCan(isPlan ? 'PIANIFICAZIONE' : 'CONSUNTIVO', 'w')) return;
+
+    const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+    const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+    const startMin = toMin(editingShift.startTime);
+    const endMin = toMin(editingShift.endTime);
+    const durationMin = Math.max(endMin - startMin, 60);
+
+    const shiftedStart = startMin + 60;
+    const fits = shiftedStart + durationMin <= 24 * 60;
+    const newStart = fmt(fits ? shiftedStart : startMin);
+    const newEnd = fmt((fits ? shiftedStart : startMin) + durationMin);
+
+    const newTemplateWeekday = isPlan
+      ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
+      : null;
+
+    const created = await insertShiftClone(editingShift, editingShift.date, newStart, newEnd, newTemplateWeekday);
+    if (created) {
+      setIsShiftModalOpen(false);
+      setEditingShift(null);
     }
   };
 
@@ -2580,14 +2681,22 @@ function App() {
       e.preventDefault();
       return;
     }
+    const copyMode = !!e.altKey || !!e.ctrlKey;
+    setDragCopyMode(copyMode);
     e.dataTransfer.setData("text/plain", shiftId);
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = copyMode ? "copyMove" : "move";
     setDraggedShiftId(shiftId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedShiftId(null);
+    setDragCopyMode(false);
+    setDragOverCoords(null);
   };
 
   const handleDragOver = (e: React.DragEvent, dateStr: string, minutes: number) => {
     e.preventDefault(); // Necessary to allow dropping
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect = dragCopyMode ? "copy" : "move";
 
     // Only update state if it changed to prevent excessive re-renders
     if (dragOverCoords?.dateStr !== dateStr || dragOverCoords?.minutes !== minutes) {
@@ -2621,6 +2730,15 @@ function App() {
         const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
         const newStartTime = fmt(newStartMin);
         const newEndTime = fmt(newEndMin);
+
+        if (dragCopyMode) {
+          // Copia (trascina con Alt/Ctrl): crea un nuovo turno invece di spostarlo.
+          await insertShiftClone(shiftToUpdate, dateStr, newStartTime, newEndTime, shiftToUpdate.isTemplate ? weekdayOf(dateStr) : null);
+          setDraggedShiftId(null);
+          setDragCopyMode(false);
+          setDragOverCoords(null);
+          return;
+        }
 
         const updatedShift = { ...shiftToUpdate, date: dateStr, startTime: newStartTime, endTime: newEndTime };
         if (shiftToUpdate.isTemplate) {
@@ -2666,6 +2784,7 @@ function App() {
       }
     }
     setDraggedShiftId(null);
+    setDragCopyMode(false);
     setDragOverCoords(null);
   };
 
@@ -2947,7 +3066,7 @@ function App() {
           { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno già creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
           { btn: 'Navigazione settimane', desc: 'Le frecce ‹ › spostano la settimana visualizzata. La pianificazione è un template: le modifiche valgono per la settimana tipo.' },
           { btn: 'Filtro per ragazzo', desc: 'Mostra solo i turni relativi a un determinato ragazzo per pianificare più facilmente le coperture individuali.' },
-          { btn: 'Copia / Duplica', desc: 'Consente di replicare un turno esistente evitando di reinserirlo da zero.' },
+          { btn: 'Copia / Duplica turno', desc: 'Apri il turno e premi "Duplica" per creare una copia un\'ora dopo nello stesso giorno, oppure trascina un turno tenendo premuto Alt (o Ctrl) per copiarlo nella posizione di arrivo invece di spostarlo.' },
         ],
       },
       {
@@ -4446,6 +4565,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                         key={shift.id}
                                         draggable={!shiftLocked}
                                         onDragStart={(e) => handleDragStart(e, shift.id)}
+                                        onDragEnd={handleDragEnd}
                                         onClick={(e) => { e.stopPropagation(); openShiftModal(shift, isPlan ? 'plan' : 'validate'); }}
                                         className={`absolute pointer-events-auto rounded-md ${chipBg} border ${chipBorder} p-2 text-[13px] ${shiftLocked ? 'cursor-default' : 'cursor-move'} shadow-sm hover:shadow-md overflow-hidden group/item
                                           ${resizingShiftId === shift.id ? 'transition-none cursor-ns-resize' : 'transition-all duration-150'}
@@ -6831,6 +6951,11 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             <button onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
               Annulla
             </button>
+            {editingShift?.id && (
+              <button onClick={handleDuplicateShift} className="flex-1 py-2.5 rounded-lg border border-sky-300 bg-sky-50 text-sky-700 font-semibold hover:bg-sky-100 transition flex items-center justify-center gap-2" title="Crea una copia del turno nello stesso giorno, un'ora dopo">
+                <Copy size={16} /> Duplica
+              </button>
+            )}
             <button onClick={handleSaveShift} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
               <Save size={16} /> Salva Turno
             </button>
