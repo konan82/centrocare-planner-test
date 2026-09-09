@@ -4840,7 +4840,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
                               onMouseDown={(e) => {
                                 if (e.button !== 0) return;
-                                if (!cellEmpty || cellUnavail) return;
+                                if (!cellEmpty) return;
                                 const t = e.target as HTMLElement;
                                 if (t.closest('button') || t.closest('[draggable]')) return;
                                 e.preventDefault();
