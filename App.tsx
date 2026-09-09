@@ -1652,6 +1652,10 @@ function App() {
   const [draggedShiftId, setDraggedShiftId] = useState<string | null>(null);
   const [dragCopyMode, setDragCopyMode] = useState(false);
   const [dragOverCoords, setDragOverCoords] = useState<{ dateStr: string, minutes: number } | null>(null);
+  const [dragCreate, setDragCreate] = useState<{ colIdx: number; dateStr: string; startMin: number; curMin: number; isPlan: boolean } | null>(null);
+  const dragCreateRef = useRef<{ colIdx: number; dateStr: string; startMin: number; curMin: number; isPlan: boolean } | null>(null);
+  const clickSuppressRef = useRef(false);
+  useEffect(() => { dragCreateRef.current = dragCreate; }, [dragCreate]);
 
   // Resize State (Google Calendar style: drag the bottom edge to change duration)
   const [resizingShiftId, setResizingShiftId] = useState<string | null>(null);
@@ -2357,14 +2361,14 @@ function App() {
     }
   };
 
-  const openNewShiftModal = (tutorId?: string, dateStr?: string, startTime?: string, youthId?: string) => {
+  const openNewShiftModal = (tutorId?: string, dateStr?: string, startTime?: string, youthId?: string, endTime?: string) => {
     setEditingShift({
       tutorId: tutorId || '',
       youthId: youthId || '',
       youthIds: youthId ? [youthId] : [],
       date: dateStr || format(new Date(), 'yyyy-MM-dd'),
       startTime: startTime || '15:00',
-      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00',
+      endTime: endTime || (startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00'),
       isTemplate: false,
       templateShiftId: null,
     });
@@ -2372,7 +2376,7 @@ function App() {
     setIsShiftModalOpen(true);
   };
 
-  const openNewTemplateShiftModal = (weekday: number, startTime?: string, youthId?: string, tutorId?: string) => {
+  const openNewTemplateShiftModal = (weekday: number, startTime?: string, youthId?: string, tutorId?: string, endTime?: string) => {
     setEditingShift({
       tutorId: tutorId || '',
       youthId: youthId || '',
@@ -2382,7 +2386,7 @@ function App() {
       isTemplate: true,
       durationWeeks: payRates.weeksPerMonth || 4,
       startTime: startTime || '15:00',
-      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00',
+      endTime: endTime || (startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00'),
     });
     setShiftModalMode('plan');
     setIsShiftModalOpen(true);
@@ -2393,6 +2397,32 @@ function App() {
     setShiftModalMode(mode);
     setIsShiftModalOpen(true);
   };
+
+  const finishDragCreate = () => {
+    const sel = dragCreateRef.current;
+    if (!sel) return;
+    const lo = Math.min(sel.startMin, sel.curMin);
+    const hi = Math.max(sel.startMin, sel.curMin);
+    setDragCreate(null);
+    if (hi === lo) return;
+    const ggm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+    const startTime = ggm(lo);
+    const endTime = ggm(hi + 15);
+    clickSuppressRef.current = true;
+    setTimeout(() => { clickSuppressRef.current = false; }, 0);
+    if (sel.isPlan) {
+      openNewTemplateShiftModal(sel.colIdx + 1, startTime, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '', endTime);
+    } else {
+      openNewShiftModal(tutorFilter !== 'all' ? tutorFilter : '', sel.dateStr, startTime, youthFilter !== 'all' ? youthFilter : '', endTime);
+    }
+  };
+
+  useEffect(() => {
+    if (!dragCreate) return;
+    const onUp = () => finishDragCreate();
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, [dragCreate]);
 
   // Riepilogo testuale dei turni visibili (per WhatsApp)
   const buildWeeklySummary = () => {
@@ -4797,33 +4827,59 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         {colIndexes.map((i) => {
                           const layout = dayLayouts[i];
                           const isDragOver = dragOverCoords?.dateStr === layout.dateStr && dragOverCoords?.minutes === minutes;
+                          const cellEmpty = !layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span);
+                          const cellUnavail = tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes));
+                          const selBox = dragCreate !== null && dragCreate.colIdx === i
+                            ? Math.min(dragCreate.startMin, dragCreate.curMin) <= minutes && minutes <= Math.max(dragCreate.startMin, dragCreate.curMin)
+                            : false;
 
                           return (
                             <td
                               key={i}
                               onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
-                              onClick={() => isPlan
-                                ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
-                                : openNewShiftModal(
+                              onMouseDown={(e) => {
+                                if (e.button !== 0) return;
+                                if (!cellEmpty || cellUnavail) return;
+                                const t = e.target as HTMLElement;
+                                if (t.closest('button') || t.closest('[draggable]')) return;
+                                e.preventDefault();
+                                setDragCreate({ colIdx: i, dateStr: layout.dateStr, startMin: minutes, curMin: minutes, isPlan });
+                              }}
+                              onMouseEnter={() => {
+                                if (dragCreate && dragCreate.colIdx === i) {
+                                  setDragCreate(prev => (prev && prev.colIdx === i ? { ...prev, curMin: minutes } : prev));
+                                }
+                              }}
+                              onMouseUp={() => finishDragCreate()}
+                              onClick={() => {
+                                if (clickSuppressRef.current) return;
+                                if (isPlan) {
+                                  openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '');
+                                } else {
+                                  openNewShiftModal(
                                     tutorFilter !== 'all' ? tutorFilter : '',
                                     layout.dateStr,
                                     slotLabel,
                                     youthFilter !== 'all' ? youthFilter : ''
-                                  )}
-                              className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
-                                tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))
+                                  );
+                                }
+                              }}
+                              className={`relative border-r border-slate-200 align-top transition-all duration-150 select-none group/slot ${topBorderCls} ${
+                                cellUnavail
                                   ? 'bg-red-400'
                                   : isBand ? 'bg-slate-50/40' : 'bg-white'
                               } ${
-                                isDragOver
-                                  ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
-                                  : tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))
-                                    ? 'hover:bg-red-500'
-                                    : 'hover:bg-teal-50/30'
+                                selBox
+                                  ? 'bg-sky-200 ring-2 ring-inset ring-sky-500'
+                                  : isDragOver
+                                    ? 'bg-teal-50 ring-2 ring-inset ring-teal-400 rounded-lg shadow-inner'
+                                    : cellUnavail
+                                      ? 'hover:bg-red-500'
+                                      : 'hover:bg-teal-50/30'
                               }`}
                             >
-                              {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
+                              {cellEmpty && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); isPlan
 ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
