@@ -2265,11 +2265,11 @@ function App() {
     setView('DASHBOARD');
   };
   // Navigazione rapida dal Resoconto Turni alla pianificazione:
-  // mostra la colonna del giorno della settimana tipo corrispondente al turno cliccato.
+  // filtra per il tutor del turno e mostra la colonna del giorno della settimana tipo corrispondente.
   const goToReportShift = (s: Shift) => {
     const wd0 = Math.min(Math.max((s.templateWeekday || weekdayOf(s.date)) - 1, 0), 5);
-    if (tutorFilter !== 'all' && tutorFilter !== s.tutorId) setTutorFilter(s.tutorId);
-    if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) setYouthFilter('all');
+    setYouthFilter('all');
+    setTutorFilter(s.tutorId);
     setCalView('week');
     setPlanFocusWeekday(wd0);
     setView('DASHBOARD');
@@ -6006,7 +6006,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
                                 { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
                                 { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
-                                { btn: 'Clic su un turno', icon: 'Vai', desc: 'Evidenzia la riga e apre la pianificazione focalizzata sul giorno della settimana tipo di quel turno; clicca "Selezionato ✕" per tornare alla settimana completa.' },
+                                { btn: 'Clic su un turno', icon: 'Vai', desc: 'Evidenzia la riga e apre la pianificazione del giorno di quel turno, filtrata sul tutor; clicca "Selezionato ✕" per tornare alla settimana completa.' },
                               ]}
                             />
                           ),
@@ -6070,7 +6070,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         const isDouble = yids.length >= 2;
                         const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
                         return (
-                          <div key={s.id} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} nella pianificazione`} className="px-4 py-3 cursor-pointer hover:bg-teal-50/60 transition-colors">
+                          <div key={s.id} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} del calendario, filtrato su ${tt?.name || 'tutor'}`} className="px-4 py-3 cursor-pointer hover:bg-amber-100/80 transition-colors">
                             <div className="flex items-center justify-between gap-2">
                               <span className="tabular-nums font-bold text-slate-800 text-sm">
                                 {s.startTime}–{s.endTime}
@@ -6190,14 +6190,30 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           <th className="px-3 py-2.5 font-bold">Validità</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {rows.map(s => {
-                          const wd = (s.templateWeekday || weekdayOf(s.date)) - 1;
-                          const yids = shiftYouthIds(s);
-                          const isDouble = yids.length >= 2;
-                          const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
-                          return (
-                            <tr key={s.id} onClick={() => goToReportShift(s)} title={`Apri il giorno ${WEEK_DAYS[wd]} nella pianificazione`} className="cursor-pointer hover:bg-teal-50/60 transition-colors">
+                      <tbody>
+                        {(() => {
+                          let prevWd: number | null = null;
+                          return rows.map((s, idx) => {
+                            const wd = (s.templateWeekday || weekdayOf(s.date)) - 1;
+                            const isNewDay = prevWd !== null && wd !== prevWd;
+                            prevWd = wd;
+                            const yids = shiftYouthIds(s);
+                            const isDouble = yids.length >= 2;
+                            const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+                            return (
+                              <Fragment key={s.id}>
+                                {isNewDay && (
+                                  <tr className="pointer-events-none">
+                                    <td colSpan={5} className="px-0 py-0">
+                                      <div className="border-t-2 border-dashed border-slate-300"></div>
+                                    </td>
+                                  </tr>
+                                )}
+                                <tr
+                                  onClick={() => goToReportShift(s)}
+                                  title={`Apri il giorno ${WEEK_DAYS[wd]} del calendario, filtrato su ${tutor.name}`}
+                                  className={`cursor-pointer transition-colors ${idx === 0 ? '' : 'border-t border-slate-100'} hover:bg-amber-100/80`}
+                                >
                               <td className="px-5 py-2.5 whitespace-nowrap">
                                 <span className={`inline-flex items-center gap-1.5 ${wd === 5 ? 'text-sky-700' : 'text-slate-700'}`}>
                                   <span className={`h-2 w-2 rounded-full ${wd === 5 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
@@ -6248,8 +6264,10 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 </span>
                               </td>
                             </tr>
-                          );
-                        })}
+                              </Fragment>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
