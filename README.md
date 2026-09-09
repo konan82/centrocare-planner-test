@@ -2,24 +2,6 @@
 
 Applicazione web per la pianificazione e la gestione dei turni dei tutor/tutori in un centro socio-educativo d'assistenza. Consente di organizzare la **settimana tipo** dei tutor, validarla sui turni reali, elaborare i consuntivi e calcolare le ore lavorate per le paghe.
 
-## Schermate
-
-| Login | Pianificazione Turni |
-|-------|----------------------|
-| ![Login](docs/screenshots/01-login.png) | ![Pianificazione](docs/screenshots/02-pianificazione.png) |
-
-| Consuntivo Turni | Anagrafica Ragazzi |
-|------------------|---------------------|
-| ![Consuntivo](docs/screenshots/03-consuntivo.png) | ![Ragazzi](docs/screenshots/04-ragazzi.png) |
-
-| Gestione Tutor | Riepilogo Ore |
-|----------------|---------------|
-| ![Tutor](docs/screenshots/05-tutor.png) | ![Riepilogo](docs/screenshots/06-riepilogo-ore.png) |
-
-| Calcolo Paga | Gestione Utenti |
-|--------------|-----------------|
-| ![Calcolo Paga](docs/screenshots/07-calcolo-paga.png) | ![Utenti](docs/screenshots/08-gestione-utenti.png) |
-
 ## Funzionalità principali
 
 - **Gestione ragazzi**: anagrafica completa con dati personali, esigenze, diagnosi, allergie, farmaci, scuola, genitori, referenti, uscite autorizzate e contratto.
