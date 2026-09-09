@@ -2081,6 +2081,55 @@ function App() {
     }
   };
 
+  // Marca la fascia oraria del modulo come NON disponibile per il tutor selezionato,
+  // diversificata per giorno (come nella scheda Modifica Tutor), e chiude il modulo.
+  const handleMarkUnavailable = async () => {
+    if (!editingShift) return;
+    if (!assertCan('PIANIFICAZIONE', 'w')) return;
+    const tutor = tutors.find(t => t.id === editingShift.tutorId);
+    if (!tutor) { alert("Seleziona prima il Tutor."); return; }
+    const wd = editingShift.templateWeekday ?? weekdayOf(editingShift.date);
+    if (!wd || wd < 1 || wd > 6) { alert("Seleziona prima il Giorno."); return; }
+    const start = editingShift.startTime || '';
+    const end = editingShift.endTime || '';
+    if (!start || !end || parseTimeMins(end) <= parseTimeMins(start)) {
+      alert("Inserisci un orario valido (inizio prima della fine) per la fascia non disponibile.");
+      return;
+    }
+    const ranges = normalizeUnavailableRanges(tutor.unavailableRanges);
+    const dayRanges = [...(ranges[wd] || [])];
+    if (dayRanges.some(r => r.start === start && r.end === end)) {
+      alert("Questa fascia è già segnata come non disponibile per il tutor in questo giorno.");
+      return;
+    }
+    dayRanges.push({ start, end });
+    dayRanges.sort((a, b) => parseTimeMins(a.start) - parseTimeMins(b.start));
+    const merged: { start: string; end: string }[] = [];
+    dayRanges.forEach(r => {
+      const last = merged[merged.length - 1];
+      if (last && parseTimeMins(r.start) <= parseTimeMins(last.end)) {
+        if (parseTimeMins(r.end) > parseTimeMins(last.end)) last.end = r.end;
+      } else {
+        merged.push({ start: r.start, end: r.end });
+      }
+    });
+    ranges[wd] = merged;
+    try {
+      const { error } = await supabase.from('tutors').update({ unavailable_ranges: normalizeUnavailableRanges(ranges) }).eq('id', tutor.id);
+      if (error) throw error;
+      auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
+        { name: tutor.name, unavailable_ranges: tutor.unavailableRanges },
+        { name: tutor.name, unavailable_ranges: ranges }
+      ));
+      setTutors(tutors.map(t => t.id === tutor.id ? { ...t, unavailableRanges: ranges } : t));
+      setIsShiftModalOpen(false);
+      setEditingShift(null);
+    } catch (error) {
+      console.error("Error marking unavailable:", error);
+      alert("Errore nel salvataggio della fascia non disponibile");
+    }
+  };
+
   const handleDeleteShift = async (id: string) => {
     if (!assertCan('PIANIFICAZIONE', 'd')) return;
     if (!confirm("Eliminare questo turno?")) return;
@@ -3090,6 +3139,7 @@ function App() {
         purpose: 'Crea la "settimana tipo" del centro: una copertura settimanale (template) che viene ripetuta automaticamente ogni settimana. Qui decidi chi lavora, in che giorno e in che orario.',
         items: [
           { btn: 'Nuovo turno / Aggiungi turno (+)', desc: 'Apre una finestra per inserire un turno: seleziona tutor, giorno della settimana e orario. Imposta anche la "Validità (settimane)", cioè per quante settimane vale quel turno (di default usa le "Settimane / mese" delle tariffe).' },
+                              { btn: 'Non disponibile', icon: 'Blocco', desc: 'Nella scheda Nuovo Turno (dal segno +) segna la fascia oraria corrente come non disponibile per il tutor selezionato, diversificata per giorno (come nella scheda Modifica Tutor). Il turno non viene creato.' },
           { btn: 'Modalità doppio', desc: 'Permette di assegnare allo stesso turno due centri/ragazzi: genera le ore "Doppio", retribuite con la tariffa doppia nel Calcolo Paga.' },
           { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno già creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
           { btn: 'Navigazione settimane', desc: 'Le frecce ‹ › spostano la settimana visualizzata. La pianificazione è un template: le modifiche valgono per la settimana tipo.' },
@@ -7017,6 +7067,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           )}
 
           <div className="flex gap-3 pt-1">
+            {shiftModalMode === 'plan' && !editingShift?.id && (
+              <button
+                onClick={handleMarkUnavailable}
+                className="px-3 py-2.5 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white font-semibold shadow-md hover:from-red-600 hover:to-rose-700 transition flex items-center justify-center gap-2"
+                title="Segna questa fascia oraria come non disponibile per il tutor selezionato (in quel giorno della settimana), come nella scheda Modifica Tutor"
+              >
+                <XCircle size={16} /> Non disponibile
+              </button>
+            )}
             {editingShift?.id && (
               <button onClick={() => handleDeleteShift(editingShift.id)} className="px-3 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition" title="Elimina definitivamente il turno">
                 <Trash2 size={16} />
