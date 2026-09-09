@@ -730,6 +730,11 @@ const PersonCombo: React.FC<PersonComboProps> = ({ options, value, onChange, pla
         <Users size={16} className="shrink-0 text-slate-400" />
         <input
           type="text"
+          name="personcombo-filter"
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
           value={open ? search : (selected?.name || '')}
           placeholder={selected ? '' : placeholder}
           onFocus={() => { setOpen(true); setSearch(''); }}
