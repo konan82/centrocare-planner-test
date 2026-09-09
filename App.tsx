@@ -6020,6 +6020,46 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       setYouthFilter('all');
     };
 
+    // Raggruppa i turni per fascia esatta (giorno + Inizio + Fine) e scompone la validità a
+    // strati come nel Calcolo Paga: es. Ven 15:00–16:00 con Diglio(3) + Paris(2) →
+    // Doppio 2 sett. + Singolo 1 sett. Una fascia con un solo turno resta com'è.
+    const weekOfShift = (s: Shift) => s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+    const buildSlotRows = (list: Shift[]) => {
+      const slots = new Map<string, Shift[]>();
+      list.forEach(s => {
+        const k = `${s.templateWeekday || weekdayOf(s.date)}|${s.startTime}|${s.endTime}`;
+        const arr = slots.get(k);
+        if (arr) arr.push(s); else slots.set(k, [s]);
+      });
+      const out: { key: string; wd: number; startTime: string; endTime: string; isMerged: boolean; shifts: Shift[]; layers: { double: boolean; weeks: number; youthIds: string[] }[] }[] = [];
+      slots.forEach(g => {
+        const wd = g[0].templateWeekday || weekdayOf(g[0].date);
+        const thresholds = Array.from(new Set(g.map(weekOfShift))).sort((a, b) => b - a);
+        const layers: { double: boolean; weeks: number; youthIds: string[] }[] = [];
+        thresholds.forEach((t, idx) => {
+          const next = idx + 1 < thresholds.length ? thresholds[idx + 1] : 0;
+          const dur = t - next;
+          if (dur <= 0) return;
+          const yc = new Set<string>();
+          g.filter(x => weekOfShift(x) >= t).forEach(x => shiftYouthIds(x).forEach(y => yc.add(y)));
+          layers.push({ double: yc.size >= 2, weeks: dur, youthIds: Array.from(yc) });
+        });
+        out.push({ key: g.map(x => x.id).join('+'), wd, startTime: g[0].startTime, endTime: g[0].endTime, isMerged: g.length > 1, shifts: g, layers });
+      });
+      out.sort((a, b) => a.wd - b.wd || (a.startTime || '').localeCompare(b.startTime || ''));
+      return out;
+    };
+    const slotBadge = (L: { double: boolean; weeks: number }, key?: string) => L.double ? (
+      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold border border-violet-200" title={`Doppio · ${L.weeks} sett.`}>
+        <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio {L.weeks} sett.
+      </span>
+    ) : (
+      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-semibold border border-teal-200" title={`Singolo · ${L.weeks} sett.`}>
+        <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span> Singolo {L.weeks} sett.
+      </span>
+    );
+    const distinctYouthIds = (list: Shift[]) => Array.from(new Set(list.reduce<string[]>((acc, x) => { shiftYouthIds(x).forEach(y => acc.push(y)); return acc; }, [])));
+
     return (
       <div className="space-y-3 md:space-y-4">
         {/* Report Header Controls (collassabile: hover su desktop, tap su touch) */}
@@ -6169,6 +6209,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
                                 { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
                                 { btn: 'Clic su un turno', icon: 'Vai', desc: 'Evidenzia la riga e apre la pianificazione del giorno di quel turno, filtrata sul tutor; clicca "Selezionato ✕" per tornare alla settimana completa.' },
+                                { btn: 'Fasce sovrapposte', icon: 'Info', desc: 'Più turni dello stesso tutor nello stesso giorno e orario vengono raggruppati in una riga unica con la scomposizione della validità come nel Calcolo Paga (es. "Doppio 2 sett. + Singolo 1 sett."). I contatori "N turni" contano le fasce orarie distinte.' },
                               ]}
                             />
                           ),
@@ -6207,9 +6248,10 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   return true;
                 })
                 .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+              const daySlots = buildSlotRows(dayShifts);
 
               const tutorOf = (t: Shift) => tutors.find(x => x.id === t.tutorId);
-              const hasShifts = dayShifts.length > 0;
+              const hasShifts = daySlots.length > 0;
 
               return (
                 <Card key={wd} className="overflow-hidden flex-1 min-w-[260px]">
@@ -6218,26 +6260,31 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       <span className={`h-2 w-2 rounded-full ${wd === 6 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
                       {dayLabel}
                     </span>
-                    <span className="text-[10px] font-semibold text-slate-400 tabular-nums">{hasShifts ? dayShifts.length : 0} turni</span>
+                    <span className="text-[10px] font-semibold text-slate-400 tabular-nums">{hasShifts ? daySlots.length : 0} turni</span>
                   </div>
 
                   {!hasShifts ? (
                     <p className="px-4 py-6 text-sm text-slate-400 italic">Nessun turno.</p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {dayShifts.map(s => {
+                      {daySlots.map(sl => {
+                        const s = sl.shifts[0];
                         const tt = tutorOf(s);
                         const tColor = getTutorColor(tt?.id || s.tutorId, tutors);
-                        const yids = shiftYouthIds(s);
-                        const isDouble = yids.length >= 2;
+                        const yids = distinctYouthIds(sl.shifts);
+                        const isDouble = !sl.isMerged && yids.length >= 2;
                         const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
                         return (
-                          <div key={s.id} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} del calendario, filtrato su ${tt?.name || 'tutor'}`} className="px-4 py-3 cursor-pointer hover:bg-amber-100/80 transition-colors">
+                          <div key={sl.key} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} del calendario, filtrato su ${tt?.name || 'tutor'}`} className="px-4 py-3 cursor-pointer hover:bg-amber-100/80 transition-colors">
                             <div className="flex items-center justify-between gap-2">
                               <span className="tabular-nums font-bold text-slate-800 text-sm">
                                 {s.startTime}–{s.endTime}
                               </span>
-                              {isDouble ? (
+                              {sl.isMerged ? (
+                                <div className="flex flex-wrap gap-1 justify-end">
+                                  {sl.layers.map((L, li) => slotBadge(L, String(li)))}
+                                </div>
+                              ) : isDouble ? (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold border border-violet-200">
                                   Doppio
                                 </span>
@@ -6281,14 +6328,16 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               })}
                             </div>
 
-                            <div className="mt-1 flex items-center gap-1">
-                              <span className={`text-[11px] tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
-                                {weeks} sett.
-                                {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
-                                  <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold"> (personalizzata)</span>
-                                )}
-                              </span>
-                            </div>
+                            {!sl.isMerged && (
+                              <div className="mt-1 flex items-center gap-1">
+                                <span className={`text-[11px] tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
+                                  {weeks} sett.
+                                  {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
+                                    <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold"> (personalizzata)</span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -6323,7 +6372,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           <div className="space-y-6">
             {visibleTutors.map(tutor => {
             const color = getTutorColor(tutor.id, tutors);
-            const rows = templateOf(tutor.id);
+            const rows = buildSlotRows(templateOf(tutor.id));
             return (
               <Card key={tutor.id} className="overflow-hidden">
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
@@ -6355,16 +6404,17 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       <tbody>
                         {(() => {
                           let prevWd: number | null = null;
-                          return rows.map((s, idx) => {
-                            const wd = (s.templateWeekday || weekdayOf(s.date)) - 1;
+                          return rows.map((r, idx) => {
+                            const wd = r.wd - 1;
                             const isNewDay = prevWd !== null && wd !== prevWd;
                             const isGroupStart = idx === 0 || isNewDay;
                             prevWd = wd;
-                            const yids = shiftYouthIds(s);
-                            const isDouble = yids.length >= 2;
-                            const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+                            const single = r.shifts[0];
+                            const yids = distinctYouthIds(r.shifts);
+                            const isDouble = !r.isMerged && yids.length >= 2;
+                            const weeks = single.durationWeeks && single.durationWeeks > 0 ? single.durationWeeks : defaultWeeks;
                             return (
-                              <Fragment key={s.id}>
+                              <Fragment key={r.key}>
                                 {isGroupStart && (
                                   <tr>
                                     <td colSpan={5} className="px-5 py-2 bg-gradient-to-r from-indigo-100 via-indigo-50/80 to-white border-y border-slate-200">
@@ -6372,14 +6422,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                         <span className="h-2.5 w-2.5 rounded-full bg-indigo-400 shrink-0"></span>
                                         {WEEK_DAYS[wd]}
                                         <span className="text-[10px] font-bold text-indigo-400 normal-case tracking-normal">
-                                          · {rows.filter(r => ((r.templateWeekday || weekdayOf(r.date)) - 1) === wd).length} turni
+                                          · {rows.filter(x => x.wd - 1 === wd).length} turni
                                         </span>
                                       </span>
                                     </td>
                                   </tr>
                                 )}
                                 <tr
-                                  onClick={() => goToReportShift(s)}
+                                  onClick={() => goToReportShift(single)}
                                   title={`Apri il giorno ${WEEK_DAYS[wd]} del calendario, filtrato su ${tutor.name}`}
                                   className={`cursor-pointer transition-colors ${isGroupStart ? '' : 'border-t border-slate-100'} hover:bg-amber-100/80`}
                                 >
@@ -6390,7 +6440,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 </span>
                               </td>
                               <td className="px-3 py-2.5 whitespace-nowrap tabular-nums font-semibold text-slate-700">
-                                {s.startTime}–{s.endTime}
+                                {single.startTime}–{single.endTime}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex flex-wrap gap-1.5">
@@ -6414,7 +6464,11 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 </div>
                               </td>
                               <td className="px-3 py-2.5 whitespace-nowrap text-left">
-                                {isDouble ? (
+                                {r.isMerged ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {r.layers.map((L, li) => slotBadge(L, String(li)))}
+                                  </div>
+                                ) : isDouble ? (
                                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">
                                     <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio
                                   </span>
@@ -6425,12 +6479,16 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 )}
                               </td>
                               <td className="px-3 py-2.5 whitespace-nowrap text-left">
-                                <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
-                                  {weeks} sett.
-                                  {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
-                                    <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold">(personalizzata)</span>
-                                  )}
-                                </span>
+                                {r.isMerged ? (
+                                  <span className="text-slate-400">—</span>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
+                                    {weeks} sett.
+                                    {single.durationWeeks && single.durationWeeks > 0 && single.durationWeeks !== defaultWeeks && (
+                                      <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold">(personalizzata)</span>
+                                    )}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                               </Fragment>
