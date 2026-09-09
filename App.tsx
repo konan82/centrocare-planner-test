@@ -1254,6 +1254,35 @@ function App() {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+  // Arricchisce la riga del log accessi della sessione corrente con i dettagli
+  // geoposizionali dell'IP (città, regione, ISP, ASN, ecc.) tramite l'API ipwho.is.
+  const enrichAccessGeo = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.id) return;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch('https://ipwho.is/', { signal: controller.signal });
+      clearTimeout(timer);
+      if (!response.ok) return;
+      const d = await response.json();
+      if (!d || d.success === false) return;
+      await supabase.rpc('access_logs_set_geo', {
+        p_session: session.id,
+        p_city: d.city || null,
+        p_region: d.region || null,
+        p_country: d.country || null,
+        p_postal: d.postal || null,
+        p_timezone: d.timezone?.id || null,
+        p_utc_offset: d.timezone?.utc_offset || null,
+        p_isp: d.connection?.isp || null,
+        p_asn: d.connection?.asn != null ? String(d.connection.asn) : null,
+      });
+    } catch (error) {
+      console.error('Geo enrichment error:', error);
+    }
+  };
+
   // Check Auth on Mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -1291,6 +1320,7 @@ function App() {
           setToken(session.access_token);
           const saved = localStorage.getItem('centrocare_view');
           setView(saved && saved !== 'LOGIN' ? (saved as ViewState) : 'DASHBOARD');
+          enrichAccessGeo();
           return;
         }
       }
@@ -6837,6 +6867,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           setToken(data.token);
           setCurrentUser(data.user);
           setView('DASHBOARD');
+          enrichAccessGeo();
         }}
       />
     );
@@ -8825,6 +8856,15 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                         <div className="text-[11px] text-slate-500 mt-0.5 break-words">
                           {parseBrowser(log.user_agent)}
                         </div>
+                        {(log.city || log.country || log.isp) && (
+                          <div className="mt-1.5 pt-1.5 border-t border-slate-200 text-[11px] leading-4 text-slate-500 break-words">
+                            {[log.city, log.region, log.country].filter(Boolean).join(', ')}
+                            {log.postal_code && ` · ${log.postal_code}`}
+                            {log.timezone && ` · ${(log.timezone as string).replace('_', ' ')}${log.utc_offset ? ` (UTC${log.utc_offset})` : ''}`}
+                            <br />
+                            {log.isp || 'ISP sconosciuto'}{log.asn ? ` · ASN ${log.asn}` : ''}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

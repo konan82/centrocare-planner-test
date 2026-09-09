@@ -109,6 +109,14 @@ export interface AccessLogEntry {
   logout_reason: string | null;
   ip_address: string | null;
   user_agent: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+  timezone?: string | null;
+  utc_offset?: string | null;
+  isp?: string | null;
+  asn?: string | null;
 }
 
 export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT' | 'REPORT';
