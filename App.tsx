@@ -7067,6 +7067,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           )}
 
           <div className="flex gap-3 pt-1">
+            {editingShift?.id && (
+              <button onClick={() => handleDeleteShift(editingShift.id)} className="px-3 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition" title="Elimina definitivamente il turno">
+                <Trash2 size={16} />
+              </button>
+            )}
+            <button onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
+              Annulla
+            </button>
             {shiftModalMode === 'plan' && !editingShift?.id && (
               <button
                 onClick={handleMarkUnavailable}
@@ -7076,14 +7084,6 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <XCircle size={16} /> Non disponibile
               </button>
             )}
-            {editingShift?.id && (
-              <button onClick={() => handleDeleteShift(editingShift.id)} className="px-3 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition" title="Elimina definitivamente il turno">
-                <Trash2 size={16} />
-              </button>
-            )}
-            <button onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
-              Annulla
-            </button>
             {editingShift?.id && (
               <button onClick={handleDuplicateShift} className="flex-1 py-2.5 rounded-lg border border-sky-300 bg-sky-50 text-sky-700 font-semibold hover:bg-sky-100 transition flex items-center justify-center gap-2" title="Crea una copia del turno con i campi correnti (Giorno/Data e orari come da modulo)">
                 <Copy size={16} /> Duplica
