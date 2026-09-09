@@ -2132,21 +2132,33 @@ function App() {
 
   // Da non disponibile a libero: cliccando su una cella rossa nella Pianificazione (tutor filtrato)
   // chiede conferma e rimuove l'indisponibilità che copre quell'orario dalla scheda del tutor.
-  const handleFreeUnavailableSlot = async (tutorId: string, planDayIdx: number, minutes: number) => {
+  const handleFreeUnavailableSlot = async (tutorId: string, planDayIdx: number, startMin: number, endMin: number) => {
     if (!assertCan('PIANIFICAZIONE', 'w')) return false;
     const tutor = tutors.find(t => t.id === tutorId);
     if (!tutor) return false;
+    if (endMin <= startMin) return false;
     const toMinText = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
     const ranges = normalizeUnavailableRanges(tutor.unavailableRanges);
     const dayPos = planDayIdx; // 1=LUN..6=SAB, uguale alla posizione nelle fasce del tutor (0=DOM)
     const DAY_LABEL = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
-    const covering = (ranges[dayPos] || []).find(r => parseTimeMins(r.start) <= minutes && minutes < parseTimeMins(r.end));
-    if (covering) {
-      const global = rangesAreGlobal(ranges) && (ranges[0] || []).some(r => r.start === covering.start && r.end === covering.end);
-      if (!confirm(`Rimuovere l'indisponibilità ${covering.start}–${covering.end} di ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}${global ? " (vale per tutti i giorni: verrà rimossa ovunque)" : " (solo per questo giorno)"}?`)) return false;
+    // Ritaglia l'intervallo [startMin,endMin) dalle fasce del giorno: le parti che restano fuori vengono mantenute.
+    const cutInterval = (list: { start: string; end: string }[]) => {
+      const out: { start: string; end: string }[] = [];
+      list.forEach(r => {
+        const rs = parseTimeMins(r.start), re = parseTimeMins(r.end);
+        if (re <= startMin || rs >= endMin) { out.push(r); return; }
+        if (rs < startMin) out.push({ start: r.start, end: toMinText(startMin) });
+        if (re > endMin) out.push({ start: toMinText(endMin), end: r.end });
+      });
+      return out;
+    };
+    const overlapping = (ranges[dayPos] || []).some(r => parseTimeMins(r.start) < endMin && parseTimeMins(r.end) > startMin);
+    if (overlapping) {
+      const global = rangesAreGlobal(ranges);
+      if (!confirm(`Rendere disponibile ${toMinText(startMin)}–${toMinText(endMin)} di ${DAY_LABEL[dayPos]} per ${tutor.name}${global ? " (vale per tutti i giorni: l'intervallo verrà liberato ovunque)" : " (solo per questo giorno)"}?`)) return false;
       const nextRanges = global
-        ? ranges.map(day => day.filter(r => !(r.start === covering.start && r.end === covering.end)))
-        : ranges.map((day, di) => di === dayPos ? day.filter(r => !(r.start === covering.start && r.end === covering.end)) : day);
+        ? ranges.map(day => cutInterval(day || []))
+        : ranges.map((day, di) => di === dayPos ? cutInterval(day || []) : day);
       try {
         const { error } = await supabase.from('tutors').update({ unavailable_ranges: normalizeUnavailableRanges(nextRanges) }).eq('id', tutor.id);
         if (error) throw error;
@@ -7136,15 +7148,16 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 const slotTutor = tutors.find(t => t.id === editingShift?.tutorId || undefined);
                 const slotPos = editingShift?.templateWeekday ?? weekdayOf(editingShift?.date);
                 const slotStart = parseTimeMins(editingShift?.startTime || '');
-                const covered = !!slotTutor && slotPos >= 1 && slotPos <= 6 && (
+                const slotEnd = parseTimeMins(editingShift?.endTime || '');
+                const covered = !!slotTutor && slotEnd > slotStart && slotPos >= 1 && slotPos <= 6 && (
                   (slotTutor.unavailableDays || []).includes(slotPos) ||
-                  (normalizeUnavailableRanges(slotTutor.unavailableRanges)[slotPos] || []).some(r => parseTimeMins(r.start) <= slotStart && slotStart < parseTimeMins(r.end))
+                  (normalizeUnavailableRanges(slotTutor.unavailableRanges)[slotPos] || []).some(r => parseTimeMins(r.start) < slotEnd && parseTimeMins(r.end) > slotStart)
                 );
                 if (covered) {
                   return (
                     <button
                       onClick={async () => {
-                        if (await handleFreeUnavailableSlot(editingShift.tutorId, slotPos, slotStart)) {
+                        if (await handleFreeUnavailableSlot(editingShift.tutorId, slotPos, slotStart, slotEnd)) {
                           setIsShiftModalOpen(false);
                           setEditingShift(null);
                         }
