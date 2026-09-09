@@ -1100,13 +1100,54 @@ function App() {
   const [youths, setYouths] = useState<Youth[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
 
-  // UNDO/REDO (azioni sui turni): snapshot dello stato prima di ogni modifica, riapplicato anche al DB
-  const [undoStack, setUndoStack] = useState<Shift[][]>([]);
-  const [redoStack, setRedoStack] = useState<Shift[][]>([]);
+  // UNDO/REDO (azioni su turni e disponibilità tutor): snapshot dello stato prima di ogni modifica, riapplicato anche al DB
+  const [undoStack, setUndoStack] = useState<{ shifts: Shift[]; tutors: Tutor[] }[]>([]);
+  const [redoStack, setRedoStack] = useState<{ shifts: Shift[]; tutors: Tutor[] }[]>([]);
   const cloneShifts = (list: Shift[]) => list.map(s => ({ ...s, youthIds: s.youthIds ? [...s.youthIds] : undefined }));
+  const cloneTutors = (list: Tutor[]) => list.map(t => ({ ...t, unavailableRanges: normalizeUnavailableRanges(t.unavailableRanges), unavailableDays: [...(t.unavailableDays || [])] }));
   const snapshotBeforeMutation = () => {
-    setUndoStack(prev => [...prev.slice(-63), cloneShifts(shifts)]);
+    setUndoStack(prev => [...prev.slice(-63), { shifts: cloneShifts(shifts), tutors: cloneTutors(tutors) }]);
     setRedoStack([]);
+  };
+  const tutorToDbRow = (t: Tutor) => {
+    const tt = t as any;
+    return {
+      id: tt.id,
+      name: tt.name,
+      specialties: tt.specialties || [],
+      max_hours_per_week: tt.maxHoursPerWeek ?? tt.max_hours_per_week ?? 20,
+      min_hours_per_week: tt.minHoursPerWeek ?? tt.min_hours_per_week ?? 1,
+      unavailable_days: tt.unavailableDays ?? tt.unavailable_days ?? [],
+      unavailable_ranges: normalizeUnavailableRanges(tt.unavailableRanges ?? tt.unavailable_ranges),
+      notes: tt.notes || '',
+      phone: tt.phone || '',
+      email: tt.email || '',
+      birth_date: tt.birthDate ?? tt.birth_date ?? null,
+      city: tt.city || '',
+      role: tt.role || '',
+      qualifications: tt.qualifications || '',
+      years_experience: tt.yearsExperience ?? tt.years_experience ?? null,
+      status: tt.status || 'attivo',
+      entry_date: tt.entryDate ?? tt.entry_date ?? null,
+    };
+  };
+  const syncTutorsToDb = async (current: Tutor[], target: Tutor[]) => {
+    const byId = (list: Tutor[]) => [...list].sort((a, b) => (a.id < b.id ? -1 : 1)).map(t => tutorToDbRow(t));
+    if (JSON.stringify(byId(current)) === JSON.stringify(byId(target))) return;
+    const tgtIds = new Set(target.map(t => t.id));
+    const toDelete = current.filter(t => !tgtIds.has(t.id));
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from('tutors').delete().in('id', toDelete.map(t => t.id));
+      if (error) throw error;
+    }
+    const rows = target.map(t => ({ ...tutorToDbRow(t) }));
+    const { error: upErr } = await supabase.from('tutors').upsert(rows);
+    if (upErr) throw upErr;
+    setTutors(cloneTutors(target));
+  };
+  const syncStateToDb = async (currentShifts: Shift[], targetShifts: Shift[], currentTutors: Tutor[], targetTutors: Tutor[]) => {
+    await syncShiftsToDb(currentShifts, targetShifts);
+    await syncTutorsToDb(currentTutors, targetTutors);
   };
   const syncShiftsToDb = async (current: Shift[], target: Shift[]) => {
     const tgtIds = new Set(target.map(s => s.id));
@@ -1160,9 +1201,9 @@ function App() {
   const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const prev = undoStack[undoStack.length - 1];
-    const current = cloneShifts(shifts);
+    const current = { shifts: cloneShifts(shifts), tutors: cloneTutors(tutors) };
     try {
-      await syncShiftsToDb(shifts, prev);
+      await syncStateToDb(shifts, prev.shifts, tutors, prev.tutors);
       setUndoStack(s => s.slice(0, -1));
       setRedoStack(s => [...s, current]);
     } catch (error) {
@@ -1173,9 +1214,9 @@ function App() {
   const handleRedo = async () => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
-    const current = cloneShifts(shifts);
+    const current = { shifts: cloneShifts(shifts), tutors: cloneTutors(tutors) };
     try {
-      await syncShiftsToDb(shifts, next);
+      await syncStateToDb(shifts, next.shifts, tutors, next.tutors);
       setRedoStack(s => s.slice(0, -1));
       setUndoStack(s => [...s, current]);
     } catch (error) {
@@ -2115,6 +2156,7 @@ function App() {
     });
     ranges[wd] = merged;
     try {
+      snapshotBeforeMutation();
       const { error } = await supabase.from('tutors').update({ unavailable_ranges: normalizeUnavailableRanges(ranges) }).eq('id', tutor.id);
       if (error) throw error;
       auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
@@ -2160,6 +2202,7 @@ function App() {
         ? ranges.map(day => cutInterval(day || []))
         : ranges.map((day, di) => di === dayPos ? cutInterval(day || []) : day);
       try {
+        snapshotBeforeMutation();
         const { error } = await supabase.from('tutors').update({ unavailable_ranges: normalizeUnavailableRanges(nextRanges) }).eq('id', tutor.id);
         if (error) throw error;
         auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
@@ -2180,6 +2223,7 @@ function App() {
       if (!confirm(`Rimuovere l'indisponibilità dell'intero giorno ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}?`)) return false;
       const nextDays = (tutor.unavailableDays || []).filter(d => d !== dayPos);
       try {
+        snapshotBeforeMutation();
         const { error } = await supabase.from('tutors').update({ unavailable_days: nextDays }).eq('id', tutor.id);
         if (error) throw error;
         auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
