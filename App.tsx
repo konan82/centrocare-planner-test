@@ -2120,9 +2120,9 @@ function App() {
     setIsShiftModalOpen(true);
   };
 
-  const openNewTemplateShiftModal = (weekday: number, startTime?: string, youthId?: string) => {
+  const openNewTemplateShiftModal = (weekday: number, startTime?: string, youthId?: string, tutorId?: string) => {
     setEditingShift({
-      tutorId: '',
+      tutorId: tutorId || '',
       youthId: youthId || '',
       youthIds: youthId ? [youthId] : [],
       date: format(addDays(TEMPLATE_ANCHOR, weekday - 1), 'yyyy-MM-dd'),
@@ -4550,7 +4550,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
                               onClick={() => isPlan
-                                ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '')
+                                ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
                                 : openNewShiftModal(
                                     tutorFilter !== 'all' ? tutorFilter : '',
                                     layout.dateStr,
@@ -4572,7 +4572,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               {!layout.placed.some(p => p.slotIdx <= rowIdx && rowIdx < p.slotIdx + p.span) && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); isPlan
-                                    ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '')
+? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
                                     : openNewShiftModal(
                                         tutorFilter !== 'all' ? tutorFilter : '',
                                         layout.dateStr,
