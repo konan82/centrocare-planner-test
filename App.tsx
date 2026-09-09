@@ -720,7 +720,10 @@ const PersonCombo: React.FC<PersonComboProps> = ({ options, value, onChange, pla
 
   const selected = value !== allValue ? options.find(o => o.id === value) : null;
   const q = search.trim().toLowerCase();
-  const filtered = options.filter(o => !q || (o.name || '').toLowerCase().includes(q));
+  const filtered = options
+    .filter(o => !q || (o.name || '').toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'it', { sensitivity: 'base' }));
 
   return (
     <div className={`relative ${className}`} ref={ref}>
