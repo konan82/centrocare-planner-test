@@ -1077,13 +1077,72 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
+// --- Notifiche (toast) ---
+
+type ToastKind = 'error' | 'success' | 'info';
+
+interface ToastItem {
+  id: number;
+  msg: string;
+  kind: ToastKind;
+}
+
+let toastItems: ToastItem[] = [];
+let nextToastId = 1;
+const toastSubscribers = new Set<() => void>();
+
+function toast(msg: string, kind: ToastKind = 'info') {
+  const id = nextToastId++;
+  toastItems = [...toastItems, { id, msg, kind }];
+  toastSubscribers.forEach((s) => s());
+  setTimeout(() => dismissToast(id), 4500);
+}
+
+function dismissToast(id: number) {
+  toastItems = toastItems.filter((t) => t.id !== id);
+  toastSubscribers.forEach((s) => s());
+}
+
+function ToastStack() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const sub = () => setTick((x) => x + 1);
+    toastSubscribers.add(sub);
+    return () => {
+      toastSubscribers.delete(sub);
+    };
+  }, []);
+  if (toastItems.length === 0) return null;
+  const iconOf = (kind: ToastKind) =>
+    kind === 'error' ? <XCircle size={16} className="shrink-0" /> :
+    kind === 'success' ? <CheckCircle size={16} className="shrink-0" /> :
+    <Info size={16} className="shrink-0" />;
+  return (
+    <div className="fixed top-4 right-4 z-[9999] flex flex-col items-end gap-2 pointer-events-none">
+      {toastItems.map((t) => (
+        <div
+          key={t.id}
+          onClick={() => dismissToast(t.id)}
+          className={`pointer-events-auto max-w-sm w-80 flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg cursor-pointer whitespace-pre-line ${t.kind === 'error' ? 'bg-rose-600' : t.kind === 'success' ? 'bg-emerald-600' : 'bg-slate-800'}`}
+        >
+          {iconOf(t.kind)}
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // --- Main App ---
 
 export default function AppWrapper() {
   return (
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+      <ToastStack />
+    </>
   );
 }
 
@@ -1211,7 +1270,7 @@ function App() {
       setRedoStack(s => [...s, current]);
     } catch (error) {
       console.error("Error on undo:", error);
-      alert("Errore durante l'annullamento");
+      toast("Errore durante l'annullamento", 'error');
     }
   };
   const handleRedo = async () => {
@@ -1224,7 +1283,7 @@ function App() {
       setUndoStack(s => [...s, current]);
     } catch (error) {
       console.error("Error on redo:", error);
-      alert("Errore durante il rifacimento dell'azione");
+      toast("Errore durante il rifacimento dell'azione", 'error');
     }
   };
 
@@ -1784,7 +1843,7 @@ function App() {
       setNewTutor({});
     } catch (error) {
       console.error("Error saving tutor:", error);
-      alert("Errore nel salvataggio del tutor");
+      toast("Errore nel salvataggio del tutor", 'error');
     }
   };
 
@@ -1798,7 +1857,7 @@ function App() {
       setShifts(shifts.filter(s => s.tutorId !== id));
     } catch (error) {
       console.error("Error deleting tutor:", error);
-      alert("Errore nell'eliminazione del tutor");
+      toast("Errore nell'eliminazione del tutor", 'error');
     }
   };
 
@@ -1879,7 +1938,7 @@ function App() {
       setNewYouth({});
     } catch (error) {
       console.error("Error saving youth:", error);
-      alert("Errore nel salvataggio del ragazzo");
+      toast("Errore nel salvataggio del ragazzo", 'error');
     }
   };
 
@@ -1893,7 +1952,7 @@ function App() {
       setShifts(shifts.filter(s => shiftYouthIds(s).every(sid => sid !== id)));
     } catch (error) {
       console.error("Error deleting youth:", error);
-      alert("Errore nell'eliminazione del ragazzo");
+      toast("Errore nell'eliminazione del ragazzo", 'error');
     }
   };
 
@@ -1952,7 +2011,7 @@ function App() {
     }).filter(r => r.end > r.start);
     const rangeOverlap = unavailRanges.find(r => shiftStart < r.end && shiftEnd > r.start);
     if (rangeOverlap) {
-      alert(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''} di ${['DOM','LUN','MAR','MER','GIO','VEN','SAB'][shiftDayIdx]}.`);
+      toast(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''} di ${['DOM','LUN','MAR','MER','GIO','VEN','SAB'][shiftDayIdx]}.`, 'error');
       return;
     }
 
@@ -2040,7 +2099,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error saving shift:", error);
-      alert("Errore nel salvataggio del turno");
+      toast("Errore nel salvataggio del turno", 'error');
     }
   };
 
@@ -2109,7 +2168,7 @@ function App() {
       return normalizedClone;
     } catch (error) {
       console.error("Error cloning shift:", error);
-      alert("Errore nella copia del turno");
+      toast("Errore nella copia del turno", 'error');
       return null;
     }
   };
@@ -2161,19 +2220,19 @@ function App() {
     if (!editingShift) return;
     if (!assertCan('PIANIFICAZIONE', 'w')) return;
     const tutor = tutors.find(t => t.id === editingShift.tutorId);
-    if (!tutor) { alert("Seleziona prima il Tutor."); return; }
+    if (!tutor) { toast("Seleziona prima il Tutor.", 'info'); return; }
     const wd = editingShift.templateWeekday ?? weekdayOf(editingShift.date);
-    if (!wd || wd < 1 || wd > 6) { alert("Seleziona prima il Giorno."); return; }
+    if (!wd || wd < 1 || wd > 6) { toast("Seleziona prima il Giorno.", 'info'); return; }
     const start = editingShift.startTime || '';
     const end = editingShift.endTime || '';
     if (!start || !end || parseTimeMins(end) <= parseTimeMins(start)) {
-      alert("Inserisci un orario valido (inizio prima della fine) per la fascia non disponibile.");
+      toast("Inserisci un orario valido (inizio prima della fine) per la fascia non disponibile.", 'info');
       return;
     }
     const ranges = normalizeUnavailableRanges(tutor.unavailableRanges);
     const dayRanges = [...(ranges[wd] || [])];
     if (dayRanges.some(r => r.start === start && r.end === end)) {
-      alert("Questa fascia è già segnata come non disponibile per il tutor in questo giorno.");
+      toast("Questa fascia è già segnata come non disponibile per il tutor in questo giorno.", 'info');
       return;
     }
     dayRanges.push({ start, end });
@@ -2201,7 +2260,7 @@ function App() {
       setEditingShift(null);
     } catch (error) {
       console.error("Error marking unavailable:", error);
-      alert("Errore nel salvataggio della fascia non disponibile");
+      toast("Errore nel salvataggio della fascia non disponibile", 'error');
     }
   };
 
@@ -2246,7 +2305,7 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable slot:", error);
-        alert("Errore nel rimuovere l'indisponibilità");
+        toast("Errore nel rimuovere l'indisponibilità", 'error');
         return false;
       }
     }
@@ -2267,7 +2326,7 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable day:", error);
-        alert("Errore nel rimuovere l'indisponibilità");
+        toast("Errore nel rimuovere l'indisponibilità", 'error');
         return false;
       }
     }
@@ -2294,7 +2353,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error deleting shift:", error);
-      alert("Errore nell'eliminazione del turno");
+      toast("Errore nell'eliminazione del turno", 'error');
     }
   };
 
@@ -2397,13 +2456,13 @@ function App() {
           link.click();
         }
         window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-        alert(copied
+        toast(copied
           ? 'Screenshot copiato negli appunti: in WhatsApp Web scegli la chat e premi Ctrl+V per incollare e inviare.'
-          : 'Il file turni_settimanali.png è stato scaricato: in WhatsApp Web scegli la chat e allega il file.');
+          : 'Il file turni_settimanali.png è stato scaricato: in WhatsApp Web scegli la chat e allega il file.', 'success');
       }
     } catch (error) {
       console.error("Errore invio WhatsApp:", error);
-      alert("Errore durante la generazione dell'immagine. Riprova.");
+      toast("Errore durante la generazione dell'immagine. Riprova.", 'error');
     } finally {
       setIsWhatsAppSending(false);
     }
@@ -2485,7 +2544,7 @@ function App() {
     if (!replicateMonth) return;
     const templateShifts = shifts.filter(s => s.isTemplate);
     if (templateShifts.length === 0) {
-      alert("Nessuna pianificazione settimanale da copiare: crea prima i turni nella settimana tipo.");
+      toast("Nessuna pianificazione settimanale da copiare: crea prima i turni nella settimana tipo.", 'info');
       return;
     }
 
@@ -2499,7 +2558,7 @@ function App() {
       if (wd >= 1 && wd <= 6) days.push(format(d, 'yyyy-MM-dd'));
     }
     if (days.length === 0) {
-      alert("Nessun giorno valido nel mese selezionato.");
+      toast("Nessun giorno valido nel mese selezionato.", 'info');
       return;
     }
 
@@ -2532,7 +2591,7 @@ function App() {
     ));
 
     if (rows.length === 0) {
-      alert("Tutti i turni di questo mese sono già stati copiati dalla pianificazione.");
+      toast("Tutti i turni di questo mese sono già stati copiati dalla pianificazione.", 'info');
       return;
     }
 
@@ -2558,10 +2617,10 @@ function App() {
         templateShiftId: r.template_shift_id,
       }));
       setShifts(prev => [...prev, ...normalized]);
-      alert(`Fatto: ${rows.length} turni copiati nel mese selezionato.`);
+      toast(`Fatto: ${rows.length} turni copiati nel mese selezionato.`, 'success');
     } catch (error) {
       console.error("Error replicating month:", error);
-      alert("Errore durante la copia della pianificazione sul mese");
+      toast("Errore durante la copia della pianificazione sul mese", 'error');
     }
   };
 
@@ -2571,7 +2630,7 @@ function App() {
     if (!assertCan('PIANIFICAZIONE', 'w')) return;
     const occ = shifts.filter(s => !s.isTemplate && s.date);
     if (occ.length === 0) {
-      alert("Nessun turno di consuntivo da cui ricavare la settimana tipo.");
+      toast("Nessun turno di consuntivo da cui ricavare la settimana tipo.", 'info');
       return;
     }
     const sig = (s: Shift) =>
@@ -2605,7 +2664,7 @@ function App() {
         };
       });
     if (rows.length === 0) {
-      alert("La settimana tipo è già stata generata dai turni di consuntivo.");
+      toast("La settimana tipo è già stata generata dai turni di consuntivo.", 'info');
       return;
     }
     if (!confirm(`Rigenerare ${rows.length} turni della settimana tipo a partire dal consuntivo?`)) return;
@@ -2632,10 +2691,10 @@ function App() {
         templateShiftId: r.template_shift_id,
       }));
       setShifts(prev => [...prev, ...normalized]);
-      alert(`Settimana tipo rigenerata: ${rows.length} turni creati.`);
+      toast(`Settimana tipo rigenerata: ${rows.length} turni creati.`, 'success');
     } catch (error) {
       console.error("Error regenerating templates:", error);
-      alert("Errore durante la rigenerazione della settimana tipo.");
+      toast("Errore durante la rigenerazione della settimana tipo.", 'error');
     }
   };
 
@@ -2651,7 +2710,7 @@ function App() {
     if (!assertCan('CONSUNTIVO', 'd')) return;
     const count = shifts.filter(s => !s.isTemplate).length;
     if (count === 0) {
-      alert("Nessun turno di consuntivo da cancellare.");
+      toast("Nessun turno di consuntivo da cancellare.", 'info');
       return;
     }
     if (!confirm(`ATTENZIONE: cancellare TUTTI i ${count} turni del consuntivo in tutto il database, indipendentemente dal mese? L'azione non può essere annullata.`)) return;
@@ -2661,10 +2720,10 @@ function App() {
       if (error) throw error;
       auditLog('delete', 'shift', undefined, `Cancellati TUTTI i turni consuntivo (${count})`, { count });
       setShifts(prev => prev.filter(s => s.isTemplate));
-      alert(`Fatto: tutti i ${count} turni del consuntivo sono stati cancellati.`);
+      toast(`Fatto: tutti i ${count} turni del consuntivo sono stati cancellati.`, 'success');
     } catch (error) {
       console.error("Error clearing all consuntivo shifts:", error);
-      alert("Errore durante la cancellazione di tutti i turni del consuntivo");
+      toast("Errore durante la cancellazione di tutti i turni del consuntivo", 'error');
     }
   };
 
@@ -2676,7 +2735,7 @@ function App() {
     const monthEnd = format(endOfMonth(parseISO(monthStart)), 'yyyy-MM-dd');
     const toDelete = shifts.filter(s => !s.isTemplate && s.date && s.date >= monthStart && s.date <= monthEnd);
     if (toDelete.length === 0) {
-      alert("Nessun turno da cancellare nel mese selezionato.");
+      toast("Nessun turno da cancellare nel mese selezionato.", 'info');
       return;
     }
     if (!confirm(`Cancellare ${toDelete.length} turni del mese selezionato dal consuntivo? L'azione non può essere annullata.`)) return;
@@ -2692,10 +2751,10 @@ function App() {
       setClearedMonths(prev => new Set(prev).add(clearMonth));
       const idSet = new Set(ids);
       setShifts(prev => prev.filter(s => !idSet.has(s.id)));
-      alert(`Fatto: ${ids.length} turni cancellati dal consuntivo del mese selezionato.`);
+      toast(`Fatto: ${ids.length} turni cancellati dal consuntivo del mese selezionato.`, 'success');
     } catch (error) {
       console.error("Error clearing month shifts:", error);
-      alert("Errore durante la cancellazione dei turni del mese");
+      toast("Errore durante la cancellazione dei turni del mese", 'error');
     }
   };
 
@@ -2748,7 +2807,7 @@ function App() {
       setShifts(prev => [...prev, ...normalized]);
     } catch (error) {
       console.error("Error materializing week:", error);
-      alert("Errore nella copia della pianificazione nella settimana");
+      toast("Errore nella copia della pianificazione nella settimana", 'error');
     }
   };
 
@@ -2815,7 +2874,7 @@ function App() {
       }));
     } catch (error) {
       console.error("Error syncing template occurrences:", error);
-      alert("Errore nell'aggiornamento dei turni futuri in validazione");
+      toast("Errore nell'aggiornamento dei turni futuri in validazione", 'error');
     }
   };
 
@@ -2838,7 +2897,7 @@ function App() {
       setShifts(prev => prev.filter(s => !idSet.has(s.id)));
     } catch (error) {
       console.error("Error deleting template occurrences:", error);
-      alert("Errore nella rimozione dei turni futuri in validazione");
+      toast("Errore nella rimozione dei turni futuri in validazione", 'error');
     }
   };
 
@@ -2890,7 +2949,7 @@ function App() {
         }]);
       } catch (error) {
         console.error("Error propagating template create:", error);
-        alert("Errore nell'aggiunta del turno alle settimane future");
+        toast("Errore nell'aggiunta del turno alle settimane future", 'error');
       }
     }
   };
@@ -3000,7 +3059,7 @@ function App() {
           }
         } catch (error) {
           console.error("Error updating shift drop:", error);
-          alert("Errore spostamento turno");
+          toast("Errore spostamento turno", 'error');
         }
       }
     }
@@ -3037,9 +3096,9 @@ function App() {
   };
   // Blocca l'azione se l'utente corrente non ha il permesso; ritorna true se permesso.
   const assertCan = (area: string, mode: 'w' | 'd'): boolean => {
-    if (mode === 'w') { if (canEdit(currentUser, area)) return true; alert(`Permesso insufficiente: non puoi modificare in "${area}".`); return false; }
+    if (mode === 'w') { if (canEdit(currentUser, area)) return true; toast(`Permesso insufficiente: non puoi modificare in "${area}".`, 'error'); return false; }
     if (canDelete(currentUser, area)) return true;
-    alert(`Permesso insufficiente: non puoi eliminare in "${area}".`);
+    toast(`Permesso insufficiente: non puoi eliminare in "${area}".`, 'error');
     return false;
   };
 
@@ -4373,11 +4432,11 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 try {
                                   const { error } = await supabase.from('shifts').delete().eq('is_template', true);
                                   if (error) throw error;
-                                  alert(`Turni pianificati cancellati con successo!`);
+                                  toast('Turni pianificati cancellati con successo!', 'success');
                                   setShifts(prev => prev.filter(s => !s.isTemplate));
                                 } catch (error) {
                                   console.error(error);
-                                  alert("Errore durante la cancellazione");
+                                  toast("Errore durante la cancellazione", 'error');
                                 }
                               }}
                               className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
@@ -4953,7 +5012,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                               .then(async ({ error }) => {
                                                 if (error) {
                                                   console.error('Error resizing shift:', error);
-                                                  alert('Errore ridimensionamento turno');
+                                                  toast('Errore ridimensionamento turno', 'error');
                                                   return;
                                                 }
                                                 if (shift.isTemplate) {
@@ -5028,7 +5087,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       setTimeout(() => setPaySavedFlash(false), 2000);
     } catch (error) {
       console.error("Error saving pay rates:", error);
-      alert("Errore nel salvataggio delle tariffe orarie");
+      toast("Errore nel salvataggio delle tariffe orarie", 'error');
     } finally {
       setPaySaving(false);
     }
@@ -8319,7 +8378,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setAccessLogs((data || []) as AccessLogEntry[]);
     } catch (error: any) {
       console.error('Error fetching access logs:', error);
-      alert(`Errore nel caricamento del log degli accessi: ${error.message}`);
+      toast(`Errore nel caricamento del log degli accessi: ${error.message}`, 'error');
     } finally {
       setLogLoading(false);
     }
@@ -8349,7 +8408,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   const handleCreateUser = async () => {
-    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può creare utenti."); return; }
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore può creare utenti.", 'error'); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
@@ -8378,15 +8437,15 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setIsUserModalOpen(false);
       setNewUser({ username: '', password: '', permissions: ['DASHBOARD'], tutorId: '', permMatrix: emptyMatrix() });
       fetchUsers();
-      alert("Utente creato con successo!");
+      toast("Utente creato con successo!", 'success');
     } catch (error: any) {
       console.error(error);
-      alert(`Errore: ${error.message}`);
+      toast(`Errore: ${error.message}`, 'error');
     }
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { alert("Solo l'amministratore può eliminare utenti."); return; }
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore può eliminare utenti.", 'error'); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
@@ -8407,7 +8466,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       fetchUsers();
     } catch (error: any) {
       console.error(error);
-      alert(`Errore: ${error.message}`);
+      toast(`Errore: ${error.message}`, 'error');
     }
   };
 
@@ -8448,10 +8507,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setIsEditModalOpen(false);
       setEditingUser(null);
       fetchUsers();
-      alert("Permessi aggiornati con successo!");
+      toast("Permessi aggiornati con successo!", 'success');
     } catch (error) {
       console.error(error);
-      alert("Errore nell'aggiornamento dei permessi");
+      toast("Errore nell'aggiornamento dei permessi", 'error');
     }
   };
 
