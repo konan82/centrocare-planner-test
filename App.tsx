@@ -8437,7 +8437,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           <div className="text-center py-8 text-slate-400 text-sm">Nessun accesso registrato</div>
         ) : (
           <div className="max-h-[60vh] overflow-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-sm table-fixed">
+            <table className="w-full text-sm table-fixed min-w-[680px]">
               <thead className="bg-slate-50 sticky top-0">
                 <tr>
                   <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-600 uppercase w-[18%]">Utente</th>
