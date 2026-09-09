@@ -2161,7 +2161,7 @@ function App() {
       youthIds: youthId ? [youthId] : [],
       date: dateStr || format(new Date(), 'yyyy-MM-dd'),
       startTime: startTime || '15:00',
-      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
+      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00',
       isTemplate: false,
       templateShiftId: null,
     });
@@ -2179,7 +2179,7 @@ function App() {
       isTemplate: true,
       durationWeeks: payRates.weeksPerMonth || 4,
       startTime: startTime || '15:00',
-      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 2) % 24).padStart(2, '0')}:00` : '17:00',
+      endTime: startTime ? `${String((parseInt(startTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:00` : '16:00',
     });
     setShiftModalMode('plan');
     setIsShiftModalOpen(true);
