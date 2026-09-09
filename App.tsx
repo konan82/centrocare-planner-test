@@ -6196,19 +6196,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           return rows.map((s, idx) => {
                             const wd = (s.templateWeekday || weekdayOf(s.date)) - 1;
                             const isNewDay = prevWd !== null && wd !== prevWd;
+                            const isGroupStart = idx === 0 || isNewDay;
                             prevWd = wd;
                             const yids = shiftYouthIds(s);
                             const isDouble = yids.length >= 2;
                             const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
                             return (
                               <Fragment key={s.id}>
-                                {isNewDay && (
+                                {isGroupStart && (
                                   <tr>
-                                    <td colSpan={5} className="px-5 py-2 bg-gradient-to-r from-emerald-50 via-slate-50 to-white border-y border-slate-200">
-                                      <span className={`inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest ${wd === 5 ? 'text-sky-700' : 'text-emerald-700'}`}>
-                                        <span className={`h-2.5 w-2.5 rounded-full ${wd === 5 ? 'bg-sky-400' : 'bg-emerald-400'} shrink-0`}></span>
+                                    <td colSpan={5} className="px-5 py-2 bg-gradient-to-r from-indigo-100 via-indigo-50/80 to-white border-y border-slate-200">
+                                      <span className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-indigo-700">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-indigo-400 shrink-0"></span>
                                         {WEEK_DAYS[wd]}
-                                        <span className="text-[10px] font-bold text-slate-400 normal-case tracking-normal">
+                                        <span className="text-[10px] font-bold text-indigo-400 normal-case tracking-normal">
                                           · {rows.filter(r => ((r.templateWeekday || weekdayOf(r.date)) - 1) === wd).length} turni
                                         </span>
                                       </span>
@@ -6218,7 +6219,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 <tr
                                   onClick={() => goToReportShift(s)}
                                   title={`Apri il giorno ${WEEK_DAYS[wd]} del calendario, filtrato su ${tutor.name}`}
-                                  className={`cursor-pointer transition-colors ${idx === 0 || isNewDay ? '' : 'border-t border-slate-100'} hover:bg-amber-100/80`}
+                                  className={`cursor-pointer transition-colors ${isGroupStart ? '' : 'border-t border-slate-100'} hover:bg-amber-100/80`}
                                 >
                               <td className="px-5 py-2.5 whitespace-nowrap">
                                 <span className={`inline-flex items-center gap-1.5 ${wd === 5 ? 'text-sky-700' : 'text-slate-700'}`}>
