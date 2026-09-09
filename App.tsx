@@ -2130,6 +2130,57 @@ function App() {
     }
   };
 
+  // Da non disponibile a libero: cliccando su una cella rossa nella Pianificazione (tutor filtrato)
+  // chiede conferma e rimuove l'indisponibilità che copre quell'orario dalla scheda del tutor.
+  const handleFreeUnavailableSlot = async (planDayIdx: number, minutes: number) => {
+    if (!assertCan('PIANIFICAZIONE', 'w')) return;
+    const tutor = tutors.find(t => t.id === tutorFilter);
+    if (!tutor) return;
+    const toMinText = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+    const ranges = normalizeUnavailableRanges(tutor.unavailableRanges);
+    const dayPos = planDayIdx; // 1=LUN..6=SAB, uguale alla posizione nelle fasce del tutor (0=DOM)
+    const DAY_LABEL = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+    const covering = (ranges[dayPos] || []).find(r => parseTimeMins(r.start) <= minutes && minutes < parseTimeMins(r.end));
+    if (covering) {
+      const global = rangesAreGlobal(ranges) && (ranges[0] || []).some(r => r.start === covering.start && r.end === covering.end);
+      if (!confirm(`Rimuovere l'indisponibilità ${covering.start}–${covering.end} di ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}${global ? " (vale per tutti i giorni: verrà rimossa ovunque)" : " (solo per questo giorno)"}?`)) return;
+      const nextRanges = global
+        ? ranges.map(day => day.filter(r => !(r.start === covering.start && r.end === covering.end)))
+        : ranges.map((day, di) => di === dayPos ? day.filter(r => !(r.start === covering.start && r.end === covering.end)) : day);
+      try {
+        const { error } = await supabase.from('tutors').update({ unavailable_ranges: normalizeUnavailableRanges(nextRanges) }).eq('id', tutor.id);
+        if (error) throw error;
+        auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
+          { name: tutor.name, unavailable_ranges: tutor.unavailableRanges },
+          { name: tutor.name, unavailable_ranges: nextRanges }
+        ));
+        setTutors(tutors.map(t => t.id === tutor.id ? { ...t, unavailableRanges: nextRanges } : t));
+      } catch (error) {
+        console.error("Error freeing unavailable slot:", error);
+        alert("Errore nel rimuovere l'indisponibilità");
+      }
+      return;
+    }
+    // Nessuna fascia copre l'orario: se il giorno è interamente bloccato, rimuovilo
+    const dayDisabled = (tutor.unavailableDays || []).includes(dayPos);
+    if (dayDisabled) {
+      if (!confirm(`Rimuovere l'indisponibilità dell'intero giorno ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}?`)) return;
+      const nextDays = (tutor.unavailableDays || []).filter(d => d !== dayPos);
+      try {
+        const { error } = await supabase.from('tutors').update({ unavailable_days: nextDays }).eq('id', tutor.id);
+        if (error) throw error;
+        auditLog('update', 'tutor', tutor.id, tutor.name, auditDiff(
+          { name: tutor.name, unavailable_days: tutor.unavailableDays },
+          { name: tutor.name, unavailable_days: nextDays }
+        ));
+        setTutors(tutors.map(t => t.id === tutor.id ? { ...t, unavailableDays: nextDays } : t));
+      } catch (error) {
+        console.error("Error freeing unavailable day:", error);
+        alert("Errore nel rimuovere l'indisponibilità");
+      }
+    }
+  };
+
   const handleDeleteShift = async (id: string) => {
     if (!assertCan('PIANIFICAZIONE', 'd')) return;
     if (!confirm("Eliminare questo turno?")) return;
@@ -3140,6 +3191,7 @@ function App() {
         items: [
           { btn: 'Nuovo turno / Aggiungi turno (+)', desc: 'Apre una finestra per inserire un turno: seleziona tutor, giorno della settimana e orario. Imposta anche la "Validità (settimane)", cioè per quante settimane vale quel turno (di default usa le "Settimane / mese" delle tariffe).' },
                               { btn: 'Non disponibile', icon: 'Blocco', desc: 'Nella scheda Nuovo Turno (dal segno +) segna la fascia oraria corrente come non disponibile per il tutor selezionato, diversificata per giorno (come nella scheda Modifica Tutor). Il turno non viene creato.' },
+                              { btn: 'Cella rossa', icon: 'Click', desc: 'Con un tutor filtrato, le celle rosse sono le sue fasce non disponibili. Cliccandole chiedi di liberarle: l\'indisponibilità viene rimossa dal profilo del tutor (dall\'intera settimana se valeva per tutti i giorni, altrimenti solo da quel giorno) e l\'orario torna prenotabile.' },
           { btn: 'Modalità doppio', desc: 'Permette di assegnare allo stesso turno due centri/ragazzi: genera le ore "Doppio", retribuite con la tariffa doppia nel Calcolo Paga.' },
           { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno già creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
           { btn: 'Navigazione settimane', desc: 'Le frecce ‹ › spostano la settimana visualizzata. La pianificazione è un template: le modifiche valgono per la settimana tipo.' },
@@ -4599,14 +4651,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               key={i}
                               onDragOver={(e) => handleDragOver(e, layout.dateStr, minutes)}
                               onDrop={(e) => handleDrop(e, layout.dateStr, minutes)}
-                              onClick={() => isPlan
-                                ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
-                                : openNewShiftModal(
-                                    tutorFilter !== 'all' ? tutorFilter : '',
-                                    layout.dateStr,
-                                    slotLabel,
-                                    youthFilter !== 'all' ? youthFilter : ''
-                                  )}
+                              onClick={() => {
+                                if (isPlan && tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))) {
+                                  handleFreeUnavailableSlot(i + 1, minutes);
+                                  return;
+                                }
+                                isPlan
+                                  ? openNewTemplateShiftModal(i + 1, slotLabel, youthFilter !== 'all' ? youthFilter : '', tutorFilter !== 'all' ? tutorFilter : '')
+                                  : openNewShiftModal(
+                                      tutorFilter !== 'all' ? tutorFilter : '',
+                                      layout.dateStr,
+                                      slotLabel,
+                                      youthFilter !== 'all' ? youthFilter : ''
+                                    );
+                              }}
                               className={`relative border-r border-slate-200 align-top transition-all duration-150 group/slot ${topBorderCls} ${
                                 tutorFilter !== 'all' && tutorFilter && (tutorUnavailableWeekdays.has(i) || isTutorUnavailableAt(i + 1, minutes))
                                   ? 'bg-rose-200/90'
