@@ -7035,26 +7035,47 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   onChange={e => setEditingShift({ ...editingShift, activity: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="block text-base font-medium text-slate-800 mb-1.5">Inizio pianificato <span className="text-red-500">*</span></label>
-                <input
-                  type="time"
-                  className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
-                  readOnly={shiftModalMode === 'validate'}
-                  value={editingShift?.startTime}
-                  onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-base font-medium text-slate-800 mb-1.5">Fine pianificata <span className="text-red-500">*</span></label>
-                <input
-                  type="time"
-                  className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '')}
-                  readOnly={shiftModalMode === 'validate'}
-                  value={editingShift?.endTime}
-                  onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
-                />
-              </div>
+              {(() => {
+                const sTutor = tutors.find(t => t.id === editingShift?.tutorId);
+                const sPos = editingShift?.templateWeekday ?? weekdayOf(editingShift?.date);
+                const sStart = parseTimeMins(editingShift?.startTime || '');
+                const sEnd = parseTimeMins(editingShift?.endTime || '');
+                const sConf = !!sTutor && sPos >= 1 && sPos <= 6 && sEnd > sStart && (
+                  (sTutor.unavailableDays || []).includes(sPos) ||
+                  (normalizeUnavailableRanges(sTutor.unavailableRanges)[sPos] || []).some(r => parseTimeMins(r.start) < sEnd && parseTimeMins(r.end) > sStart)
+                );
+                const clashCls = sConf ? ' border-red-400 bg-red-50 text-red-800 ring-2 ring-red-200 ' : '';
+                return (
+                  <>
+                    <div>
+                      <label className="block text-base font-medium text-slate-800 mb-1.5">Inizio pianificato <span className="text-red-500">*</span></label>
+                      <input
+                        type="time"
+                        className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '') + clashCls}
+                        readOnly={shiftModalMode === 'validate'}
+                        value={editingShift?.startTime}
+                        onChange={e => setEditingShift({ ...editingShift, startTime: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-base font-medium text-slate-800 mb-1.5">Fine pianificata <span className="text-red-500">*</span></label>
+                      <input
+                        type="time"
+                        className={fieldCls + (shiftModalMode === 'validate' ? ' bg-slate-100' : '') + clashCls}
+                        readOnly={shiftModalMode === 'validate'}
+                        value={editingShift?.endTime}
+                        onChange={e => setEditingShift({ ...editingShift, endTime: e.target.value })}
+                      />
+                    </div>
+                    {sConf && (
+                      <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                        <XCircle size={15} className="shrink-0 text-red-500" />
+                        <span>L'orario <strong>{editingShift.startTime}–{editingShift.endTime}</strong> cade in una fascia di non disponibilità del tutor selezionato: il salvataggio verrà bloccato.</span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {shiftModalMode === 'plan' && (
                 <div>
                   <label className="block text-base font-medium text-slate-800 mb-1.5">Validità (settimane)</label>
