@@ -1870,7 +1870,7 @@ function App() {
     const shiftWeekday = isPlan
       ? (editingShift.templateWeekday ?? weekdayOf(editingShift.date))
       : weekdayOf(editingShift.date);
-    const shiftDayIdx = (shiftWeekday - 1 + 7) % 7; // 0=DOM,1=LUN,...,6=SAB (getDay)
+    const shiftDayIdx = shiftWeekday === 7 ? 0 : shiftWeekday; // fasce del tutor: 0=DOM,1=LUN,...,6=SAB
     const unavailRanges = ((tutorForShift?.unavailableRanges || [])[shiftDayIdx] || []).map(r => {
       const s = toMin(r.start);
       const e = toMin(r.end);
