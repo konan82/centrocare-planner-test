@@ -7345,14 +7345,26 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             sub={cur.cancelledCount > 0 ? `${cur.cancelledHours.toFixed(1)}h perse nel mese` : 'Nessuna assenza registrata'}
           />
           <StatCard
-            label="Doppie · compenso stimato"
-            value={`${cur.doubleHours.toFixed(1)}h`}
+            label="Compenso lordo stimato"
+            value={`€ ${cur.payBase.toFixed(2)}`}
             tone="violet"
             icon={Wallet}
             sub={
-              <>
-                {cur.singleHours.toFixed(1)}h singole · lordo stimato <span className="font-bold text-violet-700">€ {cur.payBase.toFixed(2)}</span>
-              </>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500">Ore singole · € {rs.toFixed(2)}/h</span>
+                  <span className="font-semibold text-violet-700 tabular-nums">{cur.singleHours.toFixed(1)}h → € {(cur.singleHours * rs).toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-500">Ore doppie (≥2 ragazzi) · € {rd.toFixed(2)}/h</span>
+                  <span className="font-semibold text-violet-700 tabular-nums">{cur.doubleHours.toFixed(1)}h → € {(cur.doubleHours * rd).toFixed(0)}</span>
+                </div>
+                <p className="text-[10px] leading-snug text-slate-400">
+                  {rs <= 0 && rd <= 0
+                    ? 'Tariffe non configurate: imposta le rate singole/doppie in Calcolo Paga prima di affidarti alla stima.'
+                    : 'Stima = ore della settimana tipo estese al mese × tariffe Calcolo Paga. Verifica lì i conteggi finali.'}
+                </p>
+              </div>
             }
           />
         </div>
