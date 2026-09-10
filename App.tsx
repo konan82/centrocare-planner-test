@@ -7380,10 +7380,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <tr key={r.youth.id} className="border-b border-slate-100">
                           <td className="py-1.5 pr-3">
                             <span className="flex items-center gap-1.5">
-                              <span className={`h-5 w-5 rounded-full ${getYouthColor(r.youth.id, youths).bg} ${getYouthColor(r.youth.id, youths).text} text-[10px] font-bold flex items-center justify-center shrink-0`}>
+                              <button
+                                onClick={(e) => goToYouthAgenda(r.youth, e as unknown as React.MouseEvent)}
+                                className={`h-5 w-5 rounded-full ${getYouthColor(r.youth.id, youths).bg} ${getYouthColor(r.youth.id, youths).text} text-[10px] font-bold flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
+                                title={`Apri l'agenda di ${r.youth.name}`}
+                              >
                                 {getInitials(r.youth.name)}
-                              </span>
-                              <span className="truncate max-w-[9rem] font-medium">{r.youth.name}</span>
+                              </button>
+                              <button
+                                onClick={(e) => goToYouth(r.youth, e as unknown as React.MouseEvent)}
+                                className="truncate max-w-[9rem] font-medium cursor-pointer hover:text-teal-700 hover:underline"
+                                title={`Apri scheda ${r.youth.name}`}
+                              >
+                                {r.youth.name}
+                              </button>
                             </span>
                           </td>
                           <td className="text-right px-2 py-1.5 tabular-nums text-slate-600">{r.required}h</td>
@@ -7428,10 +7438,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       <tr key={r.tutor.id} className="border-b border-slate-100">
                         <td className="py-1.5 pr-3">
                           <span className="flex items-center gap-1.5">
-                            <span className={`h-5 w-5 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[10px] font-bold flex items-center justify-center shrink-0`}>
+                            <button
+                              onClick={(e) => goToTutorAgenda(r.tutor, e as unknown as React.MouseEvent)}
+                              className={`h-5 w-5 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[10px] font-bold flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
+                              title={`Apri l'agenda di ${r.tutor.name}`}
+                            >
                               {getInitials(r.tutor.name)}
-                            </span>
-                            <span className="truncate max-w-[9rem] font-medium">{r.tutor.name}</span>
+                            </button>
+                            <button
+                              onClick={(e) => goToTutor(r.tutor, e as unknown as React.MouseEvent)}
+                              className="truncate max-w-[9rem] font-medium cursor-pointer hover:text-teal-700 hover:underline"
+                              title={`Apri scheda ${r.tutor.name}`}
+                            >
+                              {r.tutor.name}
+                            </button>
                           </span>
                         </td>
                         <td className="text-right px-2 py-1.5 tabular-nums text-amber-600">{r.planned.toFixed(1)}h</td>
