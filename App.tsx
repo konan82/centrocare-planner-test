@@ -7770,7 +7770,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </p>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex justify-end gap-3">
             <button
               onClick={() => setTutorToDelete(null)}
               className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -7803,7 +7803,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </p>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex justify-end gap-3">
             <button
               onClick={() => setYouthToDelete(null)}
               className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -8156,7 +8156,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </YouthSection>
           )}
 
-          <div className="flex gap-3 pt-1">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex gap-3">
             {editingShift?.id && (
               <button onClick={() => handleDeleteShift(editingShift.id)} className="px-3 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition" title="Elimina definitivamente il turno">
                 <Trash2 size={16} />
@@ -8603,7 +8603,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
           </YouthSection>
 
-          <div className="flex gap-3 pt-1">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex gap-3">
             <button onClick={() => setIsTutorModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
               Annulla
             </button>
@@ -8955,7 +8955,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
           </YouthSection>
 
-          <div className="flex gap-3 pt-1">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex gap-3">
             <button onClick={() => setIsYouthModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
               Annulla
             </button>
@@ -9527,7 +9527,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
               onAdminChange={(v) => setNewUser({ ...newUser, permissions: v ? ['ALL'] : [] })}
             />
           </div>
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex justify-end space-x-3">
             <button onClick={() => setIsUserModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
             <button onClick={handleCreateUser} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Crea Utente</button>
           </div>
@@ -9615,7 +9615,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex justify-end space-x-3">
             <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Annulla</button>
             <button onClick={handleUpdatePermissions} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700">Salva Modifiche</button>
           </div>
@@ -9638,7 +9638,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
               </p>
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="sticky bottom-0 z-10 -mx-5 sm:-mx-7 -mb-5 sm:-mb-7 px-5 sm:px-7 pt-3 pb-5 sm:pb-7 bg-white border-t border-slate-100 flex justify-end gap-3">
             <button
               onClick={() => setUserToDelete(null)}
               className="px-4 py-2 text-sm font-medium text-slate-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
