@@ -7331,6 +7331,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 </button>
                 <span className="text-slate-400"> · {cur.recorded}/{cur.plannedOccurrences} registrati</span>
                 <ProgressBar pct={cur.completionPct} tone="sky" />
+                <p className="mt-2 text-[10px] leading-snug text-slate-400">
+                  % = turni registrati nel Consuntivo ÷ occorrenze della settimana tipo nel mese. Supera il 100% con turni extra o duplicati; i cancellati contano come registrati.
+                </p>
               </>
             }
           />
