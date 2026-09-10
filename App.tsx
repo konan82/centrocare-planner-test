@@ -1779,6 +1779,7 @@ function App() {
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
   const [kpiMonth, setKpiMonth] = useState(() => startOfMonth(new Date()));
   const [kpiShowPending, setKpiShowPending] = useState(false);
+  const [kpiShowCancelled, setKpiShowCancelled] = useState(false);
   const [kpiYouthSort, setKpiYouthSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
   const [kpiTutorSort, setKpiTutorSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
 
@@ -7162,7 +7163,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       return {
         plannedTotal, executedTotal, plannedOccurrences, recorded, completionPct,
         cancelledCount: cancelledList.length, cancelledHours, doubleHours, singleHours, payBase,
-        tutorRows, youthRows, conflicts, pending,
+        tutorRows, youthRows, conflicts, pending, cancelledShifts: cancelledList,
       };
     };
 
@@ -7342,7 +7343,19 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             value={`${cur.cancelledCount}`}
             tone="rose"
             icon={XCircle}
-            sub={cur.cancelledCount > 0 ? `${cur.cancelledHours.toFixed(1)}h perse nel mese` : 'Nessuna assenza registrata'}
+            sub={
+              <>
+                <button
+                  onClick={() => setKpiShowCancelled(true)}
+                  disabled={cur.cancelledCount === 0}
+                  title="Clicca per vedere l'elenco dei turni annullati nel mese"
+                  className={`font-semibold underline decoration-dotted underline-offset-2 ${cur.cancelledCount > 0 ? 'text-rose-600 hover:text-rose-700 active:scale-95 transition-transform cursor-pointer' : 'text-slate-400 cursor-default'}`}
+                >
+                  {cur.cancelledCount} turni annullati ▶
+                </button>
+                {cur.cancelledCount > 0 && <span className="text-slate-400"> · {cur.cancelledHours.toFixed(1)}h perse</span>}
+              </>
+            }
           />
           <StatCard
             label="Compenso lordo stimato"
@@ -7563,6 +7576,86 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 <Plus size={13} /> Registra Turno
                               </button>
                             </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      {kpiShowCancelled && (
+          <div className="fixed inset-0 z-[90] bg-black/40 flex items-center justify-center p-4" onClick={() => setKpiShowCancelled(false)}>
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-slate-800">Turni annullati</h3>
+                  <p className="text-xs text-slate-500 capitalize">{format(kpiMonth, 'MMMM yyyy', { locale: it })} · {cur.cancelledCount} turni · {cur.cancelledHours.toFixed(1)}h perse</p>
+                </div>
+                <button onClick={() => setKpiShowCancelled(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 shrink-0" title="Chiudi"><X size={18} /></button>
+              </div>
+              <div className="overflow-y-auto px-5 py-3">
+                {cur.cancelledShifts.length === 0 ? (
+                  <p className="text-center text-slate-400 italic py-8">Nessun turno annullato nel mese.</p>
+                ) : (
+                  <table className="w-full text-sm border-collapse whitespace-nowrap">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
+                        <th className="text-left py-2 pr-3 font-bold">Data</th>
+                        <th className="text-left py-2 pr-3 font-bold">Tutor</th>
+                        <th className="text-left py-2 pr-3 font-bold">Ragazzo/i</th>
+                        <th className="text-left py-2 pr-3 font-bold">Fascia</th>
+                        <th className="text-left py-2 font-bold">Attività</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cur.cancelledShifts.map(s => {
+                        const t = tutors.find(x => x.id === s.tutorId);
+                        const tc = getTutorColor(s.tutorId, tutors);
+                        const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+                        return (
+                          <tr key={s.id} className="border-b border-slate-100 bg-rose-50/40">
+                            <td className="py-1.5 pr-3 font-semibold text-slate-700 capitalize">{format(parseISO(d), 'EEE d MMM', { locale: it })}</td>
+                            <td className="py-1.5 pr-3">
+                              <span className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={(e) => goToTutorAgenda(t, e as unknown as React.MouseEvent)}
+                                  className={`h-5 w-5 rounded-full ${tc.bg} ${tc.text} text-[10px] font-bold flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
+                                  title={`Apri l'agenda di ${t?.name || 'tutor'}`}
+                                >
+                                  {getInitials(t?.name)}
+                                </button>
+                                <button
+                                  onClick={(e) => goToTutor(t, e as unknown as React.MouseEvent)}
+                                  className="max-w-[8rem] truncate font-medium cursor-pointer hover:text-teal-700 hover:underline"
+                                  title={`Apri scheda ${t?.name || 'tutor'}`}
+                                >
+                                  {t?.name || '—'}
+                                </button>
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              <span className="flex flex-wrap gap-1">
+                                {shiftYouthIds(s).map(yid => {
+                                  const y = youths.find(x => x.id === yid);
+                                  const yc = getYouthColor(yid, youths);
+                                  return (
+                                    <button
+                                      key={yid}
+                                      onClick={(e) => goToYouth(y, e as unknown as React.MouseEvent)}
+                                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
+                                      title={`Apri scheda ${y?.name || 'ragazzo'}`}
+                                    >
+                                      {y?.name || '—'}
+                                    </button>
+                                  );
+                                })}
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3 tabular-nums text-slate-600">{s.startTime}–{s.endTime}</td>
+                            <td className="py-1.5 font-medium text-slate-600 max-w-[10rem] truncate">{s.activity}</td>
                           </tr>
                         );
                       })}
