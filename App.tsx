@@ -1635,6 +1635,8 @@ function App() {
 
   const [isYouthModalOpen, setIsYouthModalOpen] = useState(false);
   const [newYouth, setNewYouth] = useState<Partial<Youth>>({});
+  const [youthDiagRaw, setYouthDiagRaw] = useState('');
+  const [youthNeedsRaw, setYouthNeedsRaw] = useState('');
   const [youthToDelete, setYouthToDelete] = useState<Youth | null>(null);
   const [youthSearch, setYouthSearch] = useState('');
   const [youthSort, setYouthSort] = useState<'asc' | 'desc'>('asc');
@@ -2544,11 +2546,15 @@ function App() {
   }
 
   const openNewYouthModal = () => {
+    setYouthDiagRaw('');
+    setYouthNeedsRaw('');
     setNewYouth({});
     setIsYouthModalOpen(true);
   }
 
   const openEditYouthModal = (youth: Youth) => {
+    setYouthDiagRaw((youth.diagnoses || []).join(', '));
+    setYouthNeedsRaw((youth.needs || []).join(', '));
     setNewYouth({ ...youth });
     setIsYouthModalOpen(true);
   }
@@ -8828,8 +8834,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   type="text"
                   className={fieldCls}
                   placeholder="DSA, ADHD, ..."
-                  value={newYouth.diagnoses?.join(', ') || ''}
-                  onChange={e => setNewYouth({ ...newYouth, diagnoses: (e.target.value || '').split(',').map(s => s.trim()).filter(Boolean) })}
+                  value={youthDiagRaw}
+                  onChange={e => {
+                    const text = e.target.value;
+                    setYouthDiagRaw(text);
+                    setNewYouth({ ...newYouth, diagnoses: (text || '').split(',').map(s => s.trim()).filter(Boolean) });
+                  }}
                 />
               </div>
               <div>
@@ -8944,8 +8954,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   type="text"
                   className={fieldCls}
                   placeholder="Supporto motorio, socializzazione, ..."
-                  value={newYouth.needs?.join(', ') || ''}
-                  onChange={e => setNewYouth({ ...newYouth, needs: (e.target.value || '').split(',').map(s => s.trim()) })}
+                  value={youthNeedsRaw}
+                  onChange={e => {
+                    const text = e.target.value;
+                    setYouthNeedsRaw(text);
+                    setNewYouth({ ...newYouth, needs: (text || '').split(',').map(s => s.trim()).filter(Boolean) });
+                  }}
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
