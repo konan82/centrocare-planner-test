@@ -119,7 +119,7 @@ export interface AccessLogEntry {
   asn?: string | null;
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT' | 'REPORT';
+export type ViewState = 'LOGIN' | 'DASHBOARD' | 'TUTORS' | 'YOUTHS' | 'CALENDAR' | 'VALIDATION' | 'SUMMARY' | 'PAYROLL' | 'USER_MANAGEMENT' | 'GUIDE' | 'AUDIT' | 'REPORT' | 'OVERVIEW';
 
 export interface PaySettings {
   rateSingle: number;

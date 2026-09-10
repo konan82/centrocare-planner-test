@@ -60,7 +60,8 @@ import {
   History,
   List,
   GripVertical,
-  Copy
+  Copy,
+  LayoutDashboard
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
@@ -1775,6 +1776,7 @@ function App() {
   const [summaryTutorFilter, setSummaryTutorFilter] = useState<string>('all');
   const [summaryYouthFilter, setSummaryYouthFilter] = useState<string>('all');
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
+  const [kpiMonth, setKpiMonth] = useState(() => startOfMonth(new Date()));
 
   // Payroll (Calcolo Paga) State
   const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0, weeksPerMonth: 4 });
@@ -3165,6 +3167,7 @@ function App() {
       { view: 'TUTORS', perm: 'TUTORS', label: 'Gestione Tutor', icon: UserCheck, chipText: 'text-sky-600' },
       { view: 'YOUTHS', perm: 'YOUTHS', label: 'Anagrafica Ragazzi', icon: Users, chipText: 'text-amber-600' },
       { view: 'SUMMARY', perm: 'SUMMARY', label: 'Riepilogo Ore', icon: BarChart3, chipText: 'text-rose-600' },
+      { view: 'OVERVIEW', perm: 'SUMMARY', label: 'Panoramica', icon: LayoutDashboard, chipText: 'text-emerald-600' },
       { view: 'PAYROLL', perm: 'SUMMARY', label: 'Calcolo Paga', icon: Wallet, chipText: 'text-lime-600' },
       { view: 'GUIDE', perm: 'PIANIFICAZIONE', label: 'Guida d\'uso', icon: BookOpen, chipText: 'text-teal-600' },
     ];
@@ -3336,6 +3339,7 @@ function App() {
       : view === 'TUTORS' ? 'Gestione Tutor'
       : view === 'YOUTHS' ? 'Anagrafica Ragazzi'
       : view === 'SUMMARY' ? 'Riepilogo Ore'
+      : view === 'OVERVIEW' ? 'Panoramica'
       : view === 'PAYROLL' ? 'Calcolo Paga'
       : view === 'USER_MANAGEMENT' ? 'Gestione Utenti'
       : view === 'AUDIT' ? 'Audit Trail'
@@ -6971,6 +6975,435 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
     );
   };
 
+  const renderOverview = () => {
+    const getHours = (start: string, end: string) => {
+      const [sh, sm] = (start || '0:00').split(':').map(Number);
+      const [eh, em] = (end || '0:0').split(':').map(Number);
+      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+    };
+    const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
+    const weeks = payRates.weeksPerMonth || 1;
+    const rs = payRates.rateSingle || 0;
+    const rd = payRates.rateDouble || 0;
+
+    const monthMetrics = (m: Date) => {
+      const ms = format(startOfMonth(m), 'yyyy-MM-dd');
+      const me = format(endOfMonth(m), 'yyyy-MM-dd');
+      const templates = shifts.filter(s => s.isTemplate && !!s.date);
+      const monthShifts = shifts.filter(s => {
+        if (s.isTemplate || !s.date) return false;
+        const d = typeof s.date === 'string' ? s.date.split('T')[0] : s.date;
+        return d >= ms && d <= me;
+      });
+      const templateMonthlyCount = (t: Shift) => {
+        const wd = Math.min(Math.max((t.templateWeekday || weekdayOf(t.date)) - 1, 0), 5) + 1;
+        let count = 0;
+        for (let d = parseISO(ms); format(d, 'yyyy-MM-dd') <= me; d = addDays(d, 1)) {
+          if (getDay(d) === wd) count++;
+        }
+        return count;
+      };
+      const tPlanned = new Map<string, number>();
+      const tDelta = new Map<string, number>();
+      templates.forEach(s => {
+        const h = getHours(s.startTime, s.endTime) * templateMonthlyCount(s);
+        tPlanned.set(s.tutorId, (tPlanned.get(s.tutorId) || 0) + h);
+      });
+      monthShifts.forEach(s => {
+        const diff = getValidatedHours(s) - getHours(s.startTime, s.endTime);
+        tDelta.set(s.tutorId, (tDelta.get(s.tutorId) || 0) + diff);
+      });
+      const yWeekly = new Map<string, number>();
+      const yPlanned = new Map<string, number>();
+      const yDelta = new Map<string, number>();
+      templates.forEach(s => {
+        const h = getHours(s.startTime, s.endTime);
+        const occ = templateMonthlyCount(s);
+        shiftYouthIds(s).forEach(yid => {
+          yWeekly.set(yid, (yWeekly.get(yid) || 0) + h);
+          yPlanned.set(yid, (yPlanned.get(yid) || 0) + h * occ);
+        });
+      });
+      monthShifts.forEach(s => {
+        const diff = getValidatedHours(s) - getHours(s.startTime, s.endTime);
+        shiftYouthIds(s).forEach(yid => {
+          yDelta.set(yid, (yDelta.get(yid) || 0) + diff);
+        });
+      });
+
+      const payRows = tutors.map(t => {
+        const intervals = templates
+          .filter(s => s.tutorId === t.id)
+          .map(s => {
+            const h = getHours(s.startTime, s.endTime);
+            if (h <= 0) return null;
+            return {
+              wd: s.templateWeekday || weekdayOf(s.date),
+              startMin: toMin(s.startTime),
+              endMin: toMin(s.endTime),
+              youths: new Set(shiftYouthIds(s)),
+              weeks: s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : weeks,
+            };
+          })
+          .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string>; weeks: number } => x !== null);
+        const slotKey = (iv: { wd: number; startMin: number; endMin: number; youths: Set<string>; weeks: number }) => `${iv.wd}|${iv.startMin}|${iv.endMin}`;
+        const slotMap = new Map<string, typeof intervals>();
+        intervals.forEach(iv => {
+          const k = slotKey(iv);
+          const arr = slotMap.get(k);
+          if (arr) arr.push(iv);
+          else slotMap.set(k, [iv]);
+        });
+        let singleH = 0, doubleH = 0, pay = 0;
+        slotMap.forEach(g => {
+          const thresholds = Array.from(new Set(g.map(x => x.weeks))).sort((a, b) => b - a);
+          const slotH = (g[0].endMin - g[0].startMin) / 60;
+          thresholds.forEach((th, idx) => {
+            const next = idx + 1 < thresholds.length ? thresholds[idx + 1] : 0;
+            const dur = th - next;
+            if (dur <= 0) return;
+            const active = g.filter(x => x.weeks >= th);
+            const yc = new Set<string>();
+            active.forEach(x => x.youths.forEach(y => yc.add(y)));
+            if (yc.size >= 2) { doubleH += slotH * dur; pay += slotH * rd * dur; }
+            else { singleH += slotH * dur; pay += slotH * rs * dur; }
+          });
+        });
+        return { t, singleH, doubleH, pay };
+      });
+
+      const tutorIds = new Set([...tPlanned.keys(), ...tDelta.keys()]);
+      const tutorRows = tutors
+        .filter(tut => tutorIds.has(tut.id))
+        .map(tut => {
+          const planned = tPlanned.get(tut.id) || 0;
+          const executed = Math.max(0, planned + (tDelta.get(tut.id) || 0));
+          const pr = payRows.find(p => p.t.id === tut.id) || { t: tut, singleH: 0, doubleH: 0, pay: 0 };
+          return { tutor: tut, planned, executed, singleH: pr.singleH, doubleH: pr.doubleH, pay: pr.pay };
+        })
+        .sort((a, b) => a.tutor.name.localeCompare(b.tutor.name, 'it', { sensitivity: 'base' }));
+
+      const youthRows = youths
+        .map(y => {
+          const weeklyPlanned = yWeekly.get(y.id) || 0;
+          const monthlyPlanned = yPlanned.get(y.id) || 0;
+          const monthlyExecuted = Math.max(0, monthlyPlanned + (yDelta.get(y.id) || 0));
+          const required = y.requiredHoursPerWeek || 0;
+          return {
+            youth: y,
+            required,
+            weeklyPlanned,
+            weeklyExecuted: monthlyExecuted / weeks,
+            monthlyPlanned,
+            monthlyExecuted,
+            gap: required - weeklyPlanned,
+          };
+        })
+        .filter(r => r.monthlyPlanned > 0 || r.weeklyExecuted > 0)
+        .sort((a, b) => b.gap - a.gap);
+
+      const byTutorDay = new Map<string, Array<{ start: number; end: number }>>();
+      templates.forEach(s => {
+        const wd = s.templateWeekday || weekdayOf(s.date);
+        const key = `${s.tutorId}|${wd}`;
+        const arr = byTutorDay.get(key) || [];
+        arr.push({ start: toMin(s.startTime), end: toMin(s.endTime) });
+        byTutorDay.set(key, arr);
+      });
+      const conflicts: Array<{ tutorId: string; count: number }> = [];
+      byTutorDay.forEach((arr, key) => {
+        if (arr.length < 2) return;
+        arr.sort((a, b) => a.start - b.start);
+        let overlaps = 0;
+        let mergedEnd = arr[0].end;
+        for (let i = 1; i < arr.length; i++) {
+          if (arr[i].start < mergedEnd) overlaps++;
+          mergedEnd = Math.max(mergedEnd, arr[i].end);
+        }
+        if (overlaps > 0) {
+          const tutorId = key.split('|')[0];
+          conflicts.push({ tutorId, count: overlaps });
+        }
+      });
+
+      const plannedTotal = tutorRows.reduce((a, r) => a + r.planned, 0);
+      const executedTotal = tutorRows.reduce((a, r) => a + r.executed, 0);
+      const plannedOccurrences = templates.reduce((a, t) => a + templateMonthlyCount(t), 0);
+      const recorded = monthShifts.length;
+      const completionPct = plannedOccurrences > 0 ? (recorded / plannedOccurrences) * 100 : 0;
+      const cancelledList = monthShifts.filter(s => s.status === 'cancellato');
+      const cancelledHours = cancelledList.reduce((a, s) => a + getHours(s.startTime, s.endTime), 0);
+      const doubleHours = payRows.reduce((a, r) => a + r.doubleH, 0);
+      const singleHours = payRows.reduce((a, r) => a + r.singleH, 0);
+      const payBase = payRows.reduce((a, r) => a + r.pay, 0);
+      return {
+        plannedTotal, executedTotal, plannedOccurrences, recorded, completionPct,
+        cancelledCount: cancelledList.length, cancelledHours, doubleHours, singleHours, payBase,
+        tutorRows, youthRows, conflicts,
+      };
+    };
+
+    const cur = monthMetrics(kpiMonth);
+    const prev = monthMetrics(addMonths(kpiMonth, -1));
+    const deltaPct = (c: number, p: number) => (p === 0 ? null : ((c - p) / p) * 100);
+
+    const tones: Record<string, { text: string; badge: string; bar: string }> = {
+      emerald: { text: 'text-emerald-600', badge: 'bg-gradient-to-br from-emerald-500 to-teal-600', bar: 'bg-emerald-500' },
+      rose: { text: 'text-rose-600', badge: 'bg-gradient-to-br from-rose-500 to-pink-600', bar: 'bg-rose-500' },
+      sky: { text: 'text-sky-600', badge: 'bg-gradient-to-br from-sky-500 to-blue-600', bar: 'bg-sky-500' },
+      violet: { text: 'text-violet-600', badge: 'bg-gradient-to-br from-violet-500 to-purple-600', bar: 'bg-violet-500' },
+      amber: { text: 'text-amber-600', badge: 'bg-gradient-to-br from-amber-500 to-orange-600', bar: 'bg-amber-500' },
+    };
+
+    const StatCard: React.FC<{ label: string; value: string; tone: string; icon: React.ElementType; sub?: React.ReactNode; delta?: number | null; deltaLabel?: string }> = ({ label, value, tone, icon: Icon, sub, delta, deltaLabel }) => {
+      const up = delta !== null && delta !== undefined && delta >= 0;
+      return (
+        <Card className="p-4 relative overflow-hidden">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+              <p className={`mt-1 text-2xl font-black tabular-nums ${tones[tone].text}`}>{value}</p>
+            </div>
+            <div className={`p-2 rounded-xl text-white shadow-md ${tones[tone].badge} shrink-0`}>
+              <Icon size={18} />
+            </div>
+          </div>
+          {sub && <div className="mt-2 text-xs text-slate-500">{sub}</div>}
+          {delta !== null && delta !== undefined && deltaLabel && (
+            <div className={`mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold ${up ? 'text-emerald-600' : 'text-rose-500'}`}>
+              {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {up ? '+' : ''}{delta.toFixed(1)}% <span className="text-slate-400 font-medium">vs {deltaLabel}</span>
+            </div>
+          )}
+        </Card>
+      );
+    };
+
+    const ProgressBar = ({ pct, tone }: { pct: number; tone: string }) => (
+      <div className="mt-1.5 h-2 rounded-full bg-slate-100 ring-1 ring-inset ring-slate-200 overflow-hidden">
+        <div className={`h-full rounded-full ${tones[tone].bar}`} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+      </div>
+    );
+
+    const cardLabel = 'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3';
+
+    return (
+      <div className="space-y-3 md:space-y-4">
+        <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
+          <div className="h-1.5 rounded-t-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-400"></div>
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center px-4 sm:px-5 py-3 sm:py-4 gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-xl text-white shadow-md shrink-0 bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200">
+                <LayoutDashboard size={18} />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Panoramica</h2>
+                <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
+                  KPI mensili · ore vs pianificato, copertura ragazzi, compensi e conflitti
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setKpiMonth(addMonths(kpiMonth, -1))}
+                title="Mese precedente"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => setKpiMonth(startOfMonth(new Date()))}
+                title="Torna al mese corrente"
+                className={`px-3 py-2 md:px-5 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold shadow-sm md:shadow-md transition-all ${
+                  isSameMonth(kpiMonth, new Date())
+                    ? 'text-emerald-700 bg-gradient-to-br from-emerald-50 to-white border-2 border-emerald-400 shadow-emerald-100'
+                    : 'text-slate-700 border-2 border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-1.5 md:gap-2">
+                  <CalendarIcon size={14} className="text-emerald-600 shrink-0" />
+                  <span className="tracking-tight whitespace-nowrap capitalize">{format(kpiMonth, 'MMMM yyyy', { locale: it })}</span>
+                </span>
+              </button>
+              <button
+                onClick={() => setKpiMonth(addMonths(kpiMonth, 1))}
+                title="Mese successivo"
+                className="p-3 md:p-3.5 rounded-xl md:rounded-2xl border-2 border-slate-200 bg-white shadow-sm md:shadow-md hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 hover:shadow-lg active:scale-95 transition-all text-slate-600"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard
+            label="Ore erogate · mese"
+            value={`${cur.executedTotal.toFixed(1)}h`}
+            tone="emerald"
+            icon={Play}
+            delta={deltaPct(cur.executedTotal, prev.executedTotal)}
+            deltaLabel="mese prec."
+            sub={
+              <>
+                <span className="text-amber-600 font-semibold">Pianificate {cur.plannedTotal.toFixed(1)}h</span>
+                <ProgressBar pct={cur.plannedTotal > 0 ? (cur.executedTotal / cur.plannedTotal) * 100 : 0} tone="emerald" />
+              </>
+            }
+          />
+          <StatCard
+            label="Consuntivo completato"
+            value={`${cur.completionPct.toFixed(0)}%`}
+            tone="sky"
+            icon={ClipboardCheck}
+            sub={
+              <>
+                <span className="font-semibold text-amber-600">{Math.max(0, cur.plannedOccurrences - cur.recorded)} da registrare</span> · {cur.recorded}/{cur.plannedOccurrences} turni su {cur.plannedOccurrences}
+                <ProgressBar pct={cur.completionPct} tone="sky" />
+              </>
+            }
+          />
+          <StatCard
+            label="Turni annullati"
+            value={`${cur.cancelledCount}`}
+            tone="rose"
+            icon={XCircle}
+            sub={cur.cancelledCount > 0 ? `${cur.cancelledHours.toFixed(1)}h perse nel mese` : 'Nessuna assenza registrata'}
+          />
+          <StatCard
+            label="Doppie · compenso stimato"
+            value={`${cur.doubleHours.toFixed(1)}h`}
+            tone="violet"
+            icon={Wallet}
+            sub={
+              <>
+                {cur.singleHours.toFixed(1)}h singole · lordo stimato <span className="font-bold text-violet-700">€ {cur.payBase.toFixed(2)}</span>
+              </>
+            }
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          <Card className="p-4">
+            <h3 className={`${cardLabel} font-extrabold`}>Copertura ore ragazzi</h3>
+            {cur.youthRows.length === 0 ? (
+              <p className="text-slate-400 italic text-sm py-4 text-center">Nessun turno nel mese selezionato.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-[52vh] overflow-y-auto">
+                <table className="w-full text-sm border-collapse whitespace-nowrap">
+                  <thead className="sticky top-0 z-10 bg-white">
+                    <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
+                      <th className="text-left py-2 pr-3 font-bold">Ragazzo</th>
+                      <th className="text-right px-2 py-2 font-bold">Fabbisogno/sett</th>
+                      <th className="text-right px-2 py-2 font-bold">Pianif/sett</th>
+                      <th className="text-right px-2 py-2 font-bold">Erogate/sett</th>
+                      <th className="text-right px-2 py-2 font-bold">Gap</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cur.youthRows.map(r => {
+                      const ok = r.gap <= 0.05;
+                      return (
+                        <tr key={r.youth.id} className="border-b border-slate-100">
+                          <td className="py-1.5 pr-3">
+                            <span className="flex items-center gap-1.5">
+                              <span className={`h-5 w-5 rounded-full ${getYouthColor(r.youth.id, youths).bg} ${getYouthColor(r.youth.id, youths).text} text-[10px] font-bold flex items-center justify-center shrink-0`}>
+                                {getInitials(r.youth.name)}
+                              </span>
+                              <span className="truncate max-w-[9rem] font-medium">{r.youth.name}</span>
+                            </span>
+                          </td>
+                          <td className="text-right px-2 py-1.5 tabular-nums text-slate-600">{r.required}h</td>
+                          <td className="text-right px-2 py-1.5 tabular-nums text-amber-600">{r.weeklyPlanned.toFixed(1)}h</td>
+                          <td className="text-right px-2 py-1.5 tabular-nums text-blue-700">{r.weeklyExecuted.toFixed(1)}h</td>
+                          <td className="text-right px-2 py-1.5">
+                            {ok ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 size={12} /> ok</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-500"><AlertCircle size={12} /> -{r.gap.toFixed(1)}h</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {cur.youthRows.length > 0 && (
+              <p className="mt-3 text-[11px] text-slate-400">Fabbisogno = minuti settimanali richiesti in anagrafica · Gap = fabbisogno - ore pianificate (rosso = da coprire).</p>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <h3 className={`${cardLabel} !mb-0 font-extrabold`}>Tutor · ore e compenso stimato</h3>
+            {cur.tutorRows.length === 0 ? (
+              <p className="text-slate-400 italic text-sm py-4 text-center mt-3">Nessun turno nel mese selezionato.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-[52vh] overflow-y-auto mt-3">
+                <table className="w-full text-sm border-collapse whitespace-nowrap">
+                  <thead className="sticky top-0 z-10 bg-white">
+                    <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
+                      <th className="text-left py-2 pr-3 font-bold">Tutor</th>
+                      <th className="text-right px-2 py-2 font-bold">Pianif</th>
+                      <th className="text-right px-2 py-2 font-bold">Erogate</th>
+                      <th className="text-right px-2 py-2 font-bold">Doppie</th>
+                      <th className="text-right px-2 py-2 font-bold">Stimato</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cur.tutorRows.map(r => (
+                      <tr key={r.tutor.id} className="border-b border-slate-100">
+                        <td className="py-1.5 pr-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className={`h-5 w-5 rounded-full ${getTutorColor(r.tutor.id, tutors).bg} ${getTutorColor(r.tutor.id, tutors).text} text-[10px] font-bold flex items-center justify-center shrink-0`}>
+                              {getInitials(r.tutor.name)}
+                            </span>
+                            <span className="truncate max-w-[9rem] font-medium">{r.tutor.name}</span>
+                          </span>
+                        </td>
+                        <td className="text-right px-2 py-1.5 tabular-nums text-amber-600">{r.planned.toFixed(1)}h</td>
+                        <td className="text-right px-2 py-1.5 tabular-nums text-blue-700">{r.executed.toFixed(1)}h</td>
+                        <td className="text-right px-2 py-1.5 tabular-nums text-violet-600">{r.doubleH.toFixed(1)}h</td>
+                        <td className="text-right px-2 py-1.5 tabular-nums font-bold text-slate-700">€ {r.pay.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {cur.tutorRows.length > 0 && (
+              <p className="mt-3 text-[11px] text-slate-400">Pianif/Erogate = ore mensili (settimana tipo espansa, variazioni consuntivo incluse) · Doppie = minuti con ≥2 ragazzi · Stimato = lordo dalle tariffe di Calcolo Paga.</p>
+            )}
+          </Card>
+        </div>
+
+        <Card className="p-4">
+          <h3 className={`${cardLabel} font-extrabold`}>Sovrapposizioni pianificate</h3>
+          {cur.conflicts.length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-emerald-600 font-semibold py-2">
+              <CheckCircle2 size={16} /> Nessuna sovrapposizione dello stesso tutor nello stesso giorno.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {cur.conflicts.map(c => {
+                const t = tutors.find(x => x.id === c.tutorId);
+                const tc = getTutorColor(c.tutorId, tutors);
+                return (
+                  <span key={c.tutorId} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${tc.bg} ${tc.text} border ${tc.border} border-l-4`}>
+                    {t?.name || c.tutorId}
+                    <span className="bg-white/70 rounded-full px-2 py-0.5 text-rose-600">{c.count} sovrapp.</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <p className="mt-3 text-[11px] text-slate-400">Conflitti = due o più turni della settimana tipo assegnati allo stesso tutor nello stesso giorno con fasce orarie che si sovrappongono.</p>
+        </Card>
+      </div>
+    );
+  };
+
   // --- Main Render ---
 
   if (view === 'LOGIN') {
@@ -7013,6 +7446,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             {view === 'TUTORS' && renderTutorsList()}
             {view === 'YOUTHS' && renderYouthsList()}
             {view === 'SUMMARY' && renderSummary()}
+            {view === 'OVERVIEW' && renderOverview()}
             {view === 'PAYROLL' && renderPayroll()}
             {view === 'GUIDE' && renderGuide()}
             {view === 'USER_MANAGEMENT' && <UserManagementView tutors={tutors} currentUser={currentUser} />}
