@@ -514,7 +514,7 @@ const GuideButton: React.FC<GuideButtonProps> = ({ title, intro, items }) => {
         <BookOpen size={16} />
         Guida
       </button>
-      <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg">
+      <Modal isOpen={open} onClose={() => setOpen(false)} title={title} size="lg" icon={<BookOpen size={20} />}>
         <div className="space-y-5 text-[15px] text-slate-800 leading-relaxed">
           {intro && <p>{intro}</p>}
           <div className="space-y-3">
@@ -634,19 +634,23 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   size?: 'md' | 'lg' | 'xl';
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, children, size = 'md' }) => {
   if (!isOpen) return null;
   const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-md';
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50 p-0 sm:p-4">
       <div className={`bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full ${widthCls} overflow-hidden animate-fadeIn sm:max-h-[90vh] max-h-[92dvh]`}>
         <div className="flex justify-between items-center px-5 sm:px-6 py-3.5 sm:py-4 border-b bg-teal-600 text-white">
-          <h3 className="font-semibold text-lg sm:text-xl leading-tight">{title}</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"><X size={22} /></button>
+          <h3 className="flex-1 min-w-0 flex items-center gap-2.5 font-semibold text-lg sm:text-xl leading-tight">
+            {icon && <span className="shrink-0 flex items-center">{icon}</span>}
+            <span className="truncate">{title}</span>
+          </h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors shrink-0"><X size={22} /></button>
         </div>
         <div className="p-5 sm:p-7 text-slate-900 max-h-[calc(92dvh-4rem)] overflow-y-auto">
           {children}
@@ -7755,7 +7759,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       {/* --- Modals --- */}
 
       {/* Confirm Delete Tutor Modal */}
-      <Modal isOpen={!!tutorToDelete} onClose={() => setTutorToDelete(null)} title="Elimina scheda tutor">
+      <Modal isOpen={!!tutorToDelete} onClose={() => setTutorToDelete(null)} title="Elimina scheda tutor" icon={<UserX size={20} />}>
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
@@ -7788,7 +7792,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Confirm Delete Youth Modal */}
-      <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo">
+      <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo" icon={<HeartPulse size={20} />}>
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
@@ -7829,6 +7833,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             ? (editingShift?.id ? 'Modifica Turno Pianificato' : 'Nuovo Turno Pianificato')
             : (editingShift?.id ? 'Modifica Turno Consuntivo' : 'Nuovo Turno Consuntivo')
         }
+        icon={shiftModalMode === 'plan' ? <CalendarPlus size={20} /> : <ClipboardCheck size={20} />}
         size="lg"
       >
         <div className="space-y-4">
@@ -8215,7 +8220,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Tutor Modal */}
-      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"} size="xl">
+      <Modal isOpen={isTutorModalOpen} onClose={() => setIsTutorModalOpen(false)} title={newTutor.id ? "Modifica Tutor" : "Nuovo Tutor"} size="xl" icon={<UserCheck size={20} />}>
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
@@ -8615,7 +8620,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Youth Modal */}
-      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="xl">
+      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="xl" icon={<HeartPulse size={20} />}>
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
@@ -9482,7 +9487,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       </div>
 
       {/* Create User Modal */}
-      <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente">
+      <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="Nuovo Utente" icon={<UserPlus size={20} />}>
         <div className="space-y-4">
           <div>
             <label className="block text-base font-medium text-slate-800 mb-1.5">Username</label>
@@ -9535,7 +9540,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       </Modal>
 
       {/* Edit Permissions Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifica Permessi">
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifica Permessi" icon={<Shield size={20} />}>
         <div className="space-y-4">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
             <p className="text-sm text-slate-600">
@@ -9623,7 +9628,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       </Modal>
 
       {/* Confirm Delete User Modal */}
-      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Elimina utente">
+      <Modal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} title="Elimina utente" icon={<UserX size={20} />}>
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
@@ -9656,7 +9661,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       </Modal>
 
       {/* Access Log Modal */}
-      <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi" size="xl">
+      <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi" size="xl" icon={<History size={20} />}>
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm text-slate-500">
             Storico sessioni di accesso degli utenti, in ordine dal più vecchio al più recente
