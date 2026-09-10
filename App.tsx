@@ -7821,8 +7821,27 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Shift Modal */}
-      <Modal isOpen={isShiftModalOpen} onClose={() => setIsShiftModalOpen(false)} title={editingShift?.id ? "Modifica Turno" : "Nuovo Turno"} size="lg">
+      <Modal
+        isOpen={isShiftModalOpen}
+        onClose={() => setIsShiftModalOpen(false)}
+        title={
+          shiftModalMode === 'plan'
+            ? (editingShift?.id ? 'Modifica Turno Pianificato' : 'Nuovo Turno Pianificato')
+            : (editingShift?.id ? 'Modifica Turno Consuntivo' : 'Nuovo Turno Consuntivo')
+        }
+        size="lg"
+      >
         <div className="space-y-4">
+          {/* Nota esplicativa */}
+          <p className="text-xs text-slate-500 leading-snug -mt-1">
+            {shiftModalMode === 'plan'
+              ? (editingShift?.id
+                ? "Stai modificando un turno della settimana tipo: verrà ripetuto ogni settimana e la modifica si propagherà ai turni futuri già copiati in Consuntivo."
+                : "Stai creando un turno della settimana tipo: si ripeterà ogni settimana e verrà propagato ai Consuntivi futuri già materializzati.")
+              : (editingShift?.id
+                ? "Stai modificando un turno registrato in Consuntivo: qui puoi aggiornare data, tutor, ragazzi, orari effettivi di inizio/fine e stato."
+                : "Stai registrando un turno nel Consuntivo: compila data, fascia e tutor, poi inserisci gli orari effettivi di inizio e fine e conferma.")}
+          </p>
           {/* Header */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
             <div className="h-2 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
@@ -7840,7 +7859,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     >
                       {tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor'}
                     </button>
-                  ) : 'Nuovo Turno'}
+                  ) : shiftModalMode === 'plan' ? 'Nuovo Turno Pianificato' : 'Nuovo Turno Consuntivo'}
                 </h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {(editingShift?.youthIds && editingShift.youthIds.length > 0 ? editingShift.youthIds : (editingShift?.youthId ? [editingShift.youthId] : [])).map(yid => {
