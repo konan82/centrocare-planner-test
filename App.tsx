@@ -286,6 +286,92 @@ const normalizeUnavailableRanges = (raw: any): { start: string; end: string }[][
   return empty;
 };
 
+// ---------------------------------------------------------------------------
+// Realtime sync: serializer condivisi tra caricamento iniziale e postgres_changes
+// (devono produrre forme identiche per la deduplicazione self/remote).
+// ---------------------------------------------------------------------------
+const toShiftRow = (s: any): any => ({
+  ...s,
+  tutorId: s.tutor_id,
+  youthId: s.youth_id,
+  youthIds: Array.isArray(s.youth_ids) && s.youth_ids.length > 0 ? s.youth_ids : (s.youth_id ? [s.youth_id] : []),
+  startTime: s.start_time,
+  endTime: s.end_time,
+  status: s.status || 'pianificato',
+  actualStartTime: s.actual_start_time || null,
+  actualEndTime: s.actual_end_time || null,
+  actualNotes: s.actual_notes || '',
+  isTemplate: s.is_template || false,
+  templateWeekday: s.template_weekday || null,
+  templateShiftId: s.template_shift_id || null,
+  durationWeeks: s.duration_weeks ?? null,
+  updatedAt: s.updated_at || null,
+});
+
+const toTutorRow = (t: any): any => ({
+  ...t,
+  specialties: t.specialties || [],
+  unavailableDays: t.unavailable_days || [],
+  unavailableRanges: normalizeUnavailableRanges(t.unavailable_ranges),
+  maxHoursPerWeek: t.max_hours_per_week,
+  minHoursPerWeek: t.min_hours_per_week ?? null,
+  phone: t.phone || '',
+  email: t.email || '',
+  birthDate: t.birth_date || undefined,
+  city: t.city || '',
+  role: t.role || '',
+  qualifications: t.qualifications || '',
+  yearsExperience: t.years_experience || undefined,
+  status: t.status || 'attivo',
+  entryDate: t.entry_date || null,
+  updatedAt: t.updated_at || null,
+});
+
+const toYouthRow = (y: any): any => ({
+  ...y,
+  needs: y.needs || [],
+  diagnoses: y.diagnoses || [],
+  requiredHoursPerWeek: y.required_hours_per_week,
+  birthDate: y.birth_date || undefined,
+  birthPlace: y.birth_place || '',
+  fiscalCode: y.fiscal_code || '',
+  phone: y.phone || '',
+  school: y.school || '',
+  contacts: (Array.isArray(y.contacts) && y.contacts.length > 0)
+    ? y.contacts
+    : [
+        ...(y.parent1_name || y.parent1_phone || y.parent1_email
+          ? [{ id: 'p1', label: 'Genitore 1', name: y.parent1_name || '', phone: y.parent1_phone || '', email: y.parent1_email || '' }]
+          : []),
+        ...(y.parent2_name || y.parent2_phone || y.parent2_email
+          ? [{ id: 'p2', label: 'Genitore 2', name: y.parent2_name || '', phone: y.parent2_phone || '', email: y.parent2_email || '' }]
+          : []),
+      ],
+  privacyConsentDate: y.privacy_consent_date || null,
+  outingsAuthorized: y.outings_authorized || false,
+  allergies: y.allergies || '',
+  medications: y.medications || '',
+  contractStartDate: y.contract_start_date || null,
+  contractEndDate: y.contract_end_date || null,
+  entryDate: y.entry_date || null,
+  status: y.status || 'attivo',
+  goals: y.goals || '',
+  updatedAt: y.updated_at || null,
+});
+
+// True se due righe (stessa tabella) sono "uguali" ignorando i timestamp di aggiornamento:
+// serve a distinguere un evento generato da noi (eco) da uno remoto.
+const sameRowIgnoringTimestamps = (a: any, b: any) => {
+  if (!a || !b) return false;
+  const strip = (o: any) => {
+    const c: any = { ...o };
+    delete c.updated_at;
+    delete c.updatedAt;
+    return c;
+  };
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
+};
+
 const getEffectiveTime = (s: { status?: string; actualStartTime?: string | null; actualEndTime?: string | null; startTime: string; endTime: string }) => {
   if ((s.status || 'pianificato') === 'cancellato') return null;
   const start = s.actualStartTime || s.startTime;
@@ -1236,13 +1322,19 @@ function App() {
     if (JSON.stringify(byId(current)) === JSON.stringify(byId(target))) return;
     const tgtIds = new Set(target.map(t => t.id));
     const toDelete = current.filter(t => !tgtIds.has(t.id));
-    if (toDelete.length > 0) {
-      const { error } = await supabase.from('tutors').delete().in('id', toDelete.map(t => t.id));
+    for (const t of toDelete) {
+      const { error } = await supabase.from('tutors').delete().eq('id', t.id);
       if (error) throw error;
     }
     const rows = target.map(t => ({ ...tutorToDbRow(t) }));
-    const { error: upErr } = await supabase.from('tutors').upsert(rows);
-    if (upErr) throw upErr;
+    for (const row of rows) {
+      const { data, error } = await supabase.from('tutors').upsert(row, { onConflict: 'id' }).select('*').single();
+      if (error) throw error;
+      if (data) {
+        const idx = target.findIndex(tt => tt.id === row.id);
+        if (idx >= 0) target[idx] = { ...target[idx], updatedAt: data.updated_at || null };
+      }
+    }
     setTutors(cloneTutors(target));
   };
   const syncStateToDb = async (currentShifts: Shift[], targetShifts: Shift[], currentTutors: Tutor[], targetTutors: Tutor[]) => {
@@ -1252,8 +1344,10 @@ function App() {
   const syncShiftsToDb = async (current: Shift[], target: Shift[]) => {
     const tgtIds = new Set(target.map(s => s.id));
     const toDelete = current.filter(s => !tgtIds.has(s.id));
-    if (toDelete.length > 0) {
-      const { error } = await supabase.from('shifts').delete().in('id', toDelete.map(s => s.id));
+    // Cancellazioni per-riga (evita il delete di massa che con più utenti attivi
+    // rischia di cancellare modifiche altrui appena salvate)
+    for (const s of toDelete) {
+      const { error } = await supabase.from('shifts').delete().eq('id', s.id);
       if (error) throw error;
     }
     const rows = target.map(s => ({
@@ -1274,8 +1368,16 @@ function App() {
       template_shift_id: s.templateShiftId || null,
       duration_weeks: s.durationWeeks ?? null,
     }));
-    const { error: upErr } = await supabase.from('shifts').upsert(rows);
-    if (upErr) throw upErr;
+    // Upsert per-riga con ritorno delle righe aggiornate (per il merge ottimistico)
+    for (const row of rows) {
+      const { data, error } = await supabase.from('shifts').upsert(row, { onConflict: 'id' }).select('*').single();
+      if (error) throw error;
+      if (data) {
+        const updated = { ...row, updatedAt: data.updated_at || null };
+        const idx = target.findIndex(t => t.id === row.id);
+        if (idx >= 0) target[idx] = { ...target[idx], updatedAt: updated.updatedAt };
+      }
+    }
     setShifts(cloneShifts(target));
   };
   // Audit Trail: registra chi ha creato/modificato/cancellato cosa (fire-and-forget, non blocca l'azione)
@@ -1571,72 +1673,14 @@ function App() {
           tutorsByYouth[row.youth_id].push(row.tutor_id);
         });
 
-        const normalizedTutors = (t.data || []).map((tutor: any) => ({
-          ...tutor,
-          specialties: tutor.specialties || [],
-          unavailableDays: tutor.unavailable_days || [],
-          unavailableRanges: normalizeUnavailableRanges(tutor.unavailable_ranges),
-          maxHoursPerWeek: tutor.max_hours_per_week,
-          minHoursPerWeek: tutor.min_hours_per_week ?? null,
-          phone: tutor.phone || '',
-          email: tutor.email || '',
-          birthDate: tutor.birth_date || undefined,
-          city: tutor.city || '',
-          role: tutor.role || '',
-          qualifications: tutor.qualifications || '',
-          yearsExperience: tutor.years_experience || undefined,
-          status: tutor.status || 'attivo',
-          entryDate: tutor.entry_date || null,
+        const normalizedTutors = (t.data || []).map(toTutorRow);
+
+        const normalizedYouths = (y.data || []).map(toYouthRow).map((yy: any) => ({
+          ...yy,
+          tutorIds: tutorsByYouth[yy.id] || [],
         }));
 
-        const normalizedYouths = (y.data || []).map((youth: any) => ({
-          ...youth,
-          needs: youth.needs || [],
-          diagnoses: youth.diagnoses || [],
-          requiredHoursPerWeek: youth.required_hours_per_week,
-          birthDate: youth.birth_date || undefined,
-          birthPlace: youth.birth_place || '',
-          fiscalCode: youth.fiscal_code || '',
-          phone: youth.phone || '',
-          school: youth.school || '',
-          contacts: (Array.isArray(youth.contacts) && youth.contacts.length > 0)
-            ? youth.contacts
-            : [
-                ...(youth.parent1_name || youth.parent1_phone || youth.parent1_email
-                  ? [{ id: 'p1', label: 'Genitore 1', name: youth.parent1_name || '', phone: youth.parent1_phone || '', email: youth.parent1_email || '' }]
-                  : []),
-                ...(youth.parent2_name || youth.parent2_phone || youth.parent2_email
-                  ? [{ id: 'p2', label: 'Genitore 2', name: youth.parent2_name || '', phone: youth.parent2_phone || '', email: youth.parent2_email || '' }]
-                  : []),
-              ],
-          privacyConsentDate: youth.privacy_consent_date || null,
-          outingsAuthorized: youth.outings_authorized || false,
-          allergies: youth.allergies || '',
-          medications: youth.medications || '',
-          contractStartDate: youth.contract_start_date || null,
-          contractEndDate: youth.contract_end_date || null,
-          entryDate: youth.entry_date || null,
-          status: youth.status || 'attivo',
-          goals: youth.goals || '',
-          tutorIds: tutorsByYouth[youth.id] || [],
-        }));
-
-        const normalizedShifts = (s.data || []).map((shift: any) => ({
-          ...shift,
-          tutorId: shift.tutor_id,
-          youthId: shift.youth_id,
-          youthIds: Array.isArray(shift.youth_ids) && shift.youth_ids.length > 0 ? shift.youth_ids : (shift.youth_id ? [shift.youth_id] : []),
-          startTime: shift.start_time,
-          endTime: shift.end_time,
-          status: shift.status || 'pianificato',
-          actualStartTime: shift.actual_start_time || null,
-          actualEndTime: shift.actual_end_time || null,
-          actualNotes: shift.actual_notes || '',
-          isTemplate: shift.is_template || false,
-          templateWeekday: shift.template_weekday || null,
-          templateShiftId: shift.template_shift_id || null,
-          durationWeeks: shift.duration_weeks ?? null,
-        }));
+        const normalizedShifts = (s.data || []).map(toShiftRow);
 
         setTutors(normalizedTutors);
         setYouths(normalizedYouths);
@@ -1650,6 +1694,118 @@ function App() {
       }
     })();
   }, []);
+
+  // -------------------------------------------------------------------------
+  // Realtime sync (Supabase Realtime · postgres_changes): applica subito le
+  // modifiche fatte dagli altri utenti e invalida l'undo/redo locale quando
+  // arriva una modifica remota. Gli eventi che arrivano DALLE NOSTRE STESSE
+  // scritture (eco) vengono riconosciuti e ignorati.
+  // -------------------------------------------------------------------------
+  const [realtimeOnline, setRealtimeOnline] = useState(false);
+
+  const mergeRemoteShifts = (eventType: string, incoming: any) => {
+    setShifts(prev => {
+      const id = eventType === 'DELETE' ? incoming?.old?.id : incoming?.new?.id;
+      if (!id) return prev;
+      const idx = prev.findIndex(x => x.id === id);
+      const existing = idx >= 0 ? prev[idx] : null;
+      let isSelf = false;
+      let next: Shift[] = prev;
+      if (eventType === 'INSERT') {
+        isSelf = existing !== null;
+        if (!existing) {
+          next = [...prev, toShiftRow(incoming.new)];
+        }
+      } else if (eventType === 'UPDATE') {
+        isSelf = existing !== null && sameRowIgnoringTimestamps(existing, toShiftRow(incoming.new));
+        if (existing) {
+          next = prev.map(x => x.id === id ? toShiftRow(incoming.new) : x);
+        } else {
+          next = [...prev, toShiftRow(incoming.new)];
+        }
+      } else if (eventType === 'DELETE') {
+        isSelf = existing === null;
+        if (existing) next = prev.filter(x => x.id !== id);
+      }
+      if (!isSelf) {
+        setUndoStack([]);
+        setRedoStack([]);
+      }
+      return next;
+    });
+  };
+
+  const mergeRemoteTutors = (eventType: string, incoming: any) => {
+    setTutors(prev => {
+      const id = eventType === 'DELETE' ? incoming?.old?.id : incoming?.new?.id;
+      if (!id) return prev;
+      const idx = prev.findIndex(x => x.id === id);
+      const existing = idx >= 0 ? prev[idx] : null;
+      let isSelf = false;
+      let next: Tutor[] = prev;
+      if (eventType === 'INSERT') {
+        isSelf = existing !== null;
+        if (!existing) next = [...prev, toTutorRow(incoming.new)];
+      } else if (eventType === 'UPDATE') {
+        isSelf = existing !== null && sameRowIgnoringTimestamps(existing, toTutorRow(incoming.new));
+        next = existing
+          ? prev.map(x => x.id === id ? toTutorRow(incoming.new) : x)
+          : [...prev, toTutorRow(incoming.new)];
+      } else if (eventType === 'DELETE') {
+        isSelf = existing === null;
+        if (existing) next = prev.filter(x => x.id !== id);
+      }
+      if (!isSelf) {
+        setUndoStack([]);
+        setRedoStack([]);
+      }
+      return next;
+    });
+  };
+
+  const mergeRemoteYouths = (eventType: string, incoming: any) => {
+    setYouths(prev => {
+      const id = eventType === 'DELETE' ? incoming?.old?.id : incoming?.new?.id;
+      if (!id) return prev;
+      const idx = prev.findIndex(x => x.id === id);
+      const existing = idx >= 0 ? prev[idx] : null;
+      let isSelf = false;
+      let next: Youth[] = prev;
+      if (eventType === 'INSERT') {
+        isSelf = existing !== null;
+        if (!existing) next = [...prev, toYouthRow(incoming.new)];
+      } else if (eventType === 'UPDATE') {
+        const remoteRow = { ...toYouthRow(incoming.new), tutorIds: existing?.tutorIds ?? incoming.new?.tutorIds ?? [] };
+        isSelf = existing !== null && sameRowIgnoringTimestamps(existing, remoteRow);
+        next = existing
+          ? prev.map(x => x.id === id ? remoteRow : x)
+          : [...prev, remoteRow];
+      } else if (eventType === 'DELETE') {
+        isSelf = existing === null;
+        if (existing) next = prev.filter(x => x.id !== id);
+      }
+      if (!isSelf) {
+        setUndoStack([]);
+        setRedoStack([]);
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!token || !currentUser) return;
+    setRealtimeOnline(false);
+    const channel = supabase
+      .channel('centrocare-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, payload => mergeRemoteShifts(payload.eventType as string, payload as any))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tutors' }, payload => mergeRemoteTutors(payload.eventType as string, payload as any))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'youths' }, payload => mergeRemoteYouths(payload.eventType as string, payload as any))
+      .subscribe(status => setRealtimeOnline(status === 'SUBSCRIBED'));
+    return () => {
+      supabase.removeChannel(channel);
+      setRealtimeOnline(false);
+    };
+  }, [token, currentUser]);
 
   // Date State for Calendar
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -2091,8 +2247,31 @@ function App() {
         duration_weeks: isPlan ? (editingShift.durationWeeks ?? (payRates.weeksPerMonth || 4)) : null,
       };
 
-      const { error } = await supabase.from('shifts').upsert(shiftData);
-      if (error) throw error;
+      // Scrittura con guard anti-sovrascrittura (Livello 2): se sto modificando un
+      // turno esistente con updated_at conosciuto, aggiorno SOLO se nel DB la riga non
+      // è stata toccata da altri nel frattempo; altrimenti rifiuto e lascio che il
+      // realtime mostri la versione corrente.
+      let savedShift: any = null;
+      const priorShift = editingShift.id ? shifts.find(x => x.id === editingShift.id) : undefined;
+      if (priorShift && priorShift.updatedAt) {
+        const { data, error } = await supabase.from('shifts')
+          .update(shiftData)
+          .eq('id', shiftData.id)
+          .eq('updated_at', priorShift.updatedAt)
+          .select('*')
+          .single();
+        if (error) throw error;
+        if (!data) {
+          setUndoStack(s => s.slice(0, -1));
+          toast('Turno modificato da un altro utente: non ho salvato le tue modifiche per evitare di sovrascriverle. La versione corrente è già visibile nel calendario.', 'error');
+          return;
+        }
+        savedShift = data;
+      } else {
+        const { data, error } = await supabase.from('shifts').upsert(shiftData, { onConflict: 'id' }).select('*').single();
+        if (error) throw error;
+        savedShift = data || null;
+      }
 
       const tutorName = tutors.find(t => t.id === editingShift.tutorId)?.name || editingShift.tutorId;
       const youthIdsList = editingShift.youthIds?.length ? editingShift.youthIds : youthIds;
@@ -2118,6 +2297,7 @@ function App() {
 
       const normalizedShift = {
         ...shiftData,
+        updatedAt: savedShift?.updated_at || null,
         tutorId: shiftData.tutor_id,
         youthId: shiftData.youth_id,
         youthIds: shiftData.youth_ids,
@@ -3313,6 +3493,21 @@ function App() {
                 <span className="block font-bold truncate">{currentUser?.username || 'Utente'}</span>
                 <span className="block text-[10px] text-white/60 uppercase tracking-wider">Area riservata</span>
               </div>
+            </div>
+          )}
+          {sidebarExpanded && (
+            <div
+              className={`mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg ring-1 backdrop-blur ${
+                realtimeOnline
+                  ? 'text-emerald-300 bg-emerald-500/15 ring-emerald-400/30'
+                  : 'text-red-300 bg-red-500/15 ring-red-400/30'
+              }`}
+              title={realtimeOnline
+                ? 'Sincronizzazione in tempo reale attiva: vedi subito le modifiche degli altri utenti'
+                : 'Sincronizzazione realtime non connessa: i dati si aggiornano al refresh'}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${realtimeOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
+              {realtimeOnline ? 'Realtime' : 'Offline'}
             </div>
           )}
         </div>

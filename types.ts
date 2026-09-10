@@ -22,6 +22,7 @@ export interface Tutor {
   yearsExperience?: number;
   status?: string;
   entryDate?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface YouthContact {
@@ -55,6 +56,7 @@ export interface Youth {
   entryDate?: string | null;
   status?: string;
   goals?: string;
+  updatedAt?: string | null;
 }
 
 export interface Shift {
@@ -74,6 +76,7 @@ export interface Shift {
   templateWeekday?: number | null; // 1 = LUN .. 6 = SAB (per turni template)
   templateShiftId?: string | null; // id del template da cui deriva un turno validato
   durationWeeks?: number; // settimane di validità del turno (default = weeksPerMonth in Calcolo Paga)
+  updatedAt?: string | null;
 }
 
 export interface PermFlags {
