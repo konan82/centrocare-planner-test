@@ -7792,7 +7792,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Confirm Delete Youth Modal */}
-      <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo" icon={<HeartPulse size={20} />}>
+      <Modal isOpen={!!youthToDelete} onClose={() => setYouthToDelete(null)} title="Elimina scheda ragazzo" icon={<Users size={20} />}>
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-red-100 rounded-full flex-shrink-0 mt-0.5">
@@ -8620,7 +8620,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       </Modal>
 
       {/* Youth Modal */}
-      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="xl" icon={<HeartPulse size={20} />}>
+      <Modal isOpen={isYouthModalOpen} onClose={() => setIsYouthModalOpen(false)} title={newYouth.id ? "Modifica Ragazzo/a" : "Nuovo Ragazzo/a"} size="xl" icon={<Users size={20} />}>
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
