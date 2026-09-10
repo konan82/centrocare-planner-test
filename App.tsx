@@ -1777,6 +1777,7 @@ function App() {
   const [summaryYouthFilter, setSummaryYouthFilter] = useState<string>('all');
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
   const [kpiMonth, setKpiMonth] = useState(() => startOfMonth(new Date()));
+  const [kpiShowPending, setKpiShowPending] = useState(false);
 
   // Payroll (Calcolo Paga) State
   const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0, weeksPerMonth: 4 });
@@ -7100,29 +7101,42 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           };
         })
         .filter(r => r.monthlyPlanned > 0 || r.weeklyExecuted > 0)
-        .sort((a, b) => b.gap - a.gap);
+        .sort((a, b) => a.youth.name.localeCompare(b.youth.name, 'it', { sensitivity: 'base' }));
 
-      const byTutorDay = new Map<string, Array<{ start: number; end: number }>>();
+      const byTutorDay = new Map<string, Array<{ start: number; end: number; youths: Set<string> }>>();
       templates.forEach(s => {
         const wd = s.templateWeekday || weekdayOf(s.date);
         const key = `${s.tutorId}|${wd}`;
         const arr = byTutorDay.get(key) || [];
-        arr.push({ start: toMin(s.startTime), end: toMin(s.endTime) });
+        arr.push({ start: toMin(s.startTime), end: toMin(s.endTime), youths: new Set(shiftYouthIds(s)) });
         byTutorDay.set(key, arr);
       });
       const conflicts: Array<{ tutorId: string; count: number }> = [];
       byTutorDay.forEach((arr, key) => {
         if (arr.length < 2) return;
-        arr.sort((a, b) => a.start - b.start);
         let overlaps = 0;
-        let mergedEnd = arr[0].end;
-        for (let i = 1; i < arr.length; i++) {
-          if (arr[i].start < mergedEnd) overlaps++;
-          mergedEnd = Math.max(mergedEnd, arr[i].end);
+        for (let i = 0; i < arr.length; i++) {
+          for (let j = i + 1; j < arr.length; j++) {
+            const a = arr[i], b = arr[j];
+            const timeOverlap = a.start < b.end && b.start < a.end;
+            if (!timeOverlap) continue;
+            const shared = Array.from(a.youths).some(y => b.youths.has(y));
+            if (shared) overlaps++;
+          }
         }
         if (overlaps > 0) {
           const tutorId = key.split('|')[0];
           conflicts.push({ tutorId, count: overlaps });
+        }
+      });
+      const pending: Array<{ date: string; template: Shift }> = [];
+      templates.forEach(t => {
+        const wd = t.templateWeekday || weekdayOf(t.date);
+        for (let d = parseISO(ms); format(d, 'yyyy-MM-dd') <= me; d = addDays(d, 1)) {
+          if (getDay(d) !== wd) continue;
+          const ds = format(d, 'yyyy-MM-dd');
+          const exists = monthShifts.some(s => !s.isTemplate && s.templateShiftId === t.id && s.date === ds);
+          if (!exists) pending.push({ date: ds, template: t });
         }
       });
 
@@ -7139,7 +7153,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       return {
         plannedTotal, executedTotal, plannedOccurrences, recorded, completionPct,
         cancelledCount: cancelledList.length, cancelledHours, doubleHours, singleHours, payBase,
-        tutorRows, youthRows, conflicts,
+        tutorRows, youthRows, conflicts, pending,
       };
     };
 
@@ -7258,7 +7272,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             icon={ClipboardCheck}
             sub={
               <>
-                <span className="font-semibold text-amber-600">{Math.max(0, cur.plannedOccurrences - cur.recorded)} da registrare</span> · {cur.recorded}/{cur.plannedOccurrences} turni su {cur.plannedOccurrences}
+                <button
+                  onClick={() => setKpiShowPending(true)}
+                  disabled={cur.pending.length === 0}
+                  title="Clicca per vedere l'elenco dei turni pianificati non ancora registrati nel Consuntivo"
+                  className={`font-semibold underline decoration-dotted underline-offset-2 ${cur.pending.length > 0 ? 'text-amber-600 hover:text-amber-700 active:scale-95 transition-transform cursor-pointer' : 'text-slate-400 cursor-default'}`}
+                >
+                  {cur.pending.length} da registrare ▶
+                </button>
+                <span className="text-slate-400"> · {cur.recorded}/{cur.plannedOccurrences} registrati</span>
                 <ProgressBar pct={cur.completionPct} tone="sky" />
               </>
             }
@@ -7398,8 +7420,67 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               })}
             </div>
           )}
-          <p className="mt-3 text-[11px] text-slate-400">Conflitti = due o più turni della settimana tipo assegnati allo stesso tutor nello stesso giorno con fasce orarie che si sovrappongono.</p>
+          <p className="mt-3 text-[11px] text-slate-400">Conflitti = due o più turni della settimana tipo con lo stesso tutor, nello stesso giorno, con fasce orarie sovrapposte <span className="font-semibold text-rose-500">per gli stessi ragazzi</span> (lo stesso ragazzo prenotato due volte). Turni paralleli con ragazzi diversi non contano.</p>
         </Card>
+
+        {kpiShowPending && (
+          <div className="fixed inset-0 z-[90] bg-black/40 flex items-center justify-center p-4" onClick={() => setKpiShowPending(false)}>
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-slate-800">Turni da registrare</h3>
+                  <p className="text-xs text-slate-500 capitalize">{format(kpiMonth, 'MMMM yyyy', { locale: it })} · {cur.pending.length} turni pianificati senza corrispettivo nel Consuntivo</p>
+                </div>
+                <button onClick={() => setKpiShowPending(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 shrink-0" title="Chiudi"><X size={18} /></button>
+              </div>
+              <div className="overflow-y-auto px-5 py-3">
+                {cur.pending.length === 0 ? (
+                  <p className="text-center text-slate-400 italic py-8">Tutto registrato.</p>
+                ) : (
+                  <table className="w-full text-sm border-collapse whitespace-nowrap">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
+                        <th className="text-left py-2 pr-3 font-bold">Data</th>
+                        <th className="text-left py-2 pr-3 font-bold">Tutor</th>
+                        <th className="text-left py-2 pr-3 font-bold">Ragazzo/i</th>
+                        <th className="text-left py-2 pr-3 font-bold">Fascia</th>
+                        <th className="text-left py-2 font-bold">Attività</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cur.pending.map((p, i) => {
+                        const t = tutors.find(x => x.id === p.template.tutorId);
+                        const tc = getTutorColor(p.template.tutorId, tutors);
+                        return (
+                          <tr key={i} className="border-b border-slate-100">
+                            <td className="py-1.5 pr-3 font-semibold text-slate-700 capitalize">{format(parseISO(p.date), 'EEE d MMM', { locale: it })}</td>
+                            <td className="py-1.5 pr-3">
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className={`h-5 w-5 rounded-full ${tc.bg} ${tc.text} text-[10px] font-bold flex items-center justify-center shrink-0`}>{getInitials(t?.name)}</span>
+                                <span className="max-w-[8rem] truncate font-medium">{t?.name || '—'}</span>
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3">
+                              <span className="flex flex-wrap gap-1">
+                                {shiftYouthIds(p.template).map(yid => {
+                                  const y = youths.find(x => x.id === yid);
+                                  const yc = getYouthColor(yid, youths);
+                                  return <span key={yid} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text}`}>{y?.name || '—'}</span>;
+                                })}
+                              </span>
+                            </td>
+                            <td className="py-1.5 pr-3 tabular-nums text-slate-600">{p.template.startTime}–{p.template.endTime}</td>
+                            <td className="py-1.5 font-medium text-slate-600 max-w-[10rem] truncate">{p.template.activity}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
