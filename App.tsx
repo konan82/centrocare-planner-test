@@ -7552,8 +7552,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             <td className="py-1.5 pr-3 font-semibold text-slate-700 capitalize">{format(parseISO(p.date), 'EEE d MMM', { locale: it })}</td>
                             <td className="py-1.5 pr-3">
                               <span className="inline-flex items-center gap-1.5">
-                                <span className={`h-5 w-5 rounded-full ${tc.bg} ${tc.text} text-[10px] font-bold flex items-center justify-center shrink-0`}>{getInitials(t?.name)}</span>
-                                <span className="max-w-[8rem] truncate font-medium">{t?.name || '—'}</span>
+                                <button
+                                  onClick={(e) => goToTutorAgenda(t, e as unknown as React.MouseEvent)}
+                                  className={`h-5 w-5 rounded-full ${tc.bg} ${tc.text} text-[10px] font-bold flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-teal-400 transition`}
+                                  title={`Apri l'agenda di ${t?.name || 'tutor'}`}
+                                >
+                                  {getInitials(t?.name)}
+                                </button>
+                                <button
+                                  onClick={(e) => goToTutor(t, e as unknown as React.MouseEvent)}
+                                  className="max-w-[8rem] truncate font-medium cursor-pointer hover:text-teal-700 hover:underline"
+                                  title={`Apri scheda ${t?.name || 'tutor'}`}
+                                >
+                                  {t?.name || '—'}
+                                </button>
                               </span>
                             </td>
                             <td className="py-1.5 pr-3">
@@ -7561,7 +7573,16 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 {shiftYouthIds(p.template).map(yid => {
                                   const y = youths.find(x => x.id === yid);
                                   const yc = getYouthColor(yid, youths);
-                                  return <span key={yid} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text}`}>{y?.name || '—'}</span>;
+                                  return (
+                                    <button
+                                      key={yid}
+                                      onClick={(e) => goToYouth(y, e as unknown as React.MouseEvent)}
+                                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text} hover:ring-2 hover:ring-teal-400 cursor-pointer transition`}
+                                      title={`Apri scheda ${y?.name || 'ragazzo'}`}
+                                    >
+                                      {y?.name || '—'}
+                                    </button>
+                                  );
                                 })}
                               </span>
                             </td>
@@ -7608,6 +7629,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <th className="text-left py-2 pr-3 font-bold">Ragazzo/i</th>
                         <th className="text-left py-2 pr-3 font-bold">Fascia</th>
                         <th className="text-left py-2 font-bold">Attività</th>
+                        <th className="text-right py-2 font-bold">Azione</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -7656,6 +7678,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             </td>
                             <td className="py-1.5 pr-3 tabular-nums text-slate-600">{s.startTime}–{s.endTime}</td>
                             <td className="py-1.5 font-medium text-slate-600 max-w-[10rem] truncate">{s.activity}</td>
+                            <td className="py-1.5 pl-3 text-right">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setKpiShowCancelled(false); openShiftModal(s, 'validate'); }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 text-white text-[11px] font-bold shadow-sm hover:from-rose-700 hover:to-pink-700 active:scale-95 transition whitespace-nowrap"
+                                title="Apre la scheda turno in Consuntivo: puoi riattivarlo o modificarne gli orari effettivi"
+                              >
+                                <ClipboardCheck size={13} /> Vai al consuntivo
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
