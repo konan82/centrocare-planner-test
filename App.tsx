@@ -2401,6 +2401,26 @@ function App() {
     setIsShiftModalOpen(true);
   };
 
+  // "Registra Turno" dai turni da registrare (Panoramica): apre la scheda consuntivo precompilata
+  const openRegisterPendingShift = (p: { date: string; template: Shift }) => {
+    const youthIds = shiftYouthIds(p.template);
+    setEditingShift({
+      tutorId: p.template.tutorId,
+      youthId: youthIds[0] || '',
+      youthIds,
+      date: p.date,
+      startTime: p.template.startTime,
+      endTime: p.template.endTime,
+      activity: p.template.activity || 'Attività generica',
+      status: 'pianificato',
+      isTemplate: false,
+      templateShiftId: p.template.id,
+    });
+    setShiftModalMode('validate');
+    setIsShiftModalOpen(true);
+    setKpiShowPending(false);
+  };
+
   const finishDragCreate = () => {
     const sel = dragCreateRef.current;
     if (!sel) return;
@@ -7445,6 +7465,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <th className="text-left py-2 pr-3 font-bold">Ragazzo/i</th>
                         <th className="text-left py-2 pr-3 font-bold">Fascia</th>
                         <th className="text-left py-2 font-bold">Attività</th>
+                        <th className="text-right py-2 font-bold">Azione</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -7471,6 +7492,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             </td>
                             <td className="py-1.5 pr-3 tabular-nums text-slate-600">{p.template.startTime}–{p.template.endTime}</td>
                             <td className="py-1.5 font-medium text-slate-600 max-w-[10rem] truncate">{p.template.activity}</td>
+                            <td className="py-1.5 pl-3 text-right">
+                              <button
+                                onClick={() => openRegisterPendingShift(p)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white text-[11px] font-bold shadow-sm hover:from-teal-700 hover:to-emerald-700 active:scale-95 transition whitespace-nowrap"
+                                title="Apre la scheda turno in Consuntivo: inserisci orario effettivo di inizio e fine"
+                              >
+                                <Plus size={13} /> Registra Turno
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
