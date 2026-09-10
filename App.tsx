@@ -7036,7 +7036,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       });
       const yWeekly = new Map<string, number>();
       const yPlanned = new Map<string, number>();
-      const yDelta = new Map<string, number>();
+      const yExecuted = new Map<string, number>();
       templates.forEach(s => {
         const h = getHours(s.startTime, s.endTime);
         const occ = templateMonthlyCount(s);
@@ -7046,9 +7046,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         });
       });
       monthShifts.forEach(s => {
-        const diff = getValidatedHours(s) - getHours(s.startTime, s.endTime);
+        const vh = getValidatedHours(s);
         shiftYouthIds(s).forEach(yid => {
-          yDelta.set(yid, (yDelta.get(yid) || 0) + diff);
+          yExecuted.set(yid, (yExecuted.get(yid) || 0) + vh);
         });
       });
 
@@ -7108,7 +7108,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         .map(y => {
           const weeklyPlanned = yWeekly.get(y.id) || 0;
           const monthlyPlanned = yPlanned.get(y.id) || 0;
-          const monthlyExecuted = Math.max(0, monthlyPlanned + (yDelta.get(y.id) || 0));
+          const monthlyExecuted = yExecuted.get(y.id) || 0;
           const required = y.requiredHoursPerWeek || 0;
           return {
             youth: y,
@@ -7374,7 +7374,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </div>
             )}
             {cur.youthRows.length > 0 && (
-              <p className="mt-3 text-[11px] text-slate-400">Fabbisogno = minuti settimanali richiesti in anagrafica · Gap = fabbisogno - ore pianificate (rosso = da coprire).</p>
+              <p className="mt-3 text-[11px] text-slate-400">Fabbisogno = ore settimanali richieste in anagrafica · Pianif/sett = settimana tipo · Erogate/sett = sole ore effettive registrate nel Consuntivo del mese ÷ {weeks} settimane · Gap = fabbisogno - ore pianificate (rosso = da coprire).</p>
             )}
           </Card>
 
