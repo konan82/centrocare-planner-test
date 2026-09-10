@@ -1942,6 +1942,7 @@ function App() {
       const { error } = await supabase.from('youths').upsert(youthData);
       if (error) throw error;
 
+      const tutorIds = newYouth.tutorIds || [];
       const oldYouth = newYouth.id ? youths.find(y => y.id === newYouth.id) : undefined;
       auditLog(newYouth.id ? 'update' : 'create', 'youth', youthId, youthData.name, newYouth.id && oldYouth
         ? auditDiff(
@@ -1950,7 +1951,6 @@ function App() {
           )
         : {});
 
-      const tutorIds = newYouth.tutorIds || [];
       await supabase.from('youth_tutors').delete().eq('youth_id', youthId);
       if (tutorIds.length > 0) {
         const { error: linkError } = await supabase.from('youth_tutors').insert(
