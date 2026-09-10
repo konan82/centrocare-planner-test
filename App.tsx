@@ -1101,7 +1101,38 @@ function toast(msg: string, kind: ToastKind = 'info') {
   const id = nextToastId++;
   toastItems = [...toastItems, { id, msg, kind }];
   toastSubscribers.forEach((s) => s());
-  setTimeout(() => dismissToast(id), 4500);
+  setTimeout(() => dismissToast(id), kind === 'error' ? 5000 : 4500);
+}
+
+// Estrae un messaggio di errore leggibile da qualunque forma di risposta backend:
+// error.response.data.message, error.message (es. PostgrestError), ecc.
+// Se la rete è assente (Failed to fetch / Network Error) restituisce '' così da
+// usare il messaggio di fallback descrittivo.
+function extractErrorDetail(error: any): string {
+  if (!error) return '';
+  const m = error?.message;
+  if (typeof m === 'string' && !error?.response && /(failed to fetch|network error|fetch failed)/i.test(m)) return '';
+  const candidates: any[] = [
+    error?.response?.data?.message,
+    error?.response?.data?.error,
+    error?.response?.data?.detail,
+    error?.response?.data?.msg,
+    error?.error_description,
+    error?.message,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  if (typeof error === 'string' && error.trim()) return error.trim();
+  return '';
+}
+
+// Mostra un toast di errore con il dettaglio backend quando disponibile,
+// altrimenti il messaggio di fallback. Il log in console dell'errore completo
+// è già gestito dai singoli catch (console.error).
+function toastError(error: unknown, fallback: string) {
+  const detail = extractErrorDetail(error);
+  toast(detail || fallback, 'error');
 }
 
 function dismissToast(id: number) {
@@ -1276,7 +1307,7 @@ function App() {
       setRedoStack(s => [...s, current]);
     } catch (error) {
       console.error("Error on undo:", error);
-      toast("Errore durante l'annullamento", 'error');
+      toastError(error, "Errore durante l'annullamento");
     }
   };
   const handleRedo = async () => {
@@ -1289,7 +1320,7 @@ function App() {
       setUndoStack(s => [...s, current]);
     } catch (error) {
       console.error("Error on redo:", error);
-      toast("Errore durante il rifacimento dell'azione", 'error');
+      toastError(error, "Errore durante il rifacimento dell'azione");
     }
   };
 
@@ -1860,7 +1891,7 @@ function App() {
       setNewTutor({});
     } catch (error) {
       console.error("Error saving tutor:", error);
-      toast("Errore nel salvataggio del tutor", 'error');
+      toastError(error, "Errore nel salvataggio del tutor");
     }
   };
 
@@ -1874,7 +1905,7 @@ function App() {
       setShifts(shifts.filter(s => s.tutorId !== id));
     } catch (error) {
       console.error("Error deleting tutor:", error);
-      toast("Errore nell'eliminazione del tutor", 'error');
+      toastError(error, "Errore nell'eliminazione del tutor");
     }
   };
 
@@ -1955,7 +1986,7 @@ function App() {
       setNewYouth({});
     } catch (error) {
       console.error("Error saving youth:", error);
-      toast("Errore nel salvataggio del ragazzo", 'error');
+      toastError(error, "Errore nel salvataggio del ragazzo");
     }
   };
 
@@ -1969,7 +2000,7 @@ function App() {
       setShifts(shifts.filter(s => shiftYouthIds(s).every(sid => sid !== id)));
     } catch (error) {
       console.error("Error deleting youth:", error);
-      toast("Errore nell'eliminazione del ragazzo", 'error');
+      toastError(error, "Errore nell'eliminazione del ragazzo");
     }
   };
 
@@ -2116,7 +2147,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error saving shift:", error);
-      toast("Errore nel salvataggio del turno", 'error');
+      toastError(error, "Errore nel salvataggio del turno");
     }
   };
 
@@ -2185,7 +2216,7 @@ function App() {
       return normalizedClone;
     } catch (error) {
       console.error("Error cloning shift:", error);
-      toast("Errore nella copia del turno", 'error');
+      toastError(error, "Errore nella copia del turno");
       return null;
     }
   };
@@ -2277,7 +2308,7 @@ function App() {
       setEditingShift(null);
     } catch (error) {
       console.error("Error marking unavailable:", error);
-      toast("Errore nel salvataggio della fascia non disponibile", 'error');
+      toastError(error, "Errore nel salvataggio della fascia non disponibile");
     }
   };
 
@@ -2322,7 +2353,7 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable slot:", error);
-        toast("Errore nel rimuovere l'indisponibilità", 'error');
+        toastError(error, "Errore nel rimuovere l'indisponibilità");
         return false;
       }
     }
@@ -2343,7 +2374,7 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable day:", error);
-        toast("Errore nel rimuovere l'indisponibilità", 'error');
+        toastError(error, "Errore nel rimuovere l'indisponibilità");
         return false;
       }
     }
@@ -2370,7 +2401,7 @@ function App() {
       }
     } catch (error) {
       console.error("Error deleting shift:", error);
-      toast("Errore nell'eliminazione del turno", 'error');
+      toastError(error, "Errore nell'eliminazione del turno");
     }
   };
 
@@ -2525,7 +2556,7 @@ function App() {
       }
     } catch (error) {
       console.error("Errore invio WhatsApp:", error);
-      toast("Errore durante la generazione dell'immagine. Riprova.", 'error');
+      toastError(error, "Errore durante la generazione dell'immagine. Riprova.");
     } finally {
       setIsWhatsAppSending(false);
     }
@@ -2687,7 +2718,7 @@ function App() {
       toast(`Fatto: ${rows.length} turni copiati nel mese selezionato.`, 'success');
     } catch (error) {
       console.error("Error replicating month:", error);
-      toast("Errore durante la copia della pianificazione sul mese", 'error');
+      toastError(error, "Errore durante la copia della pianificazione sul mese");
     }
   };
 
@@ -2761,7 +2792,7 @@ function App() {
       toast(`Settimana tipo rigenerata: ${rows.length} turni creati.`, 'success');
     } catch (error) {
       console.error("Error regenerating templates:", error);
-      toast("Errore durante la rigenerazione della settimana tipo.", 'error');
+      toastError(error, "Errore durante la rigenerazione della settimana tipo.");
     }
   };
 
@@ -2790,7 +2821,7 @@ function App() {
       toast(`Fatto: tutti i ${count} turni del consuntivo sono stati cancellati.`, 'success');
     } catch (error) {
       console.error("Error clearing all consuntivo shifts:", error);
-      toast("Errore durante la cancellazione di tutti i turni del consuntivo", 'error');
+      toastError(error, "Errore durante la cancellazione di tutti i turni del consuntivo");
     }
   };
 
@@ -2821,7 +2852,7 @@ function App() {
       toast(`Fatto: ${ids.length} turni cancellati dal consuntivo del mese selezionato.`, 'success');
     } catch (error) {
       console.error("Error clearing month shifts:", error);
-      toast("Errore durante la cancellazione dei turni del mese", 'error');
+      toastError(error, "Errore durante la cancellazione dei turni del mese");
     }
   };
 
@@ -2874,7 +2905,7 @@ function App() {
       setShifts(prev => [...prev, ...normalized]);
     } catch (error) {
       console.error("Error materializing week:", error);
-      toast("Errore nella copia della pianificazione nella settimana", 'error');
+      toastError(error, "Errore nella copia della pianificazione nella settimana");
     }
   };
 
@@ -2941,7 +2972,7 @@ function App() {
       }));
     } catch (error) {
       console.error("Error syncing template occurrences:", error);
-      toast("Errore nell'aggiornamento dei turni futuri in validazione", 'error');
+      toastError(error, "Errore nell'aggiornamento dei turni futuri in validazione");
     }
   };
 
@@ -2964,7 +2995,7 @@ function App() {
       setShifts(prev => prev.filter(s => !idSet.has(s.id)));
     } catch (error) {
       console.error("Error deleting template occurrences:", error);
-      toast("Errore nella rimozione dei turni futuri in validazione", 'error');
+      toastError(error, "Errore nella rimozione dei turni futuri in validazione");
     }
   };
 
@@ -3016,7 +3047,7 @@ function App() {
         }]);
       } catch (error) {
         console.error("Error propagating template create:", error);
-        toast("Errore nell'aggiunta del turno alle settimane future", 'error');
+        toastError(error, "Errore nell'aggiunta del turno alle settimane future");
       }
     }
   };
@@ -3126,7 +3157,7 @@ function App() {
           }
         } catch (error) {
           console.error("Error updating shift drop:", error);
-          toast("Errore spostamento turno", 'error');
+          toastError(error, "Errore spostamento turno");
         }
       }
     }
@@ -4505,7 +4536,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                   setShifts(prev => prev.filter(s => !s.isTemplate));
                                 } catch (error) {
                                   console.error(error);
-                                  toast("Errore durante la cancellazione", 'error');
+                                  toastError(error, "Errore durante la cancellazione");
                                 }
                               }}
                               className={`${BTN} w-full sm:w-auto bg-white text-rose-600 border border-rose-200 hover:bg-rose-50`}
@@ -5107,7 +5138,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                               .then(async ({ error }) => {
                                                 if (error) {
                                                   console.error('Error resizing shift:', error);
-                                                  toast('Errore ridimensionamento turno', 'error');
+                                                  toastError(error, 'Errore ridimensionamento turno');
                                                   return;
                                                 }
                                                 if (shift.isTemplate) {
@@ -5182,7 +5213,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       setTimeout(() => setPaySavedFlash(false), 2000);
     } catch (error) {
       console.error("Error saving pay rates:", error);
-      toast("Errore nel salvataggio delle tariffe orarie", 'error');
+      toastError(error, "Errore nel salvataggio delle tariffe orarie");
     } finally {
       setPaySaving(false);
     }
@@ -9203,7 +9234,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setAccessLogs((data || []) as AccessLogEntry[]);
     } catch (error: any) {
       console.error('Error fetching access logs:', error);
-      toast(`Errore nel caricamento del log degli accessi: ${error.message}`, 'error');
+      toastError(error, 'Errore nel caricamento del log degli accessi');
     } finally {
       setLogLoading(false);
     }
@@ -9265,7 +9296,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       toast("Utente creato con successo!", 'success');
     } catch (error: any) {
       console.error(error);
-      toast(`Errore: ${error.message}`, 'error');
+      toastError(error, "Errore nella creazione dell'utente");
     }
   };
 
@@ -9291,7 +9322,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       fetchUsers();
     } catch (error: any) {
       console.error(error);
-      toast(`Errore: ${error.message}`, 'error');
+      toastError(error, "Errore nell'eliminazione dell'utente");
     }
   };
 
@@ -9335,7 +9366,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       toast("Permessi aggiornati con successo!", 'success');
     } catch (error) {
       console.error(error);
-      toast("Errore nell'aggiornamento dei permessi", 'error');
+      toastError(error, "Errore nell'aggiornamento dei permessi");
     }
   };
 
@@ -9371,7 +9402,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       setPwMsg({ type: 'ok', text: 'Password cambiata con successo.' });
     } catch (error: any) {
       console.error(error);
-      setPwMsg({ type: 'err', text: `Errore: ${error.message}` });
+      setPwMsg({ type: 'err', text: extractErrorDetail(error) || "Errore nel cambio della password" });
     } finally {
       setPwBusy(false);
     }
