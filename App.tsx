@@ -8219,9 +8219,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         <div className="space-y-4">
           {/* Header scheda */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
-            <div className="h-2 bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400"></div>
+            <div className="h-2 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400"></div>
             <div className="flex items-center gap-4 px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-md shrink-0 ${newTutor.id ? getTutorColor(newTutor.id, tutors).bg + ' ' + getTutorColor(newTutor.id, tutors).text : 'bg-gradient-to-br from-blue-500 to-cyan-500 text-white'}`}>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-md shrink-0 ${newTutor.id ? getTutorColor(newTutor.id, tutors).bg + ' ' + getTutorColor(newTutor.id, tutors).text : 'bg-gradient-to-br from-amber-500 to-orange-500 text-white'}`}>
                 {newTutor.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
               <div className="flex-1 min-w-0">
@@ -8249,7 +8249,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
           </div>
 
-          <YouthSection icon={<IdCard size={16} />} title="Dati Personali" chipBg="bg-blue-500" headerBg="bg-gradient-to-r from-blue-50 to-white border-blue-100" textColor="text-blue-700">
+          <YouthSection icon={<IdCard size={16} />} title="Dati Personali" chipBg="bg-amber-500" headerBg="bg-gradient-to-r from-amber-50 to-white border-amber-100" textColor="text-amber-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-base font-medium text-slate-800 mb-1.5">Nome Completo <span className="text-red-500">*</span></label>
@@ -8607,7 +8607,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             <button onClick={() => setIsTutorModalOpen(false)} className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition">
               Annulla
             </button>
-            <button onClick={handleSaveTutor} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
+            <button onClick={handleSaveTutor} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-md hover:from-amber-600 hover:to-orange-700 transition flex items-center justify-center gap-2">
               <Save size={16} /> {newTutor.id ? "Salva Modifiche" : "Aggiungi Tutor"}
             </button>
           </div>
