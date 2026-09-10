@@ -62,7 +62,8 @@ import {
   List,
   GripVertical,
   Copy,
-  LayoutDashboard
+  LayoutDashboard,
+  Ban
 } from 'lucide-react';
 import { Tutor, Youth, Shift, ViewState, User, PaySettings, PermMatrix, PermFlags, AccessLogEntry } from './types';
 import { toPng } from 'html-to-image';
@@ -1791,6 +1792,8 @@ function App() {
 
   // Calendar filter state: filtri simultanei tutor + ragazzo
   const [youthFilter, setYouthFilter] = useState<string>('all');
+  // Calendar filter validità 0: mostra solo i turni non retribuiti (validità 0 settimane)
+  const [zeroWeeksOnly, setZeroWeeksOnly] = useState(false);
   // Calendar time-slot view: Mattina (08-13), Pomeriggio (13-19), Tutto (08-19)
   const [dayPart, setDayPart] = useState<'tutto' | 'mattina' | 'pomeriggio'>('tutto');
   const [calView, setCalView] = useState<'week' | 'today'>('week');
@@ -4321,39 +4324,62 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <SortableContext items={headerLayout} strategy={verticalListSortingStrategy}>
                   {(() => {
                     const available = headerLayout.filter(id => id !== 'STRUMENTI' || isPlan);
+                    const zeroWeeksCount = isPlan
+                      ? visibleShifts.filter(s => s.isTemplate && s.durationWeeks === 0).length
+                      : 0;
                     const byLabel: Record<string, React.ReactNode> = {
                       FILTRA: (
-                        <>{restrictedUserTutorId ? (
-                          <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
-                            <UserCheck size={15} />
-                            Solo i tuoi turni
-                          </span>
-                        ) : (
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <PersonCombo
-                              options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                              value={tutorFilter}
-                              onChange={setTutorFilter}
-                              placeholder="Tutti i tutor"
-                              colorOf={id => getTutorColor(id, tutors)}
-                              allowAll
-                              allLabel="Tutti i tutor"
-                              allValue="all"
-                              className="w-full sm:w-52"
-                            />
-                            <PersonCombo
-                              options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
-                              value={youthFilter}
-                              onChange={setYouthFilter}
-                              placeholder="Tutti i ragazzi"
-                              colorOf={id => getYouthColor(id, youths)}
-                              allowAll
-                              allLabel="Tutti i ragazzi"
-                              allValue="all"
-                              className="w-full sm:w-52"
-                            />
-                          </div>
-                        )}</>
+                        <div className="flex flex-col gap-2">
+                          {restrictedUserTutorId ? (
+                            <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-semibold text-sm">
+                              <UserCheck size={15} />
+                              Solo i tuoi turni
+                            </span>
+                          ) : (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <PersonCombo
+                                options={[...tutors].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                                value={tutorFilter}
+                                onChange={setTutorFilter}
+                                placeholder="Tutti i tutor"
+                                colorOf={id => getTutorColor(id, tutors)}
+                                allowAll
+                                allLabel="Tutti i tutor"
+                                allValue="all"
+                                className="w-full sm:w-52"
+                              />
+                              <PersonCombo
+                                options={[...youths].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))}
+                                value={youthFilter}
+                                onChange={setYouthFilter}
+                                placeholder="Tutti i ragazzi"
+                                colorOf={id => getYouthColor(id, youths)}
+                                allowAll
+                                allLabel="Tutti i ragazzi"
+                                allValue="all"
+                                className="w-full sm:w-52"
+                              />
+                            </div>
+                          )}
+                          {isPlan && (
+                            <button
+                              onClick={() => setZeroWeeksOnly(v => !v)}
+                              title={zeroWeeksOnly
+                                ? 'Rimuovi il filtro e mostra tutti i turni della settimana tipo'
+                                : 'Mostra solo i turni con validità 0 settimane (non retribuiti)'}
+                              className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                                zeroWeeksOnly
+                                  ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-orange-200'
+                                  : 'text-slate-600 bg-white border-2 border-slate-200 hover:border-amber-400 hover:text-amber-700 hover:bg-amber-50'
+                              }`}
+                            >
+                              <Ban size={14} />
+                              {zeroWeeksOnly
+                                ? 'Filtro 0 sett. attivo · clicca per rimuovere'
+                                : `Turni 0 sett. (${zeroWeeksCount})`}
+                            </button>
+                          )}
+                        </div>
                       ),
                       VISTA: (
                         <>
@@ -4494,6 +4520,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             items={[
                               { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
                               { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                              { btn: 'Turni 0 sett.', icon: 'Filtra', desc: 'Mostra solo i turni della settimana tipo con validità 0 settimane (non retribuiti), evidenziati con un pulsante arancione nel gruppo Filtri. Combinalo con i filtri tutor e ragazzo; il conteggio indica quanti turni a 0 settimane esistono.' },
                               { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
                               { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
                               { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
@@ -4804,6 +4831,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     const dayShifts = visibleShifts.filter(s => {
                       if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
                       if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
+                      if (isPlan && zeroWeeksOnly && (s.durationWeeks ?? 0) !== 0) return false;
                       if (isPlan) {
                         return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
                       }
