@@ -1271,7 +1271,7 @@ function App() {
       is_template: s.isTemplate || false,
       template_weekday: s.templateWeekday || null,
       template_shift_id: s.templateShiftId || null,
-      duration_weeks: s.durationWeeks || null,
+      duration_weeks: s.durationWeeks ?? null,
     }));
     const { error: upErr } = await supabase.from('shifts').upsert(rows);
     if (upErr) throw upErr;
@@ -1634,7 +1634,7 @@ function App() {
           isTemplate: shift.is_template || false,
           templateWeekday: shift.template_weekday || null,
           templateShiftId: shift.template_shift_id || null,
-          durationWeeks: shift.duration_weeks || null,
+          durationWeeks: shift.duration_weeks ?? null,
         }));
 
         setTutors(normalizedTutors);
@@ -2085,7 +2085,7 @@ function App() {
         is_template: isPlan,
         template_weekday: templateWeekday,
         template_shift_id: isPlan ? null : (editingShift.templateShiftId || null),
-        duration_weeks: isPlan ? (editingShift.durationWeeks || payRates.weeksPerMonth || 4) : null,
+        duration_weeks: isPlan ? (editingShift.durationWeeks ?? (payRates.weeksPerMonth || 4)) : null,
       };
 
       const { error } = await supabase.from('shifts').upsert(shiftData);
@@ -2177,7 +2177,7 @@ function App() {
       is_template: isPlan,
       template_weekday: isPlan ? (newTemplateWeekday ?? weekdayOf(newDate)) : null,
       template_shift_id: null,
-      duration_weeks: isPlan ? (source.durationWeeks || payRates.weeksPerMonth || 4) : null,
+      duration_weeks: isPlan ? (source.durationWeeks ?? (payRates.weeksPerMonth || 4)) : null,
     };
 
     snapshotBeforeMutation();
@@ -5044,7 +5044,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                               <span className={`rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
                                                 {shift.startTime}–{shift.endTime}
                                               </span>
-                                              {isPlan && shift.durationWeeks && shift.durationWeeks !== (payRates.weeksPerMonth || 4) && (
+                                              {isPlan && shift.durationWeeks != null && shift.durationWeeks !== (payRates.weeksPerMonth || 4) && (
                                                 <span
                                                   className="shrink-0 rounded bg-amber-200/90 border border-amber-400 px-1 py-px text-[9px] font-bold text-amber-800 leading-tight pointer-events-none"
                                                   title={`Validità: ${shift.durationWeeks} settimane`}
@@ -5248,7 +5248,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         .filter(s => s.isTemplate && s.tutorId === t.id)
         .map(s => {
           const h = getH(s.startTime, s.endTime);
-          if (h <= 0) return null;
+          const w = s.durationWeeks ?? weeks;
+          if (h <= 0 || w <= 0) return null;
           return {
             id: s.id,
             wd: s.templateWeekday || weekdayOf(s.date),
@@ -5257,7 +5258,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             startTime: s.startTime,
             endTime: s.endTime,
             youths: new Set(shiftYouthIds(s)),
-            weeks: s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : weeks,
+            weeks: w,
           };
         })
         .filter((x): x is { id: string; wd: number; startMin: number; endMin: number; startTime: string; endTime: string; youths: Set<string>; weeks: number } => x !== null);
@@ -6241,7 +6242,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
     // Raggruppa i turni per fascia esatta (giorno + Inizio + Fine) e scompone la validità a
     // strati come nel Calcolo Paga: es. Ven 15:00–16:00 con Diglio(3) + Paris(2) →
     // Doppio 2 sett. + Singolo 1 sett. Una fascia con un solo turno resta com'è.
-    const weekOfShift = (s: Shift) => s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+    const weekOfShift = (s: Shift) => s.durationWeeks ?? defaultWeeks;
     const buildSlotRows = (list: Shift[]) => {
       const slots = new Map<string, Shift[]>();
       list.forEach(s => {
@@ -6491,7 +6492,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         const tColor = getTutorColor(tt?.id || s.tutorId, tutors);
                         const yids = distinctYouthIds(sl.shifts);
                         const isDouble = !sl.isMerged && yids.length >= 2;
-                        const weeks = s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
+                        const weeks = s.durationWeeks ?? defaultWeeks;
                         return (
                           <div key={sl.key} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} del calendario, filtrato su ${tt?.name || 'tutor'}`} className="px-4 py-3 cursor-pointer hover:bg-amber-100/80 transition-colors">
                             <div className="flex items-center justify-between gap-2">
@@ -6550,7 +6551,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               <div className="mt-1 flex items-center gap-1">
                                 <span className={`text-[11px] tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                   {weeks} sett.
-                                  {s.durationWeeks && s.durationWeeks > 0 && s.durationWeeks !== defaultWeeks && (
+                                  {s.durationWeeks != null && s.durationWeeks !== defaultWeeks && (
                                     <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold"> (personalizzata)</span>
                                   )}
                                 </span>
@@ -6630,7 +6631,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             const single = r.shifts[0];
                             const yids = distinctYouthIds(r.shifts);
                             const isDouble = !r.isMerged && yids.length >= 2;
-                            const weeks = single.durationWeeks && single.durationWeeks > 0 ? single.durationWeeks : defaultWeeks;
+                            const weeks = single.durationWeeks ?? defaultWeeks;
                             return (
                               <Fragment key={r.key}>
                                 {isGroupStart && (
@@ -6702,7 +6703,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 ) : (
                                   <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                     {weeks} sett.
-                                    {single.durationWeeks && single.durationWeeks > 0 && single.durationWeeks !== defaultWeeks && (
+                                    {single.durationWeeks != null && single.durationWeeks !== defaultWeeks && (
                                       <span className="text-[10px] uppercase tracking-wide text-amber-500 font-bold">(personalizzata)</span>
                                     )}
                                   </span>
@@ -7092,13 +7093,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           .filter(s => s.tutorId === t.id)
           .map(s => {
             const h = getHours(s.startTime, s.endTime);
-            if (h <= 0) return null;
+            const w = s.durationWeeks ?? weeks;
+            if (h <= 0 || w <= 0) return null;
             return {
               wd: s.templateWeekday || weekdayOf(s.date),
               startMin: toMin(s.startTime),
               endMin: toMin(s.endTime),
               youths: new Set(shiftYouthIds(s)),
-              weeks: s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : weeks,
+              weeks: w,
             };
           })
           .filter((x): x is { wd: number; startMin: number; endMin: number; youths: Set<string>; weeks: number } => x !== null);
@@ -8080,13 +8082,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   <label className="block text-base font-medium text-slate-800 mb-1.5">Validità (settimane)</label>
                   <input
                     type="number"
-                    min={1}
+                    min={0}
                     step={1}
                     className={fieldCls}
-                    value={editingShift?.durationWeeks || payRates.weeksPerMonth || 4}
-                    onChange={e => setEditingShift({ ...editingShift, durationWeeks: e.target.value === '' ? undefined : (parseInt(e.target.value, 10) || 1) })}
-                    title="Numero di settimane in cui questo turno è attivo (default: Settimane/mese di Calcolo Paga)"
+                    value={editingShift?.durationWeeks ?? (payRates.weeksPerMonth || 4)}
+                    onChange={e => setEditingShift({ ...editingShift, durationWeeks: e.target.value.trim() === '' ? undefined : (isNaN(parseInt(e.target.value, 10)) ? 1 : Math.max(0, parseInt(e.target.value, 10))) })}
+                    title="Numero di settimane in cui questo turno è attivo (default: Settimane/mese di Calcolo Paga) · 0 = turno non retribuito"
                   />
+                  <p className="mt-1 text-xs text-slate-400">0 = turno non retribuito (il tutor presterà servizio ma non comparirà nel Calcolo Paga)</p>
                 </div>
               )}
             </div>
