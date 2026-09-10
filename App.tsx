@@ -7844,9 +7844,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           </p>
           {/* Header */}
           <div className="rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200">
-            <div className="h-2 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400"></div>
+            <div className={`h-2 ${shiftModalMode === 'plan' ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-400' : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-400'}`}></div>
             <div className="flex items-center gap-4 px-5 py-4 bg-gradient-to-br from-slate-50 to-white">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center text-xl font-bold shadow-md shrink-0">
+              <div className={`w-14 h-14 rounded-2xl ${shiftModalMode === 'plan' ? 'bg-gradient-to-br from-teal-500 to-emerald-600' : 'bg-gradient-to-br from-blue-600 to-indigo-600'} text-white flex items-center justify-center text-xl font-bold shadow-md shrink-0`}>
                 {getInitials(tutors.find(t => t.id === editingShift?.tutorId)?.name)}
               </div>
               <div className="flex-1 min-w-0">
@@ -7854,7 +7854,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   {editingShift?.tutorId ? (
                     <button
                       onClick={(e) => goToTutor(tutors.find(t => t.id === editingShift!.tutorId), e as unknown as React.MouseEvent)}
-                      className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer truncate"
+                      className={`font-bold text-slate-800 hover:underline cursor-pointer truncate ${shiftModalMode === 'plan' ? 'hover:text-teal-700' : 'hover:text-blue-700'}`}
                       title="Apri scheda tutor"
                     >
                       {tutors.find(t => t.id === editingShift.tutorId)?.name || 'Tutor'}
@@ -7872,7 +7872,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     );
                   })}
                   {editingShift?.startTime && (
-                    <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold tabular-nums">
+                    <span className={`px-2 py-0.5 rounded-full ${shiftModalMode === 'plan' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'} text-xs font-semibold tabular-nums`}>
                       {editingShift.startTime}–{editingShift.endTime}
                     </span>
                   )}
@@ -7887,7 +7887,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
           </div>
 
-          <YouthSection icon={<CalendarIcon size={16} />} title="Programmazione" chipBg="bg-teal-500" headerBg="bg-gradient-to-r from-teal-50 to-white border-teal-100" textColor="text-teal-700">
+          <YouthSection icon={<CalendarIcon size={16} />} title="Programmazione" chipBg={shiftModalMode === 'plan' ? 'bg-teal-500' : 'bg-blue-500'} headerBg={shiftModalMode === 'plan' ? 'bg-gradient-to-r from-teal-50 to-white border-teal-100' : 'bg-gradient-to-r from-blue-50 to-white border-blue-100'} textColor={shiftModalMode === 'plan' ? 'text-teal-700' : 'text-blue-700'}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-base font-medium text-slate-800 mb-1.5">Tutor <span className="text-red-500">*</span></label>
@@ -7922,7 +7922,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           />
                         </div>
                         {yi === 0 && (
-                          <span className="shrink-0 rounded bg-teal-100 text-teal-700 px-1.5 py-0.5 text-[10px] font-bold uppercase">Principale</span>
+                          <span className={`shrink-0 rounded ${shiftModalMode === 'plan' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'} px-1.5 py-0.5 text-[10px] font-bold uppercase`}>Principale</span>
                         )}
                         <button
                           type="button"
@@ -8207,7 +8207,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <Copy size={16} /> Duplica
               </button>
             )}
-            <button onClick={handleSaveShift} className="flex-[2] py-2.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-semibold shadow-md hover:from-teal-700 hover:to-emerald-700 transition flex items-center justify-center gap-2">
+            <button onClick={handleSaveShift} className={`flex-[2] py-2.5 rounded-lg ${shiftModalMode === 'plan' ? 'bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'} text-white font-semibold shadow-md transition flex items-center justify-center gap-2`}>
               <Save size={16} /> Salva Turno
             </button>
           </div>
