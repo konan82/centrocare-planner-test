@@ -1,4 +1,4 @@
-ï»¿import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import {
   Users,
   Calendar as CalendarIcon,
@@ -44,6 +44,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   ClipboardCheck,
   MousePointer2,
   MessageCircle,
@@ -98,7 +99,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 const PERMISSION_RULES: Record<string, string> = {
   PIANIFICAZIONE: 'Accede alla pianificazione dei turni e alla Guida d\'uso',
   CONSUNTIVO: 'Registra e gestisce il consuntivo dei turni',
-  TUTORS: 'Gestione dei tutor (schede e disponibilitÃ )',
+  TUTORS: 'Gestione dei tutor (schede e disponibilità)',
   YOUTHS: 'Anagrafica dei ragazzi/centri',
   SUMMARY: 'Riepilogo Ore e Calcolo Paga',
   USERS: 'Gestione utenti e permessi (area amministrativa)',
@@ -121,10 +122,10 @@ const matrixToLegacy = (m?: PermMatrix | null | undefined): string[] => {
   return out;
 };
 const LEGACY_VIEW_LABELS: Record<string, string> = {
-  DASHBOARD: 'Pianificazione Â· Consuntivo',
+  DASHBOARD: 'Pianificazione · Consuntivo',
   TUTORS: 'Gestione Tutor',
   YOUTHS: 'Anagrafica Ragazzi',
-  SUMMARY: 'Riepilogo Ore Â· Paga',
+  SUMMARY: 'Riepilogo Ore · Paga',
   USER_MANAGEMENT: 'Gestione Utenti',
 };
 const matrixToLegacyLabel = (p: string) => LEGACY_VIEW_LABELS[p] || p;
@@ -164,7 +165,7 @@ function PermMatrixEditor({ matrix, onChange, admin, onAdminChange }: {
       </label>
       <div className="border-t my-2"></div>
       <p className="text-xs text-slate-400">
-        Per ogni area scegli se l'utente puÃ² Visualizzare, Modificare o Eliminare. Se non spunti almeno "Visualizza", la voce non appare nel menu.
+        Per ogni area scegli se l'utente può Visualizzare, Modificare o Eliminare. Se non spunti almeno "Visualizza", la voce non appare nel menu.
       </p>
       <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
         <table className="w-full text-sm">
@@ -242,7 +243,7 @@ const ROLE_DEFAULT = { badge: 'bg-slate-100 text-slate-600 border-slate-200', do
 
 const TUTOR_ROLES = ['Amministrativo', 'Capo Supremo', 'Coordinatore', 'Educatore', 'Operatore', 'Presidente', 'Psicologo', 'Tutor DSA', 'Vice Presidente', 'Volontario'];
 
-// Settimana tipo: date di riferimento LUN-SAB (2026-08-03 era un LunedÃ¬)
+// Settimana tipo: date di riferimento LUN-SAB (2026-08-03 era un Lunedì)
 const TEMPLATE_ANCHOR = parseISO('2026-08-03');
 
 // Giorno della settimana 1=LUN..6=SAB da una data ISO
@@ -266,13 +267,13 @@ const parseTimeMins = (t: string) => {
 
 // Normalizza le fasce orarie non disponibili dal formato salvato (JSONB) al formato per-giorno.
 // Ritorna sempre un array di 7 voci (indice = getDay: 0=DOM,1=LUN,...,6=SAB), ogni voce una lista di {start,end}.
-// CompatibilitÃ : il vecchio formato era un array piatto {start,end}[] applicato a tutti i giorni.
+// Compatibilità: il vecchio formato era un array piatto {start,end}[] applicato a tutti i giorni.
 const normalizeUnavailableRanges = (raw: any): { start: string; end: string }[][] => {
   const empty: { start: string; end: string }[][] = Array.from({ length: 7 }, () => []);
   if (!Array.isArray(raw)) return empty;
   const lookRange = (r: any) => (r && typeof r.start === 'string' && typeof r.end === 'string' ? { start: r.start, end: r.end } : null);
   const cleanList = (list: any[]) => (Array.isArray(list) ? list.map(lookRange).filter(Boolean) as { start: string; end: string }[] : []);
-  // Vecchio formato piatto: entry con start/end diretti (non a loro volta array) â†’ li applichiamo a tutti i 7 giorni
+  // Vecchio formato piatto: entry con start/end diretti (non a loro volta array) ? li applichiamo a tutti i 7 giorni
   if (raw.length > 0 && typeof raw[0] !== 'object') return empty;
   if (raw.length === 0) return empty;
   const first = raw[0];
@@ -300,7 +301,7 @@ const rangesAreGlobal = (ranges: { start: string; end: string }[][] | undefined)
 };
 
 // Formatta un valore dell'audit in modo leggibile; gestisce le fasce orarie non disponibili,
-// le liste di stringhe (specialitÃ , bisogni) e gli oggetti annidati.
+// le liste di stringhe (specialità, bisogni) e gli oggetti annidati.
 // Mappe per tradurre gli id (tutor/ragazzi) nei relativi nomi nei log di audit.
 type AuditNameLookup = {
   tutors: Map<string, string>;
@@ -317,8 +318,8 @@ const auditResolveName = (key: string, id: any, lookup?: AuditNameLookup | null)
 };
 
 const formatAuditValue = (key: string, v: any, lookup?: AuditNameLookup | null) => {
-  if (v == null) return 'â€”';
-  if (typeof v === 'boolean') return v ? 'SÃ¬' : 'No';
+  if (v == null) return '—';
+  if (typeof v === 'boolean') return v ? 'Sì' : 'No';
   if (key === 'status') {
     const map: Record<string, string> = {
       attivo: 'Attivo',
@@ -335,20 +336,20 @@ const formatAuditValue = (key: string, v: any, lookup?: AuditNameLookup | null) 
     const norm = normalizeUnavailableRanges(v);
     const parts: string[] = [];
     days.forEach((d, i) => {
-      const list = (norm[i] || []).map(r => `${r.start}â€“${r.end}`).join(', ');
+      const list = (norm[i] || []).map(r => `${r.start}–${r.end}`).join(', ');
       if (list) parts.push(`${d}: ${list}`);
     });
-    return parts.length ? parts.join(' Â· ') : 'nessuna fascia';
+    return parts.length ? parts.join(' · ') : 'nessuna fascia';
   }
   if (key === 'unavailable_days' || key === 'unavailableDays') {
     const days = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
     if (!Array.isArray(v)) return String(v);
     const mapped = v.map(d => days[Number(d)] ?? String(d));
-    return mapped.length ? mapped.join(', ') : 'â€”';
+    return mapped.length ? mapped.join(', ') : '—';
   }
   if (Array.isArray(v)) {
     const mapped = v.map(item => auditResolveName(key, item, lookup));
-    return mapped.length ? mapped.join(', ') : 'â€”';
+    return mapped.length ? mapped.join(', ') : '—';
   }
   if (typeof v === 'object') return JSON.stringify(v);
   return String(auditResolveName(key, v, lookup));
@@ -918,7 +919,7 @@ const DualRangeSlider: React.FC<{
     return Math.round(min + ratio * (max - min));
   };
 
-  // Sposta l'impugnatura con i tasti cursore (â† â†’) o PagSu/PagGiÃ¹
+  // Sposta l'impugnatura con i tasti cursore (? ?) o PagSu/PagGiù
   const nudge = (which: 'min' | 'max') => (ev: React.KeyboardEvent) => {
     const delta = ev.shiftKey ? step * 5 : step;
     let v;
@@ -1010,7 +1011,7 @@ const DualRangeSlider: React.FC<{
       </div>
       <div className="flex justify-between items-center mt-2 text-[11px] font-semibold tabular-nums">
         <span className="text-teal-700">{format ? format(valueMin) : `Min: ${valueMin}h`}</span>
-        <span className="text-slate-400 font-medium">{scaleLabel ? scaleLabel : `scala ${min}â€“${max} h`}</span>
+        <span className="text-slate-400 font-medium">{scaleLabel ? scaleLabel : `scala ${min}–${max} h`}</span>
         <span className="text-emerald-700">{format ? format(valueMax) : `Max: ${valueMax}h`}</span>
       </div>
     </div>
@@ -1039,7 +1040,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
           <div className="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full border-l-4 border-red-500">
             <h1 className="text-2xl font-bold text-slate-800 mb-2 flex items-center">
               <AlertTriangle className="text-red-500 mr-2" />
-              Si Ã¨ verificato un errore imprevisto
+              Si è verificato un errore imprevisto
             </h1>
             <p className="text-slate-600 mb-4">L'applicazione ha riscontrato un problema critico.</p>
 
@@ -1163,7 +1164,7 @@ function App() {
   const [youths, setYouths] = useState<Youth[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
 
-  // UNDO/REDO (azioni su turni e disponibilitÃ  tutor): snapshot dello stato prima di ogni modifica, riapplicato anche al DB
+  // UNDO/REDO (azioni su turni e disponibilità tutor): snapshot dello stato prima di ogni modifica, riapplicato anche al DB
   const [undoStack, setUndoStack] = useState<{ shifts: Shift[]; tutors: Tutor[] }[]>([]);
   const [redoStack, setRedoStack] = useState<{ shifts: Shift[]; tutors: Tutor[] }[]>([]);
   const cloneShifts = (list: Shift[]) => list.map(s => ({ ...s, youthIds: s.youthIds ? [...s.youthIds] : undefined }));
@@ -1227,7 +1228,7 @@ function App() {
       date: s.date,
       start_time: s.startTime,
       end_time: s.endTime,
-      activity: s.activity || 'AttivitÃ  generica',
+      activity: s.activity || 'Attività generica',
       status: s.status || 'pianificato',
       actual_start_time: s.isTemplate ? null : (s.actualStartTime || null),
       actual_end_time: s.isTemplate ? null : (s.actualEndTime || null),
@@ -1315,7 +1316,7 @@ function App() {
   const dragSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // Arricchisce la riga del log accessi della sessione corrente con i dettagli
-  // geoposizionali dell'IP (cittÃ , regione, ISP, ASN, ecc.) tramite l'API ipwho.is.
+  // geoposizionali dell'IP (città, regione, ISP, ASN, ecc.) tramite l'API ipwho.is.
   const enrichAccessGeo = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1396,7 +1397,7 @@ function App() {
     checkAuth();
   }, []);
 
-  // Heartbeat sempre attivo finchÃ© l'utente Ã¨ loggato (presenza online in Gestione Utenti),
+  // Heartbeat sempre attivo finché l'utente è loggato (presenza online in Gestione Utenti),
   // indipendentemente dalla vista corrente. Invio immediato + ogni 60s.
   useEffect(() => {
     if (!currentUser) return;
@@ -1778,6 +1779,8 @@ function App() {
   const [summaryMonth, setSummaryMonth] = useState(() => startOfMonth(new Date()));
   const [kpiMonth, setKpiMonth] = useState(() => startOfMonth(new Date()));
   const [kpiShowPending, setKpiShowPending] = useState(false);
+  const [kpiYouthSort, setKpiYouthSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
+  const [kpiTutorSort, setKpiTutorSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' });
 
   // Payroll (Calcolo Paga) State
   const [payRates, setPayRates] = useState<PaySettings>({ rateSingle: 0, rateDouble: 0, weeksPerMonth: 4 });
@@ -2001,7 +2004,7 @@ function App() {
       : (editingShift?.youthId ? [editingShift.youthId] : []);
     if (!editingShift?.tutorId || youthIds.length === 0 || !editingShift?.startTime || !editingShift?.endTime || !editingShift?.date) return;
 
-    // Blocca la creazione/modifica se il turno cade in una fascia oraria di indisponibilitÃ  del tutor
+    // Blocca la creazione/modifica se il turno cade in una fascia oraria di indisponibilità del tutor
     const toMin = (t: string) => { const [hh, mm] = (t || '0:0').split(':').map(Number); return (hh || 0) * 60 + (mm || 0); };
     const toMinText = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
     const shiftStart = toMin(editingShift.startTime);
@@ -2018,7 +2021,7 @@ function App() {
     }).filter(r => r.end > r.start);
     const rangeOverlap = unavailRanges.find(r => shiftStart < r.end && shiftEnd > r.start);
     if (rangeOverlap) {
-      toast(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}â€“${editingShift.endTime} cade nella fascia di indisponibilitÃ  ${toMinText(rangeOverlap.start)}â€“${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''} di ${['DOM','LUN','MAR','MER','GIO','VEN','SAB'][shiftDayIdx]}.`, 'error');
+      toast(`Impossibile creare o modificare il turno: l'orario ${editingShift.startTime}–${editingShift.endTime} cade nella fascia di indisponibilità ${toMinText(rangeOverlap.start)}–${toMinText(rangeOverlap.end)} del tutor ${tutorForShift?.name || ''} di ${['DOM','LUN','MAR','MER','GIO','VEN','SAB'][shiftDayIdx]}.`, 'error');
       return;
     }
 
@@ -2036,7 +2039,7 @@ function App() {
         date: editingShift.date,
         start_time: editingShift.startTime,
         end_time: editingShift.endTime,
-        activity: editingShift.activity || 'AttivitÃ  generica',
+        activity: editingShift.activity || 'Attività generica',
         status: isPlan ? 'pianificato' : (editingShift.status || 'pianificato'),
         actual_start_time: isPlan ? null : (editingShift.actualStartTime || null),
         actual_end_time: isPlan ? null : (editingShift.actualEndTime || null),
@@ -2053,18 +2056,18 @@ function App() {
       const tutorName = tutors.find(t => t.id === editingShift.tutorId)?.name || editingShift.tutorId;
       const youthIdsList = editingShift.youthIds?.length ? editingShift.youthIds : youthIds;
       const youthNamesArr = youthIdsList.map(id => youths.find(y => y.id === id)?.name || id);
-      const youthNames = youthNamesArr.join(', ') || 'â€”';
+      const youthNames = youthNamesArr.join(', ') || '—';
       const oldShift = editingShift.id ? shifts.find(s => s.id === editingShift.id) : undefined;
       auditLog(
         editingShift.id ? 'update' : 'create',
         'shift',
         shiftData.id as string,
-        `${editingShift.date} ${editingShift.startTime}â€“${editingShift.endTime} ${youthNames}`,
+        `${editingShift.date} ${editingShift.startTime}–${editingShift.endTime} ${youthNames}`,
         editingShift.id
           ? {
               ...auditDiff(
                 oldShift ? { tutor_id: oldShift.tutorId, date: oldShift.date, start_time: oldShift.startTime, end_time: oldShift.endTime, activity: oldShift.activity, status: oldShift.status, actual_start_time: oldShift.actualStartTime || null, actual_end_time: oldShift.actualEndTime || null, aggregate: oldShift.youthIds && oldShift.youthIds.length ? oldShift.youthIds : oldShift.youthId } : {},
-                { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, activity: editingShift.activity || 'AttivitÃ  generica', status: shiftData.status, actual_start_time: shiftData.actual_start_time, actual_end_time: shiftData.actual_end_time, aggregate: youthIds }
+                { tutor_id: editingShift.tutorId, date: editingShift.date, start_time: editingShift.startTime, end_time: editingShift.endTime, activity: editingShift.activity || 'Attività generica', status: shiftData.status, actual_start_time: shiftData.actual_start_time, actual_end_time: shiftData.actual_end_time, aggregate: youthIds }
               ),
               is_template: isPlan,
               context: { tutor_name: tutorName, youth_names: youthNamesArr },
@@ -2128,7 +2131,7 @@ function App() {
       date: newDate,
       start_time: newStart,
       end_time: newEnd,
-      activity: source.activity || 'AttivitÃ  generica',
+      activity: source.activity || 'Attività generica',
       status: 'pianificato',
       actual_start_time: null,
       actual_end_time: null,
@@ -2146,7 +2149,7 @@ function App() {
 
       const tutorName = tutors.find(t => t.id === source.tutorId)?.name || source.tutorId;
       const youthNamesArr = youthIds.map(id => youths.find(y => y.id === id)?.name || id);
-      auditLog('create', 'shift', newId, `${newDate} ${newStart}â€“${newEnd} ${youthNamesArr.join(', ')}`, {
+      auditLog('create', 'shift', newId, `${newDate} ${newStart}–${newEnd} ${youthNamesArr.join(', ')}`, {
         tutor_id: source.tutorId,
         date: newDate,
         start_time: newStart,
@@ -2239,7 +2242,7 @@ function App() {
     const ranges = normalizeUnavailableRanges(tutor.unavailableRanges);
     const dayRanges = [...(ranges[wd] || [])];
     if (dayRanges.some(r => r.start === start && r.end === end)) {
-      toast("Questa fascia Ã¨ giÃ  segnata come non disponibile per il tutor in questo giorno.", 'info');
+      toast("Questa fascia è già segnata come non disponibile per il tutor in questo giorno.", 'info');
       return;
     }
     dayRanges.push({ start, end });
@@ -2272,7 +2275,7 @@ function App() {
   };
 
   // Da non disponibile a libero: cliccando su una cella rossa nella Pianificazione (tutor filtrato)
-  // chiede conferma e rimuove l'indisponibilitÃ  che copre quell'orario dalla scheda del tutor.
+  // chiede conferma e rimuove l'indisponibilità che copre quell'orario dalla scheda del tutor.
   const handleFreeUnavailableSlot = async (tutorId: string, planDayIdx: number, startMin: number, endMin: number) => {
     if (!assertCan('PIANIFICAZIONE', 'w')) return false;
     const tutor = tutors.find(t => t.id === tutorId);
@@ -2296,7 +2299,7 @@ function App() {
     const overlapping = (ranges[dayPos] || []).some(r => parseTimeMins(r.start) < endMin && parseTimeMins(r.end) > startMin);
     if (overlapping) {
       const global = rangesAreGlobal(ranges);
-      if (!confirm(`Rendere disponibile ${toMinText(startMin)}â€“${toMinText(endMin)} di ${DAY_LABEL[dayPos]} per ${tutor.name}${global ? " (vale per tutti i giorni: l'intervallo verrÃ  liberato ovunque)" : " (solo per questo giorno)"}?`)) return false;
+      if (!confirm(`Rendere disponibile ${toMinText(startMin)}–${toMinText(endMin)} di ${DAY_LABEL[dayPos]} per ${tutor.name}${global ? " (vale per tutti i giorni: l'intervallo verrà liberato ovunque)" : " (solo per questo giorno)"}?`)) return false;
       const nextRanges = global
         ? ranges.map(day => cutInterval(day || []))
         : ranges.map((day, di) => di === dayPos ? cutInterval(day || []) : day);
@@ -2312,14 +2315,14 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable slot:", error);
-        toast("Errore nel rimuovere l'indisponibilitÃ ", 'error');
+        toast("Errore nel rimuovere l'indisponibilità", 'error');
         return false;
       }
     }
-    // Nessuna fascia copre l'orario: se il giorno Ã¨ interamente bloccato, rimuovilo
+    // Nessuna fascia copre l'orario: se il giorno è interamente bloccato, rimuovilo
     const dayDisabled = (tutor.unavailableDays || []).includes(dayPos);
     if (dayDisabled) {
-      if (!confirm(`Rimuovere l'indisponibilitÃ  dell'intero giorno ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}?`)) return false;
+      if (!confirm(`Rimuovere l'indisponibilità dell'intero giorno ${DAY_LABEL[dayPos]} dal profilo di ${tutor.name}?`)) return false;
       const nextDays = (tutor.unavailableDays || []).filter(d => d !== dayPos);
       try {
         snapshotBeforeMutation();
@@ -2333,7 +2336,7 @@ function App() {
         return true;
       } catch (error) {
         console.error("Error freeing unavailable day:", error);
-        toast("Errore nel rimuovere l'indisponibilitÃ ", 'error');
+        toast("Errore nel rimuovere l'indisponibilità", 'error');
         return false;
       }
     }
@@ -2352,7 +2355,7 @@ function App() {
         tutor_name: tutors.find(t => t.id === shiftToDelete.tutorId)?.name || shiftToDelete.tutorId,
         youth_names: (shiftToDelete.youthIds?.length ? shiftToDelete.youthIds : [shiftToDelete.youthId]).filter(Boolean).map(yid => youths.find(y => y.id === yid)?.name || yid),
       } : null;
-      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}â€“${shiftToDelete.endTime}` : id, shiftToDelete ? { ...auditDiff({ date: shiftToDelete.date, start_time: shiftToDelete.startTime, end_time: shiftToDelete.endTime, actual_start_time: shiftToDelete.actualStartTime || null, actual_end_time: shiftToDelete.actualEndTime || null, is_template: !!shiftToDelete.isTemplate, tutor_id: shiftToDelete.tutorId }, null), context: ctxDelete } : { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate, context: ctxDelete });
+      auditLog('delete', 'shift', id, shiftToDelete ? `${shiftToDelete.date} ${shiftToDelete.startTime}–${shiftToDelete.endTime}` : id, shiftToDelete ? { ...auditDiff({ date: shiftToDelete.date, start_time: shiftToDelete.startTime, end_time: shiftToDelete.endTime, actual_start_time: shiftToDelete.actualStartTime || null, actual_end_time: shiftToDelete.actualEndTime || null, is_template: !!shiftToDelete.isTemplate, tutor_id: shiftToDelete.tutorId }, null), context: ctxDelete } : { tutor_id: shiftToDelete?.tutorId, is_template: shiftToDelete?.isTemplate, context: ctxDelete });
       setShifts(shifts.filter(s => s.id !== id));
       if (editingShift?.id === id) setIsShiftModalOpen(false);
       if (shiftToDelete?.isTemplate) {
@@ -2411,7 +2414,7 @@ function App() {
       date: p.date,
       startTime: p.template.startTime,
       endTime: p.template.endTime,
-      activity: p.template.activity || 'AttivitÃ  generica',
+      activity: p.template.activity || 'Attività generica',
       status: 'pianificato',
       isTemplate: false,
       templateShiftId: p.template.id,
@@ -2469,12 +2472,12 @@ function App() {
         const shiftYouths = shiftYouthIds(s).map(id => youths.find(y => y.id === id)).filter(Boolean) as Youth[];
         return `${s.startTime}-${s.endTime} ${tutor?.name || '?'}${shiftYouths.length > 0 ? ` (${shiftYouths.map(y => y.name).join(', ')})` : ''}`;
       });
-      lines.push(`${isPlan ? labels[idx] : `${labels[idx]} ${format(day, 'dd/MM')}`}: ${items.join(' Â· ')}`);
+      lines.push(`${isPlan ? labels[idx] : `${labels[idx]} ${format(day, 'dd/MM')}`}: ${items.join(' · ')}`);
     });
     const selParts: string[] = [];
     if (tutorFilter !== 'all') selParts.push(tutors.find(t => t.id === tutorFilter)?.name || 'Tutor');
     if (youthFilter !== 'all') selParts.push(youths.find(y => y.id === youthFilter)?.name || 'Ragazzo');
-    const selectedName = selParts.length ? selParts.join(' Â· ') : 'Tutti';
+    const selectedName = selParts.length ? selParts.join(' · ') : 'Tutti';
     const header = `Turni settimanali - ${selectedName}${isPlan ? ' (settimana tipo)' : ` (${format(days[0], 'dd/MM')} - ${format(days[5], 'dd/MM')})`}`;
     return [header, ...lines].join('\n');
   };
@@ -2511,7 +2514,7 @@ function App() {
         window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
         toast(copied
           ? 'Screenshot copiato negli appunti: in WhatsApp Web scegli la chat e premi Ctrl+V per incollare e inviare.'
-          : 'Il file turni_settimanali.png Ã¨ stato scaricato: in WhatsApp Web scegli la chat e allega il file.', 'success');
+          : 'Il file turni_settimanali.png è stato scaricato: in WhatsApp Web scegli la chat e allega il file.', 'success');
       }
     } catch (error) {
       console.error("Errore invio WhatsApp:", error);
@@ -2615,7 +2618,7 @@ function App() {
       return;
     }
 
-    // Escludi occorrenze giÃ  presenti (stesso template + data)
+    // Escludi occorrenze già presenti (stesso template + data)
     const existingKeys = new Set(
       shifts.filter(s => !s.isTemplate).map(s => `${s.templateShiftId}|${s.date}`)
     );
@@ -2644,7 +2647,7 @@ function App() {
     ));
 
     if (rows.length === 0) {
-      toast("Tutti i turni di questo mese sono giÃ  stati copiati dalla pianificazione.", 'info');
+      toast("Tutti i turni di questo mese sono già stati copiati dalla pianificazione.", 'info');
       return;
     }
 
@@ -2678,7 +2681,7 @@ function App() {
   };
 
   // Rigenera la "settimana tipo" (template) a partire dai turni di consuntivo esistenti,
-  // deduplicando per (giorno, tutor, ragazzi, orari, attivitÃ ).
+  // deduplicando per (giorno, tutor, ragazzi, orari, attività).
   const handleRegenTemplates = async () => {
     if (!assertCan('PIANIFICAZIONE', 'w')) return;
     const occ = shifts.filter(s => !s.isTemplate && s.date);
@@ -2706,7 +2709,7 @@ function App() {
           date: format(addDays(TEMPLATE_ANCHOR, wd - 1), 'yyyy-MM-dd'),
           start_time: s.startTime,
           end_time: s.endTime,
-          activity: s.activity || 'AttivitÃ  generica',
+          activity: s.activity || 'Attività generica',
           status: 'pianificato',
           actual_start_time: null,
           actual_end_time: null,
@@ -2717,7 +2720,7 @@ function App() {
         };
       });
     if (rows.length === 0) {
-      toast("La settimana tipo Ã¨ giÃ  stata generata dai turni di consuntivo.", 'info');
+      toast("La settimana tipo è già stata generata dai turni di consuntivo.", 'info');
       return;
     }
     if (!confirm(`Rigenerare ${rows.length} turni della settimana tipo a partire dal consuntivo?`)) return;
@@ -2766,7 +2769,7 @@ function App() {
       toast("Nessun turno di consuntivo da cancellare.", 'info');
       return;
     }
-    if (!confirm(`ATTENZIONE: cancellare TUTTI i ${count} turni del consuntivo in tutto il database, indipendentemente dal mese? L'azione non puÃ² essere annullata.`)) return;
+    if (!confirm(`ATTENZIONE: cancellare TUTTI i ${count} turni del consuntivo in tutto il database, indipendentemente dal mese? L'azione non può essere annullata.`)) return;
     snapshotBeforeMutation();
     try {
       const { error } = await supabase.from('shifts').delete().eq('is_template', false);
@@ -2791,14 +2794,14 @@ function App() {
       toast("Nessun turno da cancellare nel mese selezionato.", 'info');
       return;
     }
-    if (!confirm(`Cancellare ${toDelete.length} turni del mese selezionato dal consuntivo? L'azione non puÃ² essere annullata.`)) return;
+    if (!confirm(`Cancellare ${toDelete.length} turni del mese selezionato dal consuntivo? L'azione non può essere annullata.`)) return;
     snapshotBeforeMutation();
     try {
       const ids = toDelete.map(s => s.id);
       const { error } = await supabase.from('shifts').delete().in('id', ids);
       if (error) throw error;
       auditLog('delete', 'shift', undefined, `Cancellati turni consuntivo mese ${clearMonth} (${ids.length})`, { month: clearMonth, count: ids.length });
-      // Registra il mese come cancellato: la copia automatica della settimana tipo lo salterÃ 
+      // Registra il mese come cancellato: la copia automatica della settimana tipo lo salterà
       const { error: cmErr } = await supabase.from('cleared_months').upsert({ month: clearMonth });
       if (cmErr) console.warn('cleared_months non aggiornabile:', cmErr.message);
       setClearedMonths(prev => new Set(prev).add(clearMonth));
@@ -2870,7 +2873,7 @@ function App() {
     materializeWeek(startOfWeek(currentDate, { weekStartsOn: 1 }));
   }, [view, currentDate]);
 
-  // Sincronizza i turni giÃ  copiati in validazione con un template modificato,
+  // Sincronizza i turni già copiati in validazione con un template modificato,
   // ma SOLO per i giorni da oggi in poi, non cancellati e senza modifiche manuali al consuntivo.
   const syncTemplateOccurrences = async (template: Shift) => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -2954,7 +2957,7 @@ function App() {
     }
   };
 
-  // Aggiunge un nuovo template anche alle settimane future giÃ  materializzate in validazione
+  // Aggiunge un nuovo template anche alle settimane future già materializzate in validazione
   const propagateTemplateCreate = async (template: Shift) => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const weekStarts = new Set<string>();
@@ -3096,7 +3099,7 @@ function App() {
         try {
           const { error } = await supabase.from('shifts').update(dbUpdate).eq('id', shiftId);
           if (error) throw error;
-          auditLog('update', 'shift', shiftId, `${dateStr} ${newStartTime}â€“${newEndTime}`, {
+          auditLog('update', 'shift', shiftId, `${dateStr} ${newStartTime}–${newEndTime}`, {
             ...auditDiff(
               { date: shiftToUpdate.date, start_time: shiftToUpdate.startTime, end_time: shiftToUpdate.endTime, actual_start_time: shiftToUpdate.actualStartTime || null, actual_end_time: shiftToUpdate.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate },
               { date: updatedShift.date, start_time: updatedShift.startTime, end_time: updatedShift.endTime, actual_start_time: updatedShift.actualStartTime || null, actual_end_time: updatedShift.actualEndTime || null, is_template: !!shiftToUpdate.isTemplate }
@@ -3155,7 +3158,7 @@ function App() {
     return false;
   };
 
-  // Utente "limitato": ha un tutor associato ma NON Ã¨ ADMIN COMPLETO (ALL).
+  // Utente "limitato": ha un tutor associato ma NON è ADMIN COMPLETO (ALL).
   // In Pianificazione e Consuntivo vede solo i propri turni.
   const restrictedUserTutorId =
     currentUser && !(Array.isArray(currentUser.permissions) && currentUser.permissions.includes('ALL'))
@@ -3396,13 +3399,13 @@ function App() {
         title: 'Pianificazione Turni',
         purpose: 'Crea la "settimana tipo" del centro: una copertura settimanale (template) che viene ripetuta automaticamente ogni settimana. Qui decidi chi lavora, in che giorno e in che orario.',
         items: [
-          { btn: 'Nuovo turno / Aggiungi turno (+)', desc: 'Apre una finestra per inserire un turno: seleziona tutor, giorno della settimana e orario. Imposta anche la "ValiditÃ  (settimane)", cioÃ¨ per quante settimane vale quel turno (di default usa le "Settimane / mese" delle tariffe).' },
+          { btn: 'Nuovo turno / Aggiungi turno (+)', desc: 'Apre una finestra per inserire un turno: seleziona tutor, giorno della settimana e orario. Imposta anche la "Validità (settimane)", cioè per quante settimane vale quel turno (di default usa le "Settimane / mese" delle tariffe).' },
                               { btn: 'Non disponibile', icon: 'Blocco', desc: 'Nella scheda Nuovo Turno (dal segno +) segna la fascia oraria corrente come non disponibile per il tutor selezionato, diversificata per giorno (come nella scheda Modifica Tutor). Il turno non viene creato.' },
-                              { btn: 'Cella rossa', icon: 'Click', desc: 'Con un tutor filtrato, le celle rosse sono le sue fasce non disponibili. Cliccandole si apre il Nuovo Turno con il bottone "Disponibile" al posto di "Non disponibile": confermando, l\'indisponibilitÃ  viene rimossa dal profilo del tutor (da tutta la settimana se valeva per tutti i giorni, altrimenti solo da quel giorno) e l\'orario torna prenotabile.' },
-          { btn: 'ModalitÃ  doppio', desc: 'Permette di assegnare allo stesso turno due centri/ragazzi: genera le ore "Doppio", retribuite con la tariffa doppia nel Calcolo Paga.' },
-          { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno giÃ  creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
-          { btn: 'Navigazione settimane', desc: 'Le frecce â€¹ â€º spostano la settimana visualizzata. La pianificazione Ã¨ un template: le modifiche valgono per la settimana tipo.' },
-          { btn: 'Filtro per ragazzo', desc: 'Mostra solo i turni relativi a un determinato ragazzo per pianificare piÃ¹ facilmente le coperture individuali.' },
+                              { btn: 'Cella rossa', icon: 'Click', desc: 'Con un tutor filtrato, le celle rosse sono le sue fasce non disponibili. Cliccandole si apre il Nuovo Turno con il bottone "Disponibile" al posto di "Non disponibile": confermando, l\'indisponibilità viene rimossa dal profilo del tutor (da tutta la settimana se valeva per tutti i giorni, altrimenti solo da quel giorno) e l\'orario torna prenotabile.' },
+          { btn: 'Modalità doppio', desc: 'Permette di assegnare allo stesso turno due centri/ragazzi: genera le ore "Doppio", retribuite con la tariffa doppia nel Calcolo Paga.' },
+          { btn: 'Modifica / Elimina turno', desc: 'Seleziona un turno già creato per spostarlo, modificarne orario/tutor o cancellarlo.' },
+          { btn: 'Navigazione settimane', desc: 'Le frecce ‹ › spostano la settimana visualizzata. La pianificazione è un template: le modifiche valgono per la settimana tipo.' },
+          { btn: 'Filtro per ragazzo', desc: 'Mostra solo i turni relativi a un determinato ragazzo per pianificare più facilmente le coperture individuali.' },
           { btn: 'Copia / Duplica turno', desc: 'Apri il turno e premi "Duplica" per creare una copia un\'ora dopo nello stesso giorno, oppure trascina un turno tenendo premuto Alt (o Ctrl) per copiarlo nella posizione di arrivo invece di spostarlo.' },
         ],
       },
@@ -3412,9 +3415,9 @@ function App() {
         title: 'Consuntivo Turni',
         purpose: 'Riporta il lavoro effettivamente svolto rispetto alla pianificazione. Serve a registrare come sono andati davvero i turni (assenze, variazioni di orario, sostituzioni) e alimenta Riepilogo Ore e Calcolo Paga.',
         items: [
-          { btn: 'Registra turno (consuntivo)', desc: 'Per ogni turno pianificato puoi confermare cosa Ã¨ realmente accaduto: orario di inizio e fine effettivi, oppure segnare il turno come assente.' },
+          { btn: 'Registra turno (consuntivo)', desc: 'Per ogni turno pianificato puoi confermare cosa è realmente accaduto: orario di inizio e fine effettivi, oppure segnare il turno come assente.' },
           { btn: 'Assenza / Annullato', desc: 'Marca un turno come non svolto: le ore diventano 0 e nel consuntivo compare come mancante (da recuperare) o annullato.' },
-          { btn: 'Variazione orario', desc: 'Se il turno Ã¨ finito prima o dopo, registra gli orari reali: il calcolo delle ore consuntivate segue gli orari effettivi.' },
+          { btn: 'Variazione orario', desc: 'Se il turno è finito prima o dopo, registra gli orari reali: il calcolo delle ore consuntivate segue gli orari effettivi.' },
           { btn: 'Delta pianificato vs erogato', desc: 'Confronta le ore pianificate con quelle erogate: evidenza le differenze (extra in verde, riduzioni/assenze in rosso) da scalare dal monte ore del ragazzo.' },
         ],
       },
@@ -3425,10 +3428,10 @@ function App() {
         purpose: 'Anagrafica degli operatori/educatori che svolgono i turni. Serve a creare la lista dei tutor e associare loro i turni pianificati.',
         items: [
           { btn: 'Aggiungi tutor (+)', desc: 'Crea un nuovo tutor con nome, ruolo e stato (Attivo, In pausa, Archiviato).' },
-          { btn: 'Modifica / Archivia', desc: 'Aggiorna i dati del tutor o archivialo per non proporlo piÃ¹ nei nuovi turni mantenendone lo storico.' },
+          { btn: 'Modifica / Archivia', desc: 'Aggiorna i dati del tutor o archivialo per non proporlo più nei nuovi turni mantenendone lo storico.' },
           { btn: 'Cerca / Filtra', desc: 'Filtra per nome, ruolo o stato per trovare rapidamente un tutor.' },
           { btn: 'Colore tutor', desc: 'Ogni tutor ha un colore distintivo che rende immediato riconoscerlo nei calendari.' },
-          { btn: 'Associa utente', desc: 'Collega un account (utente) a un tutor: se fatto, quell\'utente vedrÃ  solo i propri turni in Pianificazione e Consuntivo.' },
+          { btn: 'Associa utente', desc: 'Collega un account (utente) a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
         ],
       },
       {
@@ -3448,7 +3451,7 @@ function App() {
         title: 'Riepilogo Ore',
         purpose: 'Prospetto complessivo delle ore del periodo: mostra pianificato vs erogato per tutor e per ragazzo, con gli scostamenti da recuperare.',
         items: [
-          { btn: 'Legenda colori', desc: 'Pian = ore pianificate Â· Erogate = ore effettive (assenze a 0) Â· Rosso = ore in meno (da recuperare) Â· Verde = ore in piÃ¹ (extra scalate dal monte ore).' },
+          { btn: 'Legenda colori', desc: 'Pian = ore pianificate · Erogate = ore effettive (assenze a 0) · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
           { btn: 'Selettore periodo', desc: 'Imposta l\'intervallo di date su cui calcolare il riepilogo.' },
           { btn: 'Vista per tutor / per ragazzo', desc: 'Passa da una prospettiva all\'altra a seconda di cosa ti serve verificare.' },
         ],
@@ -3457,13 +3460,13 @@ function App() {
         icon: Wallet,
         color: 'text-lime-600',
         title: 'Calcolo Paga',
-        purpose: 'Stima il compenso mensile di ogni tutor a partire dai turni pianificati, pesato per la loro validitÃ  in settimane. Comprende il dettaglio per turno (ore singole/doppie) e il confronto con la settimana tipo.',
+        purpose: 'Stima il compenso mensile di ogni tutor a partire dai turni pianificati, pesato per la loro validità in settimane. Comprende il dettaglio per turno (ore singole/doppie) e il confronto con la settimana tipo.',
         items: [
-          { btn: 'Tariffe (Rate)', desc: 'Imposta la retribuzione oraria singola e doppia e le "Settimane / mese" usate come default di validitÃ .' },
-          { btn: 'Come si calcola?', desc: 'Pannello esplicativo che illustra con un esempio la formula: ore Ã— tariffa Ã— validitÃ , scomponendo il turno in singolo e doppio.' },
-          { btn: 'Dettaglio per turno e settimana tipo', desc: 'Tabella con la paga parziale di ogni turno e il mini-calendario della settimana. Clicca sulla tabella o su "Ingrandisci" per vederli piÃ¹ grandi.' },
+          { btn: 'Tariffe (Rate)', desc: 'Imposta la retribuzione oraria singola e doppia e le "Settimane / mese" usate come default di validità.' },
+          { btn: 'Come si calcola?', desc: 'Pannello esplicativo che illustra con un esempio la formula: ore × tariffa × validità, scomponendo il turno in singolo e doppio.' },
+          { btn: 'Dettaglio per turno e settimana tipo', desc: 'Tabella con la paga parziale di ogni turno e il mini-calendario della settimana. Clicca sulla tabella o su "Ingrandisci" per vederli più grandi.' },
           { btn: 'Scarica CSV', desc: 'Esporta il breakdown di un tutor in formato CSV (apribile con Excel) per un\'archiviazione o analisi esterna.' },
-          { btn: 'ValiditÃ  ridotta', desc: 'Avviso quando un turno ha una validitÃ  diversa da quella di default, cosÃ¬ la paga Ã¨ sempre allineata alla reale durata del turno.' },
+          { btn: 'Validità ridotta', desc: 'Avviso quando un turno ha una validità diversa da quella di default, così la paga è sempre allineata alla reale durata del turno.' },
         ],
       },
     ];
@@ -3477,7 +3480,7 @@ function App() {
             Guida d'uso
           </h1>
           <p className="mt-2 text-slate-500 text-sm">
-            Come si usa CentroCare Planner: le funzionalitÃ  spiegate per tema, con i pulsanti e le azioni di ogni sezione.
+            Come si usa CentroCare Planner: le funzionalità spiegate per tema, con i pulsanti e le azioni di ogni sezione.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -3497,7 +3500,7 @@ function App() {
                     <li key={j} className="flex items-start gap-2">
                       <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></span>
                       <div className="text-sm leading-snug">
-                        {it.btn && <span className="font-bold text-teal-700">{it.btn}</span>}{it.btn && <span className="text-slate-400"> â€” </span>}
+                        {it.btn && <span className="font-bold text-teal-700">{it.btn}</span>}{it.btn && <span className="text-slate-400"> — </span>}
                         <span className="text-slate-600">{it.desc}</span>
                       </div>
                     </li>
@@ -3574,16 +3577,16 @@ function App() {
               </HeaderGroup>
               <div className="flex items-center xl:self-center">
                 <GuideButton
-                  title="Guida Â· Gestione Tutor"
+                  title="Guida · Gestione Tutor"
                   intro="Anagrafica degli educatori/operatori che svolgono i turni. Ecco cosa fa ogni elemento di questa sezione:"
                   items={[
-                    { btn: 'Nuovo Tutor', icon: 'Crea', desc: 'Apre il modulo per creare un nuovo tutor con nome, ruolo, stato e disponibilitÃ .' },
+                    { btn: 'Nuovo Tutor', icon: 'Crea', desc: 'Apre il modulo per creare un nuovo tutor con nome, ruolo, stato e disponibilità.' },
                     { btn: 'Contatori stato (Totali / Attivi / In pausa / Archiviati)', icon: 'Filtro', desc: 'Filtrano l\'elenco per stato cliccando sul contatore corrispondente.' },
                     { btn: 'Barra di ricerca', icon: 'Cerca', desc: 'Cerca per nome; combinata con i filtri di stato e ruolo per trovare rapidamente un tutor.' },
                     { btn: 'Ordinamento (A-Z / Z-A)', icon: 'Ordina', desc: 'Ordina l\'elenco alfabeticamente in un senso o nell\'altro.' },
-                    { btn: 'Scheda tutor', icon: 'Dettaglio', desc: 'Cliccando su un tutor apri il modulo per modificarlo: dati anagrafici, disponibilitÃ  e colore distintivo (usato nei calendari).' },
+                    { btn: 'Scheda tutor', icon: 'Dettaglio', desc: 'Cliccando su un tutor apri il modulo per modificarlo: dati anagrafici, disponibilità e colore distintivo (usato nei calendari).' },
                     { btn: 'Elimina tutor', icon: 'Cancella', desc: 'Rimuove un tutor dall\'elenco (le azioni delicate chiedono conferma).' },
-                    { btn: 'Associa utente', icon: 'Collega', desc: 'Collega un account a un tutor: se fatto, quell\'utente vedrÃ  solo i propri turni in Pianificazione e Consuntivo.' },
+                    { btn: 'Associa utente', icon: 'Collega', desc: 'Collega un account a un tutor: se fatto, quell\'utente vedrà solo i propri turni in Pianificazione e Consuntivo.' },
                   ]}
                 />
               </div>
@@ -3722,7 +3725,7 @@ function App() {
                       <div className="flex justify-between items-center text-xs mb-1">
                         <span className="font-semibold text-slate-400 uppercase">Ore settimana</span>
                         <span className={`font-bold ${pct > 100 ? 'text-red-600' : 'text-slate-600'}`}>
-                          {assignedHours.toFixed(1)} / {maxHours}h {pct > 100 && <span className="text-red-500">Â· oltre limite</span>}
+                          {assignedHours.toFixed(1)} / {maxHours}h {pct > 100 && <span className="text-red-500">· oltre limite</span>}
                         </span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -3754,11 +3757,11 @@ function App() {
                     )}
 
                     <div className="mb-3">
-                      <p className="text-xs font-semibold text-slate-400 uppercase mb-1">SpecialitÃ </p>
+                      <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Specialità</p>
                       <div className="flex flex-wrap gap-1.5">
                         {tutor.specialties?.length ? tutor.specialties.map(s => (
                           <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">{s}</span>
-                        )) : <span className="text-xs text-slate-400 italic">Nessuna specialitÃ </span>}
+                        )) : <span className="text-xs text-slate-400 italic">Nessuna specialità</span>}
                       </div>
                     </div>
 
@@ -3858,7 +3861,7 @@ function App() {
               </HeaderGroup>
               <div className="flex items-center xl:self-center">
                 <GuideButton
-                  title="Guida Â· Anagrafica Ragazzi"
+                  title="Guida · Anagrafica Ragazzi"
                   intro="Elenco dei ragazzi/centri seguiti dal centro. Ogni ragazzo ha un monte ore che viene aggiornato con i turni erogati e le relative riduzioni/extra. Ecco cosa fa ogni elemento:"
                   items={[
                     { btn: 'Nuovo Profilo', icon: 'Crea', desc: 'Apre il modulo per creare una nuova scheda ragazzo con i dati anagrafici e il monte ore.' },
@@ -3989,7 +3992,7 @@ function App() {
                         </button>
                         <p className="text-sm text-slate-500">
                           {youth.requiredHoursPerWeek}h / settimana
-                          {getAge(youth.birthDate) !== null && ` Â· ${getAge(youth.birthDate)} anni`}
+                          {getAge(youth.birthDate) !== null && ` · ${getAge(youth.birthDate)} anni`}
                         </p>
                       </div>
                     </div>
@@ -4084,7 +4087,7 @@ function App() {
   const renderCalendar = (mode: 'plan' | 'validate') => {
     const isPlan = mode === 'plan';
     const calendarDays = isPlan ? templateWeekDays : weekDays;
-    // Vista "Oggi": colonna unica del giorno corrente (settimana tipo â†’ giorno della settimana di oggi)
+    // Vista "Oggi": colonna unica del giorno corrente (settimana tipo ? giorno della settimana di oggi)
     const todayIdx = (() => {
       if (isPlan) {
         const wd = new Date().getDay(); // 0=Dom..6=Sab
@@ -4100,7 +4103,7 @@ function App() {
     const filteredTutor = tutorFilter && tutorFilter !== 'all' ? tutors.find(t => t.id === tutorFilter) : null;
     if (filteredTutor) {
       (filteredTutor.unavailableDays || []).forEach(dayNum => {
-        // unavailableDays: 0=Dom,1=Lun,...,6=Sab â†’ colonna calendario: Lun=0,...,Sab=5
+        // unavailableDays: 0=Dom,1=Lun,...,6=Sab ? colonna calendario: Lun=0,...,Sab=5
         const colIdx = dayNum - 1;
         if (colIdx >= 0 && colIdx <= 5) tutorUnavailableWeekdays.add(colIdx);
       });
@@ -4162,7 +4165,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           onMouseLeave={handleCalHeaderLeave}
           className="relative shrink-0"
         >
-          {/* Mini-bar compatta quando il pannello Ã¨ collassato */}
+          {/* Mini-bar compatta quando il pannello è collassato */}
           {calHeaderCollapsed ? (
             <div onClick={handleCalHeaderTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
               <div className={`p-1.5 rounded-lg text-white shadow-sm shrink-0 ${isPlan ? 'bg-gradient-to-br from-teal-500 to-emerald-600' : 'bg-gradient-to-br from-indigo-500 to-violet-600'}`}>
@@ -4174,15 +4177,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 </p>
                 <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
                   {isPlan
-                    ? weeklySD && weeklySD.id ? <>Settimana tipo Â· <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD!.id), e)} className="font-bold text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button> Â· S {weeklySD.single.toFixed(1)}h / D {weeklySD.dbl.toFixed(1)}h</>
+                    ? weeklySD && weeklySD.id ? <>Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD!.id), e)} className="font-bold text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button> · S {weeklySD.single.toFixed(1)}h / D {weeklySD.dbl.toFixed(1)}h</>
                       : planFocusWeekday !== null
-                        ? `Settimana tipo Â· Giorno ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][planFocusWeekday]}`
+                        ? `Settimana tipo · Giorno ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][planFocusWeekday]}`
                         : calView === 'today'
-                          ? `Settimana tipo Â· Oggi Â· ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]}`
-                          : 'Settimana tipo LUN-SAB Â· 08:00 â€“ 19:00'
+                          ? `Settimana tipo · Oggi · ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]}`
+                          : 'Settimana tipo LUN-SAB · 08:00 – 19:00'
                     : calView === 'today'
                       ? `Oggi ${format(new Date(), 'dd MMM yyyy', { locale: it })}`
-                      : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} â€“ ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
+                      : `Settimana ${format(calendarDays[0], 'dd MMM', { locale: it })} – ${format(calendarDays[5], 'dd MMM yyyy', { locale: it })}`}
                 </p>
               </div>
               <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
@@ -4215,13 +4218,13 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
                   {isPlan
                     ? planFocusWeekday !== null
-                      ? `Settimana tipo Â· Giorno ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][planFocusWeekday]} Â· ${dayPart === 'mattina' ? '08:00 â€“ 13:00' : dayPart === 'pomeriggio' ? '13:00 â€“ 19:00' : '08:00 â€“ 19:00'}`
+                      ? `Settimana tipo · Giorno ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][planFocusWeekday]} · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'}`
                       : calView === 'today'
-                        ? `Settimana tipo Â· oggi ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]} Â· ${dayPart === 'mattina' ? '08:00 â€“ 13:00' : dayPart === 'pomeriggio' ? '13:00 â€“ 19:00' : '08:00 â€“ 19:00'}`
-                        : `Settimana tipo LUN-SAB Â· ${dayPart === 'mattina' ? '08:00 â€“ 13:00' : dayPart === 'pomeriggio' ? '13:00 â€“ 19:00' : '08:00 â€“ 19:00'} Â· ripetuta ogni settimana`
+                        ? `Settimana tipo · oggi ${['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'][todayIdx]} · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'}`
+                        : `Settimana tipo LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · ripetuta ogni settimana`
                     : calView === 'today'
-                      ? `Oggi ${format(new Date(), 'EEEE d MMMM yyyy', { locale: it })} Â· ${dayPart === 'mattina' ? '08:00 â€“ 13:00' : dayPart === 'pomeriggio' ? '13:00 â€“ 19:00' : '08:00 â€“ 19:00'}`
-                      : `Fascia oraria LUN-SAB Â· ${dayPart === 'mattina' ? '08:00 â€“ 13:00' : dayPart === 'pomeriggio' ? '13:00 â€“ 19:00' : '08:00 â€“ 19:00'} Â· copia della pianificazione`}
+                      ? `Oggi ${format(new Date(), 'EEEE d MMMM yyyy', { locale: it })} · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'}`
+                      : `Fascia oraria LUN-SAB · ${dayPart === 'mattina' ? '08:00 – 13:00' : dayPart === 'pomeriggio' ? '13:00 – 19:00' : '08:00 – 19:00'} · copia della pianificazione`}
                 </p>
               </div>
               {!isPlan && calView === 'week' && (
@@ -4245,8 +4248,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     <span className="flex items-center gap-1.5 md:gap-2">
                       <CalendarIcon size={14} className="text-teal-600 shrink-0" />
                       <span className="tracking-tight whitespace-nowrap">
-                        <span className="sm:hidden">{format(calendarDays[0], 'dd MMM')} â€“ {format(calendarDays[5], 'dd MMM')}</span>
-                        <span className="hidden sm:inline">{format(calendarDays[0], 'dd MMM')} â€“ {format(calendarDays[5], 'dd MMM yyyy')}</span>
+                        <span className="sm:hidden">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM')}</span>
+                        <span className="hidden sm:inline">{format(calendarDays[0], 'dd MMM')} – {format(calendarDays[5], 'dd MMM yyyy')}</span>
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-md md:rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-2 py-0.5 md:px-2.5 md:py-1 text-[10px] md:text-xs font-bold tabular-nums shadow-sm shrink-0">
                         Sett. {getISOWeek(calendarDays[0])}
@@ -4328,7 +4331,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                     if (opt.key === 'today' && !isPlan) setCurrentDate(new Date());
                                   }}
                                   title={opt.key === 'today'
-                                    ? 'Mostra solo la giornata di oggi, piÃ¹ leggibile'
+                                    ? 'Mostra solo la giornata di oggi, più leggibile'
                                     : 'Mostra l\'intera settimana LUN-SAB'}
                                   className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 active:scale-95 ${
                                     active ? opt.active : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -4444,32 +4447,32 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       GUIDA: (
                         isPlan ? (
                           <GuideButton
-                            title="Guida Â· Pianificazione Turni"
+                            title="Guida · Pianificazione Turni"
                             intro="Questa sezione gestisce la settimana tipo del centro: una copertura settimanale (template) ripetuta ogni settimana, da cui nascono poi i turni reali del Consuntivo. I comandi dell'header sono raggruppati per funzione e riordinabili trascinando l'icona della maniglia; le cancellazioni di massa stanno isolate nel pannello rosso ATTENZIONE. Ecco cosa fa ogni pulsante:"
                             items={[
-                              { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilitÃ . Se un tutor Ã¨ indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
-                              { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare piÃ¹ facilmente le coperture individuali.' },
-                              { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, piÃ¹ larga e leggibile.' },
-                              { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00â€“13:00, solo 13:00â€“19:00, oppure tutto 08:00â€“19:00.' },
-                              { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifÃ  l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
+                              { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor, per pianificare le disponibilità. Se un tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                              { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo, per pianificare più facilmente le coperture individuali.' },
+                              { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia: "Settimanale" mostra tutta la settimana LUN-SAB; "Oggi" mostra solo la colonna del giorno corrente, più larga e leggibile.' },
+                              { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Riduce le righe orarie visibili: solo 08:00–13:00, solo 13:00–19:00, oppure tutto 08:00–19:00.' },
+                              { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica fatta ai turni (anche con Ctrl+Z / Ctrl+Y).' },
                               { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura uno screenshot della matrice settimanale e lo condivide su WhatsApp (sul telefono) o lo copia negli appunti / lo scarica e apre WhatsApp Web (sul PC), con un riepilogo testuale dei turni.' },
-                              { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilitÃ ) con punteggio 0â€“100 e un elenco dei problemi.' },
-                              { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli giÃ  copiati.' },
-                              { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attivitÃ ).' },
-                              { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Nel pannello rosso ATTENZIONE: cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (puÃ² comunque essere annullata con Undo).' },
+                              { btn: 'Analizza Conflitti', icon: 'AI', desc: 'Analizza i turni della settimana tipo e segnala conflitti (sovrapposizioni, doppio tutor, impossibilità) con punteggio 0–100 e un elenco dei problemi.' },
+                              { btn: 'Copia su tutto il mese', icon: 'Replica', desc: 'Replica la settimana tipo sulle giornate LUN-SAB del mese scelto, creando i turni reali del consuntivo. Non duplica quelli già copiati.' },
+                              { btn: 'Rigenera settimana tipo', icon: 'Ricarica', desc: 'Crea i turni template LUN-SAB a partire dai turni di consuntivo esistenti, deduplicando per (giorno, tutor, ragazzi, orari, attività).' },
+                              { btn: 'Cancella Tutti', icon: 'Attenzione', desc: 'Nel pannello rosso ATTENZIONE: cancella TUTTI i turni della settimana tipo. Chiede conferma; azione distruttiva (può comunque essere annullata con Undo).' },
                             ]}
                           />
                         ) : (
                           <GuideButton
-                            title="Guida Â· Consuntivo Turni"
+                            title="Guida · Consuntivo Turni"
                             intro="Questa sezione registra il lavoro effettivamente svolto rispetto alla pianificazione: orari reali, assenze, variazioni. Alimenta Riepilogo Ore e Calcolo Paga. I comandi dell'header sono raggruppati per funzione e riordinabili trascinando la maniglia; le cancellazioni di massa stanno isolate nel pannello rosso ATTENZIONE. Ecco cosa fa ogni pulsante:"
                             items={[
-                              { btn: 'Navigazione settimane (â€¹ â€º)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
-                              { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor Ã¨ indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
+                              { btn: 'Navigazione settimane (‹ ›)', icon: 'Sposta', desc: 'Porta alla settimana precedente o successiva; il pulsante centrale torna alla settimana corrente.' },
+                              { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo i turni di un tutor. Se il tutor è indisponibile in alcuni giorni/fasce, le celle appaiono in rosso.' },
                               { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
-                              { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, piÃ¹ larga e leggibile.' },
-                              { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00â€“13:00, 13:00â€“19:00 oppure tutto.' },
-                              { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifÃ  l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
+                              { btn: 'Settimanale / Oggi', icon: 'Vista', desc: 'Commuta la griglia tra tutta la settimana LUN-SAB e la sola colonna di oggi, più larga e leggibile.' },
+                              { btn: 'Mattina / Pomeriggio / Tutto', icon: 'Vista', desc: 'Limita le righe orarie visibili a 08:00–13:00, 13:00–19:00 oppure tutto.' },
+                              { btn: 'Undo / Redo', icon: 'Modifica', desc: 'Annulla o rifà l\'ultima modifica ai turni (anche Ctrl+Z / Ctrl+Y).' },
                               { btn: 'Invia su WhatsApp', icon: 'Condivisione', desc: 'Cattura la matrice del consuntivo e la condivide su WhatsApp con un riepilogo testuale.' },
                               { btn: 'Cancella tutto il mese', icon: 'Attenzione', desc: 'Nel pannello rosso ATTENZIONE: annulla tutti i turni di consuntivo del mese scelto. Chiede conferma.' },
                               { btn: 'Reset consuntivo', icon: 'Attenzione', desc: 'Nel pannello rosso ATTENZIONE: cancella TUTTI i turni di consuntivo in tutto il database (reset completo). Azione irrecuperabile.' },
@@ -4482,7 +4485,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           <>
                             <button
                               onClick={async () => {
-                                if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non puÃ² essere annullata!")) return;
+                                if (!confirm("Sei sicuro di voler cancellare TUTTI i turni della pianificazione? Questa azione non può essere annullata!")) return;
                                 snapshotBeforeMutation();
                                 try {
                                   const { error } = await supabase.from('shifts').delete().eq('is_template', true);
@@ -4551,7 +4554,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
 
         {weeklySD && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 shrink-0 text-sm">
-            <span className="font-extrabold text-slate-700 uppercase tracking-wide text-[11px]">Settimana tipo Â· <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD.id), e)} className="uppercase font-extrabold text-slate-700 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button></span>
+            <span className="font-extrabold text-slate-700 uppercase tracking-wide text-[11px]">Settimana tipo · <button onClick={(e) => goToTutor(tutors.find(tt => tt.id === weeklySD.id), e)} className="uppercase font-extrabold text-slate-700 hover:text-teal-700 hover:underline cursor-pointer">{weeklySD.name}</button></span>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
               Turno singolo: <b className="tabular-nums text-amber-700">{weeklySD.single.toFixed(1)}h</b>
@@ -4734,7 +4737,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               title="Torna alla vista settimana completa"
                               className="text-[9px] font-bold uppercase tracking-wide bg-emerald-600 text-white rounded-full px-2 py-0.5 hover:bg-emerald-700 shadow-sm shadow-emerald-200"
                             >
-                              Selezionato âœ•
+                              Selezionato ?
                             </button>
                           )}
                         </div>
@@ -4747,7 +4750,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 {(() => {
                   const DAY_START = dayPart === 'mattina' ? 8 * 60 : dayPart === 'pomeriggio' ? 13 * 60 : 8 * 60; // 08:00 o 13:00
                   const DAY_END = dayPart === 'mattina' ? 13 * 60 : dayPart === 'pomeriggio' ? 19 * 60 : 19 * 60; // 13:00 o 19:00
-                  const SLOT = 15; // granularitÃ  15 min
+                  const SLOT = 15; // granularità 15 min
                   const ROW_COUNT = (DAY_END - DAY_START) / SLOT + 1; // 45: 44 slot + riga finale di bordo (19:00)
                   const ROW_H = 36; // altezza riga (h-9) in px
                   const fmt = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
@@ -4997,12 +5000,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                                 Prog.
                                               </span>
                                               <span className={`rounded bg-white/80 px-1.5 py-px text-[13px] font-bold text-slate-700 tabular-nums pointer-events-none truncate ${shiftStatus === 'cancellato' ? 'line-through' : ''}`}>
-                                                {shift.startTime}â€“{shift.endTime}
+                                                {shift.startTime}–{shift.endTime}
                                               </span>
                                               {isPlan && shift.durationWeeks && shift.durationWeeks !== (payRates.weeksPerMonth || 4) && (
                                                 <span
                                                   className="shrink-0 rounded bg-amber-200/90 border border-amber-400 px-1 py-px text-[9px] font-bold text-amber-800 leading-tight pointer-events-none"
-                                                  title={`ValiditÃ : ${shift.durationWeeks} settimane`}
+                                                  title={`Validità: ${shift.durationWeeks} settimane`}
                                                 >
                                                   {shift.durationWeeks} sett.
                                                 </span>
@@ -5015,7 +5018,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                                   Effett.
                                                 </span>
                                                 <span className="rounded bg-white/70 px-1.5 py-px text-[13px] font-bold text-emerald-800 tabular-nums pointer-events-none truncate">
-                                                  {shift.actualStartTime || shift.startTime}â€“{shift.actualEndTime || shift.endTime}
+                                                  {shift.actualStartTime || shift.startTime}–{shift.actualEndTime || shift.endTime}
                                                 </span>
                                               </div>
                                             )}
@@ -5100,7 +5103,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                                   await syncTemplateOccurrences({ ...shift, endTime: nEnd } as Shift);
                                                 }
                                                 const oldEnd = shift.isTemplate ? shift.endTime : (shift.actualEndTime || shift.endTime);
-                                                auditLog('update', 'shift', shift.id, `${shift.date} (durata â†’ ${nEnd})`, {
+                                                auditLog('update', 'shift', shift.id, `${shift.date} (durata ? ${nEnd})`, {
                                                   ...auditDiff(
                                                     { end_time: shift.endTime, actual_end_time: shift.actualEndTime || null, is_template: shift.isTemplate },
                                                     shift.isTemplate ? { end_time: nEnd, actual_end_time: null, is_template: shift.isTemplate } : { end_time: shift.endTime, actual_end_time: nEnd, is_template: shift.isTemplate }
@@ -5218,13 +5221,13 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         .filter((x): x is { id: string; wd: number; startMin: number; endMin: number; startTime: string; endTime: string; youths: Set<string>; weeks: number } => x !== null);
       let paySingle = 0;
       let payDouble = 0;
-      let singleHW = 0; // ore singole Ã— validitÃ  (per media ponderata)
-      let doubleHW = 0; // ore doppie Ã— validitÃ  minima (per media ponderata)
+      let singleHW = 0; // ore singole × validità (per media ponderata)
+      let doubleHW = 0; // ore doppie × validità minima (per media ponderata)
       const details: string[] = [];
       const dayLabel = (wd: number) => ['', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][wd] || `Giorno ${wd}`;
-      // Breakdown per turno con logica "strati di validitÃ ".
-      // PiÃ¹ turni sulla stessa fascia oraria (settimana tipo) vengono raggruppati e scomposti
-      // per validitÃ . Es.: Pacetti (validitÃ  2) + Pacetti&Galzerano (validitÃ  1) â†’ 1 settimana
+      // Breakdown per turno con logica "strati di validità".
+      // Più turni sulla stessa fascia oraria (settimana tipo) vengono raggruppati e scomposti
+      // per validità. Es.: Pacetti (validità 2) + Pacetti&Galzerano (validità 1) ? 1 settimana
       // doppia (entrambi presenti) + 1 settimana singola residua (solo Pacetti).
       const slotKey = (iv: typeof intervals[number]) => `${iv.wd}|${iv.startMin}|${iv.endMin}`;
       const slotMap = new Map<string, typeof intervals>();
@@ -5250,7 +5253,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             startMin: g[0].startMin,
             endMin: g[0].endMin,
             day: dayLabel(g[0].wd),
-            time: `${g[0].startTime}â€“${g[0].endTime}`,
+            time: `${g[0].startTime}–${g[0].endTime}`,
             singleH: 0,
             doubleH: 0,
             valid: 0,
@@ -5280,7 +5283,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         });
       });
       shiftRows.sort((a, b) => (a.wd - b.wd) || (a.startMin - b.startMin) || (b.doubleValid - a.doubleValid));
-      intervals.forEach(iv => { if (iv.weeks !== weeks) details.push(`${dayLabel(iv.wd)} ${iv.startTime}â€“${iv.endTime} Â· turno valido ${iv.weeks} settimane`); });
+      intervals.forEach(iv => { if (iv.weeks !== weeks) details.push(`${dayLabel(iv.wd)} ${iv.startTime}–${iv.endTime} · turno valido ${iv.weeks} settimane`); });
       const singleWeeks = wSingle > 0 ? singleHW / wSingle : 0; // media ponderata sulle ore
       const doubleWeeks = wDouble > 0 ? doubleHW / wDouble : 0; // media ponderata sulle ore
 
@@ -5294,8 +5297,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
     const totWDouble = rows.reduce((a, r) => a + r.wDouble, 0);
     const totBase = rows.reduce((a, r) => a + r.base, 0);
 
-    const eur = (v: number) => `â‚¬ ${v.toFixed(2)}`;
-    const youthName = (id: string) => youths.find(y => y.id === id)?.name || 'â€”';
+    const eur = (v: number) => `€ ${v.toFixed(2)}`;
+    const youthName = (id: string) => youths.find(y => y.id === id)?.name || '—';
     const ratesDirty =
       payRatesDraft.rateSingle !== payRates.rateSingle ||
       payRatesDraft.rateDouble !== payRates.rateDouble;
@@ -5363,7 +5366,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 return (
                   <div key={i} className="absolute left-0.5 right-0.5 overflow-hidden rounded"
                        style={{ top: top + 5, height: Math.max(h - 5, 18 * scale), zIndex: 5 }}
-                       title={`${s.day} ${s.time} Â· sing. ${s.singleH.toFixed(2)}h Â· dopp. ${s.doubleH.toFixed(2)}h Â· valid. ${dbl ? s.doubleValid : s.valid} sett.`}>
+                       title={`${s.day} ${s.time} · sing. ${s.singleH.toFixed(2)}h · dopp. ${s.doubleH.toFixed(2)}h · valid. ${dbl ? s.doubleValid : s.valid} sett.`}>
                     <div className={`h-full rounded px-1 leading-snug text-white shadow-sm flex flex-col justify-center items-center text-center ${dbl ? 'bg-gradient-to-b from-violet-500 to-violet-700' : 'bg-gradient-to-b from-teal-500 to-emerald-600'}`} style={{ fontSize: TB }}>
                       <div className="font-bold" style={{ paddingTop: scale >= 1.6 ? 3 : 0 }}>{s.time}</div>
                       {dbl && <div className="font-extrabold">Dopp.</div>}
@@ -5390,7 +5393,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-teal-600 to-emerald-600 border-r border-white/40`}>Turno</th>
               <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-amber-500 to-amber-600 border-r border-white/40`}>Singolo</th>
               <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-violet-500 to-violet-600 border-r border-white/40`}>Doppio</th>
-              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40`}>ValiditÃ </th>
+              <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-sky-500 to-blue-600 border-r border-white/40`}>Validità</th>
               <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-emerald-600 to-green-700 border-r border-white/40`}>Ragazzo/i</th>
               <th className={`${padTh} text-left font-black tracking-wider ${thFont} bg-gradient-to-b from-slate-700 to-slate-800 border-r border-white/40`}>Formula</th>
               <th className={`${padTh} text-right font-black tracking-wider ${thFont} bg-gradient-to-b from-teal-600 to-emerald-600`}>Paga parz.</th>
@@ -5423,12 +5426,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         ))}</span>
                       </span>
                     )}
-                    {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">â€”</span>}
+                    {sr.singleH === 0 && sr.doubleH === 0 && <span className="text-slate-400">—</span>}
                   </div>
                 </td>
                 <td className={`${pad} text-slate-600 tabular-nums border-r border-slate-200 ${bodyFont}`}>
-                  ({sr.singleH.toFixed(2)} Ã— {eur(rs)} Ã— {sr.singleH > 0 ? sr.valid : sr.doubleValid})
-                  + ({sr.doubleH.toFixed(2)} Ã— {eur(rd)} Ã— {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
+                  ({sr.singleH.toFixed(2)} × {eur(rs)} × {sr.singleH > 0 ? sr.valid : sr.doubleValid})
+                  + ({sr.doubleH.toFixed(2)} × {eur(rd)} × {sr.doubleH > 0 ? sr.doubleValid : sr.valid})
                 </td>
                 <td className={`${pad} text-right tabular-nums font-bold text-teal-700 ${bodyFont}`}>{eur(sr.pay)}</td>
               </tr>
@@ -5636,7 +5639,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           iconCls="bg-gradient-to-br from-lime-500 to-emerald-600 shadow-lime-200"
           topBarCls="bg-gradient-to-r from-lime-500 via-emerald-500 to-teal-400"
           title="Calcolo Paga"
-          subtitle={`${format(payMonth, 'MMMM yyyy', { locale: it })} Â· retribuzioni mensili per tutor`}
+          subtitle={`${format(payMonth, 'MMMM yyyy', { locale: it })} · retribuzioni mensili per tutor`}
           actions={
             <>
               <HeaderGroup label="PERIODO">
@@ -5684,13 +5687,13 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </HeaderGroup>
               <div className="flex items-center xl:self-center">
                 <GuideButton
-                  title="Guida Â· Calcolo Paga"
+                  title="Guida · Calcolo Paga"
                   intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. I comandi sono raggruppati per funzione (PERIODO, ESPORTA). Ecco cosa fa ogni elemento:"
                   items={[
-                    { btn: 'Periodo (â€¹ â€º)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
+                    { btn: 'Periodo (‹ ›)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
                     { btn: 'Report PDF', icon: 'Scarica', desc: 'Genera e scarica il report mensile con le ore e i compensi di ogni tutor, con tanto di note su sovrapposizioni.' },
                     { btn: 'Tabella tutor', icon: 'Dettaglio', desc: 'Per ogni tutor: giorni lavorati, ore normali/doppie/notte, compenso lordo (con eventuale extra/quota riservata) e la percentuale/importo anticipato.' },
-                    { btn: 'Pulsanti riga (report)', icon: 'AttivitÃ ', desc: 'Ti permettono di generare un riepilogo oppure un report PDF dedicato al singolo tutor.' },
+                    { btn: 'Pulsanti riga (report)', icon: 'Attività', desc: 'Ti permettono di generare un riepilogo oppure un report PDF dedicato al singolo tutor.' },
                   ]}
                 />
               </div>
@@ -5718,7 +5721,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   </div>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 font-black text-2xl">â‚¬</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 font-black text-2xl">€</span>
                   <input
                     type="number"
                     min={0}
@@ -5729,7 +5732,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   />
                 </div>
-                <span className="text-[11px] text-orange-500/70 mt-2 block font-medium">â‚¬/h per turno con 1 ragazzo</span>
+                <span className="text-[11px] text-orange-500/70 mt-2 block font-medium">€/h per turno con 1 ragazzo</span>
               </div>
 
               <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
@@ -5743,7 +5746,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   </div>
                 </div>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 font-black text-2xl">â‚¬</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 font-black text-2xl">€</span>
                   <input
                     type="number"
                     min={0}
@@ -5754,7 +5757,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   />
                 </div>
-                <span className="text-[11px] text-violet-500/70 mt-2 block font-medium">â‚¬/h per turno con 2+ ragazzi</span>
+                <span className="text-[11px] text-violet-500/70 mt-2 block font-medium">€/h per turno con 2+ ragazzi</span>
               </div>
 
               <div className="flex items-center shrink-0">
@@ -5763,7 +5766,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   disabled={paySaving || !ratesDirty}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-lime-600 to-emerald-600 text-white text-sm font-bold shadow-md hover:from-lime-700 hover:to-emerald-700 disabled:opacity-40 active:scale-95 transition-all"
                 >
-                  <Save size={15} /> {paySaving ? 'Salvoâ€¦' : 'Salva parametri'}
+                  <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva parametri'}
                 </button>
                 {paySavedFlash && (
                   <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
@@ -5789,20 +5792,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             <p>
               Il <span className="font-bold">compenso mensile</span> di ogni tutor nasce dalla sua{' '}
               <span className="font-bold">settimana tipo</span> (impostata in Pianificazione Turni). Ogni fascia oraria
-              (giorno + orario) puÃ² contenere piÃ¹ turni; vengono raggruppati e scomposti per{' '}
-              <span className="font-bold">validitÃ </span> in:
+              (giorno + orario) può contenere più turni; vengono raggruppati e scomposti per{' '}
+              <span className="font-bold">validità</span> in:
             </p>
             <ul className="list-disc pl-6 space-y-1.5">
               <li>
-                <span className="font-bold text-teal-700">Turno singolo</span> â€” quando il tutor segue un solo ragazzo; vale per la{' '}
-                <span className="font-bold">validitÃ </span> di quel turno.
+                <span className="font-bold text-teal-700">Turno singolo</span> — quando il tutor segue un solo ragazzo; vale per la{' '}
+                <span className="font-bold">validità</span> di quel turno.
               </li>
               <li>
-                <span className="font-bold text-violet-700">Turno doppio</span> â€” quando il tutor segue <b>2 o piÃ¹ ragazzi</b> nello
-                stesso intervallo; vale per la <span className="font-bold">validitÃ  minima</span> tra le fasce che si sovrappongono.
+                <span className="font-bold text-violet-700">Turno doppio</span> — quando il tutor segue <b>2 o più ragazzi</b> nello
+                stesso intervallo; vale per la <span className="font-bold">validità minima</span> tra le fasce che si sovrappongono.
               </li>
               <li>
-                <span className="font-bold text-amber-700">Residuo singolo</span> â€” se un ragazzo ha un turno con validitÃ  piÃ¹ alta del
+                <span className="font-bold text-amber-700">Residuo singolo</span> — se un ragazzo ha un turno con validità più alta del
                 turno doppio che lo include, le settimane in eccesso vengono pagate a tariffa singola.
               </li>
             </ul>
@@ -5811,35 +5814,35 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <div className="flex flex-wrap items-center justify-center gap-2 font-black">
                 <span className="text-2xl text-white">Compenso =</span>
                 <span className="bg-teal-500/20 text-teal-200 border-2 border-teal-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
-                  Ore singolo Ã— Tariffa sing. Ã— <span className="text-teal-400">ValiditÃ </span>
+                  Ore singolo × Tariffa sing. × <span className="text-teal-400">Validità</span>
                 </span>
                 <span className="text-2xl text-white font-black">+</span>
                 <span className="bg-violet-500/20 text-violet-200 border-2 border-violet-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
-                  Ore doppio Ã— Tariffa dopp. Ã— <span className="text-violet-400">ValiditÃ  min.</span>
+                  Ore doppio × Tariffa dopp. × <span className="text-violet-400">Validità min.</span>
                 </span>
                 <span className="text-2xl text-white font-black">+</span>
                 <span className="bg-amber-500/20 text-amber-200 border-2 border-amber-400 rounded-lg px-3 py-2 text-sm md:text-base shadow-sm">
-                  Residuo singolo Ã— Tariffa sing.
+                  Residuo singolo × Tariffa sing.
                 </span>
               </div>
             </div>
             <p>
-              La <span className="font-bold">validitÃ </span> Ã¨ il numero di settimane in cui il turno Ã¨ attivo. Ogni turno ha una propria
-              validitÃ  (campo "ValiditÃ  (settimane)" in Pianificazione, default 4). Quando
-              piÃ¹ turni creano una fascia doppia, la fascia vale per la <b>validitÃ  minore</b> tra loro: le settimane in cui Ã¨ presente
-              il ragazzo con la validitÃ  piÃ¹ alta ma non ancora il doppio vengono pagate come <b>residuo singolo</b>.
+              La <span className="font-bold">validità</span> è il numero di settimane in cui il turno è attivo. Ogni turno ha una propria
+              validità (campo "Validità (settimane)" in Pianificazione, default 4). Quando
+              più turni creano una fascia doppia, la fascia vale per la <b>validità minore</b> tra loro: le settimane in cui è presente
+              il ragazzo con la validità più alta ma non ancora il doppio vengono pagate come <b>residuo singolo</b>.
             </p>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl bg-white border border-lime-200 px-5 py-4">
-                <div className="text-xs uppercase tracking-wide text-lime-300 font-semibold mb-2">Esempio Â· 2 ragazzi</div>
+                <div className="text-xs uppercase tracking-wide text-lime-300 font-semibold mb-2">Esempio · 2 ragazzi</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
                   <div className="text-slate-600">Tariffa singolo: <span className="font-bold text-slate-800">{eur(rs)}/h</span></div>
                   <div className="text-slate-600">Tariffa doppio: <span className="font-bold text-slate-800">{eur(rd)}/h</span></div>
-                  <div className="text-slate-600">Rossi (validitÃ  2) + Rossi & Bianchi (validitÃ  1), 1h</div>
-                  <div className="text-slate-600">â†’ doppio 1 settimana + residuo singolo 1 settimana</div>
+                  <div className="text-slate-600">Rossi (validità 2) + Rossi & Bianchi (validità 1), 1h</div>
+                  <div className="text-slate-600">? doppio 1 settimana + residuo singolo 1 settimana</div>
                 </div>
                 <div className="mt-3 font-mono text-sm text-slate-800">
-                  = (1h Ã— <span className="text-violet-700 font-semibold">{eur(rd)}</span> Ã— 1) + (1h Ã— <span className="text-teal-700 font-semibold">{eur(rs)}</span> Ã— 1)
+                  = (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1) + (1h × <span className="text-teal-700 font-semibold">{eur(rs)}</span> × 1)
                 </div>
                 <div className="mt-1 font-mono text-lg font-bold text-teal-700">
                   = {eur(1 * rd * 1)} + {eur(1 * rs * 1)} = {eur(1 * rd * 1 + 1 * rs * 1)}
@@ -5855,27 +5858,27 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     </thead>
                     <tbody className="divide-y divide-lime-50 text-slate-700">
                       <tr>
-                        <td className="py-1.5 px-2 font-semibold">1Âª</td>
-                        <td className="py-1.5 px-2">Rossi Â· Bianchi</td>
-                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio âœ“âœ“</span></td>
+                        <td className="py-1.5 px-2 font-semibold">1ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ??</span></td>
                       </tr>
                       <tr>
-                        <td className="py-1.5 px-2 font-semibold">2Âª</td>
+                        <td className="py-1.5 px-2 font-semibold">2ª</td>
                         <td className="py-1.5 px-2">Rossi</td>
-                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo âœ“</span></td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo ?</span></td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
               <div className="rounded-xl bg-white border border-violet-200 px-5 py-4">
-                <div className="text-xs uppercase tracking-wide text-violet-400 font-semibold mb-2">Esempio Â· 3 ragazzi</div>
+                <div className="text-xs uppercase tracking-wide text-violet-400 font-semibold mb-2">Esempio · 3 ragazzi</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
                   <div className="text-slate-600">Rossi (val. 3) + Rossi&Bianchi (val. 2) + Rossi&Bianchi&Verdi (val. 1), 1h</div>
-                  <div className="text-slate-600">â†’ singolo 1 settimana + doppio 1 settimana + doppio 1 settimana</div>
+                  <div className="text-slate-600">? singolo 1 settimana + doppio 1 settimana + doppio 1 settimana</div>
                 </div>
                 <div className="mt-3 font-mono text-sm text-slate-800">
-                  = (1h Ã— <span className="text-teal-700 font-semibold">{eur(rs)}</span> Ã— 1) + (1h Ã— <span className="text-violet-700 font-semibold">{eur(rd)}</span> Ã— 1) + (1h Ã— <span className="text-violet-700 font-semibold">{eur(rd)}</span> Ã— 1)
+                  = (1h × <span className="text-teal-700 font-semibold">{eur(rs)}</span> × 1) + (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1) + (1h × <span className="text-violet-700 font-semibold">{eur(rd)}</span> × 1)
                 </div>
                 <div className="mt-1 font-mono text-lg font-bold text-violet-700">
                   = {eur(1 * rs * 1)} + {eur(1 * rd * 1)} + {eur(1 * rd * 1)} = {eur(1 * rs * 1 + 2 * rd * 1)}
@@ -5891,19 +5894,19 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     </thead>
                     <tbody className="divide-y divide-violet-50 text-slate-700">
                       <tr>
-                        <td className="py-1.5 px-2 font-semibold">1Âª</td>
-                        <td className="py-1.5 px-2">Rossi Â· Bianchi Â· Verdi</td>
-                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio âœ“âœ“</span></td>
+                        <td className="py-1.5 px-2 font-semibold">1ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi · Verdi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ??</span></td>
                       </tr>
                       <tr>
-                        <td className="py-1.5 px-2 font-semibold">2Âª</td>
-                        <td className="py-1.5 px-2">Rossi Â· Bianchi</td>
-                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio âœ“âœ“</span></td>
+                        <td className="py-1.5 px-2 font-semibold">2ª</td>
+                        <td className="py-1.5 px-2">Rossi · Bianchi</td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-violet-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-violet-500 inline-block" /> doppio ??</span></td>
                       </tr>
                       <tr>
-                        <td className="py-1.5 px-2 font-semibold">3Âª</td>
+                        <td className="py-1.5 px-2 font-semibold">3ª</td>
                         <td className="py-1.5 px-2">Rossi</td>
-                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo âœ“</span></td>
+                        <td className="py-1.5 px-2 text-center"><span className="inline-flex items-center gap-1 text-teal-700 font-semibold"><span className="h-2.5 w-2.5 rounded bg-teal-500 inline-block" /> singolo ?</span></td>
                       </tr>
                     </tbody>
                   </table>
@@ -5914,7 +5917,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         )}
 
         <Card className="p-6">
-          <h3 className="font-semibold text-slate-700 mb-4">Compenso mensile Â· ore settimanali Ã— tariffe Ã— validitÃ  del turno</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">Compenso mensile · ore settimanali × tariffe × validità del turno</h3>
           <div className="overflow-x-auto max-h-[65vh] overflow-y-auto rounded-lg border border-slate-100">
             <table className="w-auto max-w-full text-sm whitespace-nowrap">
               <thead className="sticky top-0 z-10">
@@ -5950,7 +5953,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             {eur(r.base)}
                             <button
                               onClick={(e) => { e.stopPropagation(); setPayDetailTutor(open ? null : r.tutor.id); }}
-                              title={open ? 'Nascondi dettaglio' : 'Mostra come Ã¨ calcolato'}
+                              title={open ? 'Nascondi dettaglio' : 'Mostra come è calcolato'}
                               className={`ml-1 p-1 rounded-md transition-colors ${open ? 'bg-teal-100 text-teal-700' : 'text-slate-400 hover:bg-slate-100 hover:text-teal-600'}`}
                             >
                               <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -5965,17 +5968,17 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               <div className="rounded-xl bg-white border border-lime-200 px-4 py-3 shadow-sm">
                                 <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Singolo</div>
                                 <div className="text-2xl font-extrabold text-slate-700 tabular-nums leading-tight">{eur(r.paySingle)}</div>
-                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wSingle.toFixed(2)}h Ã— {eur(rs)} Ã— {r.singleWeeks.toFixed(2)} sett.</div>
+                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wSingle.toFixed(2)}h × {eur(rs)} × {r.singleWeeks.toFixed(2)} sett.</div>
                               </div>
                               <div className="rounded-xl bg-white border border-violet-200 px-4 py-3 shadow-sm">
                                 <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Doppio</div>
                                 <div className="text-2xl font-extrabold text-violet-600 tabular-nums leading-tight">{eur(r.payDouble)}</div>
-                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wDouble.toFixed(2)}h Ã— {eur(rd)} Ã— {r.doubleWeeks.toFixed(2)} sett.</div>
+                                <div className="mt-1 text-[11px] text-slate-500 tabular-nums">{r.wDouble.toFixed(2)}h × {eur(rd)} × {r.doubleWeeks.toFixed(2)} sett.</div>
                               </div>
                               <div className="rounded-xl bg-white border border-teal-200 px-4 py-3 shadow-sm">
                                 <div className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-0.5">Totale</div>
                                 <div className="text-2xl font-extrabold text-teal-700 tabular-nums leading-tight">{eur(r.base)}</div>
-                                <div className="mt-1 text-[11px] text-slate-500">giÃ  pesato per la validitÃ  per turno</div>
+                                <div className="mt-1 text-[11px] text-slate-500">già pesato per la validità per turno</div>
                               </div>
                             </div>
                             <div className="mt-5 border-t-4 border-teal-600 pt-4">
@@ -5989,7 +5992,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                     type="button"
                                     onClick={() => downloadCsv(
                                       `breakdown_${r.tutor.name.replace(/[^\w]+/g, '_')}.csv`,
-                                      ['Turno', 'Sing. (h)', 'Dopp. (h)', 'ValiditÃ  (sett.)', 'Ragazzo/i', 'Formula', 'Paga parziale (â‚¬)'],
+                                      ['Turno', 'Sing. (h)', 'Dopp. (h)', 'Validità (sett.)', 'Ragazzo/i', 'Formula', 'Paga parziale (€)'],
                                       r.shiftRows.map(sr => {
                                         const sQ = sr.singleH > 0 ? sr.valid : sr.doubleValid;
                                         const dQ = sr.doubleH > 0 ? sr.doubleValid : sr.valid;
@@ -6030,8 +6033,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 >
                                   {payTable(r)}
                                   <p className="px-3 py-1.5 text-[10px] text-slate-400 bg-white border-t border-slate-100">
-                                    Nota: la somma delle righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(r.base)}): le fasce doppie sovrapposte sono giÃ 
-                                    scomposte per validitÃ  (settimane doppie + residuo singolo), senza duplicazioni.
+                                    Nota: la somma delle righe ({eur(r.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(r.base)}): le fasce doppie sovrapposte sono già
+                                    scomposte per validità (settimane doppie + residuo singolo), senza duplicazioni.
                                   </p>
                                 </div>
                                 <div className="shrink-0">
@@ -6050,14 +6053,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             </div>
                             {r.details.length > 0 && (
                               <div className="mt-1.5">
-                                <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold mb-0.5">ValiditÃ  ridotta</div>
+                                <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold mb-0.5">Validità ridotta</div>
                                 {r.details.map((d, i) => (
-                                  <div key={i} className="text-slate-600">â–ª {d}</div>
+                                  <div key={i} className="text-slate-600">? {d}</div>
                                 ))}
                               </div>
                             )}
                             {r.details.length === 0 && (
-                              <div className="text-slate-400">Tutti i turni hanno la validitÃ  di default ({weeks} settimane).</div>
+                              <div className="text-slate-400">Tutti i turni hanno la validità di default ({weeks} settimane).</div>
                             )}
                           </td>
                         </tr>
@@ -6082,8 +6085,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </table>
           </div>
           <p className="mt-3 text-[11px] text-slate-400">
-            Compenso = somma over i turni della settimana tipo: ore singole/doppie Ã— tariffa Ã— validitÃ  del turno (quella globale
-            "Settimane / mese" se non diversa). Per le fasce doppie sovrapposte vale la validitÃ  minima.
+            Compenso = somma over i turni della settimana tipo: ore singole/doppie × tariffa × validità del turno (quella globale
+            "Settimane / mese" se non diversa). Per le fasce doppie sovrapposte vale la validità minima.
           </p>
         </Card>
 
@@ -6097,7 +6100,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-slate-800"><button onClick={(e) => goToTutor(zoomed.tutor, e as unknown as React.MouseEvent)} className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer">{zoomed.tutor.name}</button></span>
-                    <span className="text-sm text-slate-500">Â· settimana tipo Â· click sul calendario per ingrandire</span>
+                    <span className="text-sm text-slate-500">· settimana tipo · click sul calendario per ingrandire</span>
                   </div>
                   <button
                     type="button"
@@ -6112,7 +6115,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <div className="mt-3 flex items-center gap-4 text-sm text-slate-600">
                   <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-teal-500 inline-block"></span> singolo</span>
                   <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-violet-500 inline-block"></span> doppio</span>
-                  <span className="inline-flex items-center gap-1.5 text-slate-400">Â· passa il mouse su un turno per i dettagli</span>
+                  <span className="inline-flex items-center gap-1.5 text-slate-400">· passa il mouse su un turno per i dettagli</span>
                 </div>
               </div>
             </div>
@@ -6128,7 +6131,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold text-slate-800"><button onClick={(e) => goToTutor(zoomed.tutor, e as unknown as React.MouseEvent)} className="font-bold text-slate-800 hover:text-teal-700 hover:underline cursor-pointer">{zoomed.tutor.name}</button></span>
-                    <span className="text-sm text-slate-500">Â· dettaglio paga Â· click sulla tabella per ingrandire</span>
+                    <span className="text-sm text-slate-500">· dettaglio paga · click sulla tabella per ingrandire</span>
                   </div>
                   <button
                     type="button"
@@ -6141,8 +6144,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 </div>
                 <div className="rounded-lg border border-lime-300 bg-white overflow-hidden shadow-sm">{payTable(zoomed, true)}</div>
                 <p className="mt-3 px-3 py-1.5 text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-lg">
-                  Nota: la somma delle righe ({eur(zoomed.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(zoomed.base)}): le fasce doppie sovrapposte sono giÃ 
-                  scomposte per validitÃ  (settimane doppie + residuo singolo), senza duplicazioni.
+                  Nota: la somma delle righe ({eur(zoomed.shiftRows.reduce((a, s) => a + s.pay, 0))}) coincide con il totale ({eur(zoomed.base)}): le fasce doppie sovrapposte sono già
+                  scomposte per validità (settimane doppie + residuo singolo), senza duplicazioni.
                 </p>
               </div>
             </div>
@@ -6153,7 +6156,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
   };
 
   const renderReport = () => {
-    const WEEK_DAYS = ['LunedÃ¬', 'MartedÃ¬', 'MercoledÃ¬', 'GiovedÃ¬', 'VenerdÃ¬', 'Sabato'] as const;
+    const WEEK_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'] as const;
     const defaultWeeks = payRates.weeksPerMonth || 4;
     const hasReportFilters = tutorFilter !== 'all' || youthFilter !== 'all';
 
@@ -6193,9 +6196,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       setYouthFilter('all');
     };
 
-    // Raggruppa i turni per fascia esatta (giorno + Inizio + Fine) e scompone la validitÃ  a
-    // strati come nel Calcolo Paga: es. Ven 15:00â€“16:00 con Diglio(3) + Paris(2) â†’
-    // Doppio 2 sett. + Singolo 1 sett. Una fascia con un solo turno resta com'Ã¨.
+    // Raggruppa i turni per fascia esatta (giorno + Inizio + Fine) e scompone la validità a
+    // strati come nel Calcolo Paga: es. Ven 15:00–16:00 con Diglio(3) + Paris(2) ?
+    // Doppio 2 sett. + Singolo 1 sett. Una fascia con un solo turno resta com'è.
     const weekOfShift = (s: Shift) => s.durationWeeks && s.durationWeeks > 0 ? s.durationWeeks : defaultWeeks;
     const buildSlotRows = (list: Shift[]) => {
       const slots = new Map<string, Shift[]>();
@@ -6223,11 +6226,11 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       return out;
     };
     const slotBadge = (L: { double: boolean; weeks: number }, key?: string) => L.double ? (
-      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold border border-violet-200" title={`Doppio Â· ${L.weeks} sett.`}>
+      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold border border-violet-200" title={`Doppio · ${L.weeks} sett.`}>
         <span className="h-1.5 w-1.5 rounded-full bg-violet-500"></span> Doppio {L.weeks} sett.
       </span>
     ) : (
-      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-semibold border border-teal-200" title={`Singolo Â· ${L.weeks} sett.`}>
+      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 text-[10px] font-semibold border border-teal-200" title={`Singolo · ${L.weeks} sett.`}>
         <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span> Singolo {L.weeks} sett.
       </span>
     );
@@ -6251,8 +6254,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">Resoconto Turni</p>
                 <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
                   {reportView === 'tutor'
-                    ? 'Vista Tutor Â· settimana tipo per tutor Â· validitÃ  ' + defaultWeeks + ' sett.'
-                    : 'Vista settimanale Â· turni per giorno Â· validitÃ  ' + defaultWeeks + ' sett.'}
+                    ? 'Vista Tutor · settimana tipo per tutor · validità ' + defaultWeeks + ' sett.'
+                    : 'Vista settimanale · turni per giorno · validità ' + defaultWeeks + ' sett.'}
                 </p>
               </div>
               <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
@@ -6282,15 +6285,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Resoconto Turni</h2>
                       <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
                         {reportView === 'tutor'
-                          ? 'Settimana tipo per tutor: dal lunedÃ¬ al sabato, in ordine cronologico, con i ragazzi associati e la validitÃ  in settimane.'
-                          : 'Settimana tipo per giorno: dal lunedÃ¬ al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validitÃ  in settimane.'}
+                          ? 'Settimana tipo per tutor: dal lunedì al sabato, in ordine cronologico, con i ragazzi associati e la validità in settimane.'
+                          : 'Settimana tipo per giorno: dal lunedì al sabato con i turni in ordine cronologico, tutor e ragazzi associati e validità in settimane.'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
                     <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
-                      ValiditÃ  standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
+                      Validità standard: <b className="text-slate-800 tabular-nums">{defaultWeeks} settimane</b>
                     </span>
                   </div>
                 </div>
@@ -6373,16 +6376,16 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           ),
                           GUIDA: (
                             <GuideButton
-                              title="Guida Â· Resoconto Turni"
-                              intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validitÃ  in settimane di ogni turno. I comandi sono raggruppati per funzione (VISTA, FILTRA) e riordinabili trascinando la maniglia. Ecco cosa fa ogni elemento:"
+                              title="Guida · Resoconto Turni"
+                              intro="Visione d\'insieme della settimana tipo del centro, per tutor o per giorno, con la validità in settimane di ogni turno. I comandi sono raggruppati per funzione (VISTA, FILTRA) e riordinabili trascinando la maniglia. Ecco cosa fa ogni elemento:"
                               items={[
-                                { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedÃ¬ al sabato), "Vista settimanale" per giorno della settimana.' },
-                                { btn: 'ValiditÃ  standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validitÃ  di default per i turni.' },
+                                { btn: 'Vista Tutor / Vista settimanale', icon: 'Vista', desc: 'Commuta la tabella: "Vista Tutor" raggruppa per educatore (dal lunedì al sabato), "Vista settimanale" per giorno della settimana.' },
+                                { btn: 'Validità standard', icon: 'Info', desc: 'Mostra le settimane/mese usate come validità di default per i turni.' },
                                 { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra solo il resoconto di uno specifico tutor.' },
                                 { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo i turni che coinvolgono un determinato ragazzo.' },
                                 { btn: 'Azzera filtri', icon: 'Reset', desc: 'Riporta tutor e ragazzo su "Tutti" nelle viste filtrate.' },
-                                { btn: 'Clic su un turno', icon: 'Vai', desc: 'Evidenzia la riga e apre la pianificazione del giorno di quel turno, filtrata sul tutor; clicca "Selezionato âœ•" per tornare alla settimana completa.' },
-                                { btn: 'Fasce sovrapposte', icon: 'Info', desc: 'PiÃ¹ turni dello stesso tutor nello stesso giorno e orario vengono raggruppati in una riga unica con la scomposizione della validitÃ  come nel Calcolo Paga (es. "Doppio 2 sett. + Singolo 1 sett."). I contatori "N turni" contano le fasce orarie distinte.' },
+                                { btn: 'Clic su un turno', icon: 'Vai', desc: 'Evidenzia la riga e apre la pianificazione del giorno di quel turno, filtrata sul tutor; clicca "Selezionato ?" per tornare alla settimana completa.' },
+                                { btn: 'Fasce sovrapposte', icon: 'Info', desc: 'Più turni dello stesso tutor nello stesso giorno e orario vengono raggruppati in una riga unica con la scomposizione della validità come nel Calcolo Paga (es. "Doppio 2 sett. + Singolo 1 sett."). I contatori "N turni" contano le fasce orarie distinte.' },
                               ]}
                             />
                           ),
@@ -6451,7 +6454,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           <div key={sl.key} onClick={() => goToReportShift(s)} title={`Apri il giorno ${dayLabel} del calendario, filtrato su ${tt?.name || 'tutor'}`} className="px-4 py-3 cursor-pointer hover:bg-amber-100/80 transition-colors">
                             <div className="flex items-center justify-between gap-2">
                               <span className="tabular-nums font-bold text-slate-800 text-sm">
-                                {s.startTime}â€“{s.endTime}
+                                {s.startTime}–{s.endTime}
                               </span>
                               {sl.isMerged ? (
                                 <div className="flex flex-wrap gap-1 justify-end">
@@ -6556,7 +6559,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     <button onClick={(e) => goToTutor(tutor, e as unknown as React.MouseEvent)} className="font-bold text-lg text-slate-800 hover:text-teal-700 hover:underline cursor-pointer truncate">
                       {tutor.name}
                     </button>
-                    <p className="text-xs text-slate-400">{tutor.role || 'Tutor'} Â· {rows.length} turni</p>
+                    <p className="text-xs text-slate-400">{tutor.role || 'Tutor'} · {rows.length} turni</p>
                   </div>
                 </div>
 
@@ -6571,7 +6574,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           <th className="px-3 py-2.5 font-bold">Orario</th>
                           <th className="px-3 py-2.5 font-bold">Ragazzi</th>
                           <th className="px-3 py-2.5 font-bold">Tipo</th>
-                          <th className="px-3 py-2.5 font-bold">ValiditÃ </th>
+                          <th className="px-3 py-2.5 font-bold">Validità</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -6595,7 +6598,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                         <span className="h-2.5 w-2.5 rounded-full bg-indigo-400 shrink-0"></span>
                                         {WEEK_DAYS[wd]}
                                         <span className="text-[10px] font-bold text-indigo-400 normal-case tracking-normal">
-                                          Â· {rows.filter(x => x.wd - 1 === wd).length} turni
+                                          · {rows.filter(x => x.wd - 1 === wd).length} turni
                                         </span>
                                       </span>
                                     </td>
@@ -6613,12 +6616,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 </span>
                               </td>
                               <td className="px-3 py-2.5 whitespace-nowrap tabular-nums font-semibold text-slate-700">
-                                {single.startTime}â€“{single.endTime}
+                                {single.startTime}–{single.endTime}
                               </td>
                               <td className="px-3 py-2.5">
                                 <div className="flex flex-wrap gap-1.5">
                                   {yids.length === 0 ? (
-                                    <span className="text-slate-400 italic">â€”</span>
+                                    <span className="text-slate-400 italic">—</span>
                                   ) : yids.map(yid => {
                                     const yy = youths.find(y => y.id === yid);
                                     const yc = getYouthColor(yid, youths);
@@ -6653,7 +6656,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               </td>
                               <td className="px-3 py-2.5 whitespace-nowrap text-left">
                                 {r.isMerged ? (
-                                  <span className="text-slate-400">â€”</span>
+                                  <span className="text-slate-400">—</span>
                                 ) : (
                                   <span className={`inline-flex items-center gap-1 tabular-nums font-semibold ${weeks === defaultWeeks ? 'text-slate-500' : 'text-amber-700'}`}>
                                     {weeks} sett.
@@ -6740,7 +6743,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       });
     });
     // Erogate = Pian + variazioni registrate nel consuntivo (annullamenti / orari effettivi).
-    // Se un turno non Ã¨ stato toccato nel consuntivo, Erogate = Pian (non serve salvarlo).
+    // Se un turno non è stato toccato nel consuntivo, Erogate = Pian (non serve salvarlo).
     const adjusted: Record<string, Record<string, number>> = {};
     rows.forEach(t => { adjusted[t.id] = {}; cols.forEach(y => { adjusted[t.id][y.id] = 0; }); });
     monthShifts.forEach(s => {
@@ -6788,7 +6791,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-extrabold text-slate-800 leading-tight truncate">Riepilogo Ore</p>
                 <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-tight truncate">
-                  {format(summaryMonth, 'MMMM yyyy', { locale: it })} Â· matrice Tutor Ã— Ragazzo Â· pianificate vs eseguite
+                  {format(summaryMonth, 'MMMM yyyy', { locale: it })} · matrice Tutor × Ragazzo · pianificate vs eseguite
                 </p>
               </div>
               <span className="text-[10px] font-semibold text-teal-600 uppercase tracking-wide shrink-0">
@@ -6817,7 +6820,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     <div className="min-w-0">
                       <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Riepilogo Ore</h2>
                       <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
-                        Matrice Tutor Ã— Ragazzo Â· pianificate vs eseguite (consuntivo)
+                        Matrice Tutor × Ragazzo · pianificate vs eseguite (consuntivo)
                       </p>
                     </div>
                   </div>
@@ -6883,13 +6886,13 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     </HeaderGroup>
                     <div className="flex items-center xl:self-center">
                       <GuideButton
-                        title="Guida Â· Riepilogo Ore"
-                        intro="Prospetto mensile delle ore: una matrice Tutor Ã— Ragazzo che confronta le ore pianificate (settimana tipo) con quelle eseguite (consuntivo). I comandi sono raggruppati per funzione (FILTRA, PERIODO). Ecco cosa fa ogni elemento:"
+                        title="Guida · Riepilogo Ore"
+                        intro="Prospetto mensile delle ore: una matrice Tutor × Ragazzo che confronta le ore pianificate (settimana tipo) con quelle eseguite (consuntivo). I comandi sono raggruppati per funzione (FILTRA, PERIODO). Ecco cosa fa ogni elemento:"
                         items={[
                           { btn: 'Filtro tutor', icon: 'Usa', desc: 'Mostra la matrice solo per un tutor specifico.' },
                           { btn: 'Filtro ragazzo', icon: 'Usa', desc: 'Mostra solo le colonne di un determinato ragazzo.' },
-                          { btn: 'Navigazione mese (â€¹ â€º)', icon: 'Sposta', desc: 'Cambia il mese del riepilogo; il pulsante centrale torna al mese corrente.' },
-                          { btn: 'Legenda colori', icon: 'Legenda', desc: 'Pian = pianificate Â· Erogate = effettivamente svolte Â· Rosso = ore in meno (da recuperare) Â· Verde = ore in piÃ¹ (extra scalate dal monte ore).' },
+                          { btn: 'Navigazione mese (‹ ›)', icon: 'Sposta', desc: 'Cambia il mese del riepilogo; il pulsante centrale torna al mese corrente.' },
+                          { btn: 'Legenda colori', icon: 'Legenda', desc: 'Pian = pianificate · Erogate = effettivamente svolte · Rosso = ore in meno (da recuperare) · Verde = ore in più (extra scalate dal monte ore).' },
                         ]}
                       />
                     </div>
@@ -6951,7 +6954,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           const c = cell[t.id][y.id];
                           const saldo = c.executed - c.planned;
                           const saldoColor = saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-400';
-                          const saldoText = saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : 'â€“';
+                          const saldoText = saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : '–';
                           return (
                             <React.Fragment key={t.id}>
                               <td className="text-center px-1 py-2 tabular-nums text-amber-600 border-l-2 border-slate-200">{c.planned.toFixed(1)}h</td>
@@ -6962,7 +6965,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         })}
                         <td className="text-center px-2 py-2 tabular-nums text-amber-600 font-semibold border-l-2 border-slate-200">{rtPlanned.toFixed(1)}h</td>
                         <td className="text-center px-2 py-2 tabular-nums text-blue-700 font-bold">{rtExecuted.toFixed(1)}h</td>
-                        <td className={`text-center px-2 py-2 tabular-nums font-bold ${rtSaldo > 0.005 ? 'text-emerald-600' : rtSaldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{rtSaldo > 0.005 ? `+${rtSaldo.toFixed(1)}h` : rtSaldo < -0.005 ? `${(-rtSaldo).toFixed(1)}h` : 'â€“'}</td>
+                        <td className={`text-center px-2 py-2 tabular-nums font-bold ${rtSaldo > 0.005 ? 'text-emerald-600' : rtSaldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{rtSaldo > 0.005 ? `+${rtSaldo.toFixed(1)}h` : rtSaldo < -0.005 ? `${(-rtSaldo).toFixed(1)}h` : '–'}</td>
                       </tr>
                     );
                   })}
@@ -6976,20 +6979,20 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <React.Fragment key={t.id}>
                           <td className="text-center px-1 py-3 tabular-nums text-amber-600 border-l-2 border-slate-200">{rowTot[ti].planned.toFixed(1)}h</td>
                           <td className="text-center px-1 py-3 tabular-nums text-blue-700">{rowTot[ti].executed.toFixed(1)}h</td>
-                          <td className={`text-center px-1 py-3 tabular-nums ${saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : 'â€“'}</td>
+                          <td className={`text-center px-1 py-3 tabular-nums ${saldo > 0.005 ? 'text-emerald-600' : saldo < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{saldo > 0.005 ? `+${saldo.toFixed(1)}h` : saldo < -0.005 ? `${(-saldo).toFixed(1)}h` : '–'}</td>
                         </React.Fragment>
                       );
                     })}
                     <td className="text-center px-2 py-3 tabular-nums text-amber-600 border-l-2 border-slate-200">{grandPlan.toFixed(1)}h</td>
                     <td className="text-center px-2 py-3 tabular-nums text-blue-700">{grandExec.toFixed(1)}h</td>
-                    {(() => { const g = grandExec - grandPlan; return (<td className={`text-center px-2 py-3 tabular-nums ${g > 0.005 ? 'text-emerald-600' : g < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{g > 0.005 ? `+${g.toFixed(1)}h` : g < -0.005 ? `${(-g).toFixed(1)}h` : 'â€“'}</td>); })()}
+                    {(() => { const g = grandExec - grandPlan; return (<td className={`text-center px-2 py-3 tabular-nums ${g > 0.005 ? 'text-emerald-600' : g < -0.005 ? 'text-red-500' : 'text-slate-500'}`}>{g > 0.005 ? `+${g.toFixed(1)}h` : g < -0.005 ? `${(-g).toFixed(1)}h` : '–'}</td>); })()}
                   </tr>
                 </tfoot>
               </table>
             </div>
           )}
           <p className="mt-3 px-4 pb-4 text-[11px] text-slate-400">
-            <span className="text-amber-600 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) Â· <span className="text-blue-600 font-semibold">Erogate</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) Â· <span className="text-red-500 font-semibold">Extra/Rec. rosso</span> = ore in meno rispetto al pianificato (da recuperare, es. assenze/riduzioni) Â· <span className="text-emerald-600 font-semibold">verde</span> = ore in piÃ¹ (extra scalate dal monte ore del ragazzo)
+            <span className="text-amber-600 font-semibold">Pian</span> = ore pianificate (Pianificazione Turni) · <span className="text-blue-600 font-semibold">Erogate</span> = ore effettivamente eseguite dal Consuntivo Turni (assenze a 0, variazioni di durata incluse) · <span className="text-red-500 font-semibold">Extra/Rec. rosso</span> = ore in meno rispetto al pianificato (da recuperare, es. assenze/riduzioni) · <span className="text-emerald-600 font-semibold">verde</span> = ore in più (extra scalate dal monte ore del ragazzo)
           </p>
         </Card>
       </div>
@@ -7035,20 +7038,10 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
         tDelta.set(s.tutorId, (tDelta.get(s.tutorId) || 0) + diff);
       });
       const yWeekly = new Map<string, number>();
-      const yPlanned = new Map<string, number>();
-      const yExecuted = new Map<string, number>();
       templates.forEach(s => {
         const h = getHours(s.startTime, s.endTime);
-        const occ = templateMonthlyCount(s);
         shiftYouthIds(s).forEach(yid => {
           yWeekly.set(yid, (yWeekly.get(yid) || 0) + h);
-          yPlanned.set(yid, (yPlanned.get(yid) || 0) + h * occ);
-        });
-      });
-      monthShifts.forEach(s => {
-        const vh = getValidatedHours(s);
-        shiftYouthIds(s).forEach(yid => {
-          yExecuted.set(yid, (yExecuted.get(yid) || 0) + vh);
         });
       });
 
@@ -7107,20 +7100,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
       const youthRows = youths
         .map(y => {
           const weeklyPlanned = yWeekly.get(y.id) || 0;
-          const monthlyPlanned = yPlanned.get(y.id) || 0;
-          const monthlyExecuted = yExecuted.get(y.id) || 0;
           const required = y.requiredHoursPerWeek || 0;
           return {
             youth: y,
             required,
             weeklyPlanned,
-            weeklyExecuted: monthlyExecuted / weeks,
-            monthlyPlanned,
-            monthlyExecuted,
             gap: required - weeklyPlanned,
           };
         })
-        .filter(r => r.monthlyPlanned > 0 || r.weeklyExecuted > 0)
+        .filter(r => r.weeklyPlanned > 0)
         .sort((a, b) => a.youth.name.localeCompare(b.youth.name, 'it', { sensitivity: 'base' }));
 
       const byTutorDay = new Map<string, Array<{ start: number; end: number; youths: Set<string> }>>();
@@ -7222,6 +7210,46 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
 
     const cardLabel = 'text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3';
 
+    const sortRows = <T,>(rows: T[], key: string, dir: 'asc' | 'desc', get: (r: T) => number | string): T[] => {
+      const k = [...rows];
+      k.sort((a, b) => {
+        const av = get(a);
+        const bv = get(b);
+        let cmp: number;
+        if (typeof av === 'number' && typeof bv === 'number') cmp = av - bv;
+        else cmp = String(av).localeCompare(String(bv), 'it', { sensitivity: 'base' });
+        return dir === 'asc' ? cmp : -cmp;
+      });
+      return k;
+    };
+    const youthAccess = (r: { youth: Youth; required: number; weeklyPlanned: number; gap: number }, key: string): number | string => {
+      if (key === 'name') return r.youth.name;
+      if (key === 'required') return r.required;
+      if (key === 'weeklyPlanned') return r.weeklyPlanned;
+      return r.gap;
+    };
+    const tutorAccess = (r: { tutor: Tutor; planned: number; executed: number; singleH: number; doubleH: number; pay: number }, key: string): number | string => {
+      if (key === 'name') return r.tutor.name;
+      if (key === 'planned') return r.planned;
+      if (key === 'executed') return r.executed;
+      if (key === 'doubleH') return r.doubleH;
+      return r.pay;
+    };
+    const toggleYouthSort = (key: string) => setKpiYouthSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+    const toggleTutorSort = (key: string) => setKpiTutorSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+    const SortTh: React.FC<{ label: string; active: boolean; dir: 'asc' | 'desc'; align?: 'left' | 'right'; onClick: () => void }> = ({ label, active, dir, align = 'left', onClick }) => (
+      <th className={`py-2 ${align === 'right' ? 'px-2 text-right' : 'pr-3 text-left'} font-bold`}>
+        <button
+          onClick={onClick}
+          title={active ? (dir === 'asc' ? 'Clicca per ordinare decrescente' : 'Clicca per ordinare crescente') : 'Clicca per ordinare'}
+          className={`inline-flex items-center gap-1 uppercase hover:text-teal-600 transition-colors ${active ? 'text-teal-600' : ''}`}
+        >
+          {label}
+          {active ? (dir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />) : <ChevronsUpDown size={12} className="text-slate-300" />}
+        </button>
+      </th>
+    );
+
     return (
       <div className="space-y-3 md:space-y-4">
         <div className="rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
@@ -7234,7 +7262,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Panoramica</h2>
                 <p className="text-sm sm:text-base text-slate-600 font-medium leading-snug">
-                  KPI mensili Â· ore vs pianificato, copertura ragazzi, compensi e conflitti
+                  KPI mensili · ore vs pianificato, copertura ragazzi, compensi e conflitti
                 </p>
               </div>
             </div>
@@ -7273,7 +7301,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
-            label="Ore erogate Â· mese"
+            label="Ore erogate · mese"
             value={`${cur.executedTotal.toFixed(1)}h`}
             tone="emerald"
             icon={Play}
@@ -7299,9 +7327,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   title="Clicca per vedere l'elenco dei turni pianificati non ancora registrati nel Consuntivo"
                   className={`font-semibold underline decoration-dotted underline-offset-2 ${cur.pending.length > 0 ? 'text-amber-600 hover:text-amber-700 active:scale-95 transition-transform cursor-pointer' : 'text-slate-400 cursor-default'}`}
                 >
-                  {cur.pending.length} da registrare â–¶
+                  {cur.pending.length} da registrare ?
                 </button>
-                <span className="text-slate-400"> Â· {cur.recorded}/{cur.plannedOccurrences} registrati</span>
+                <span className="text-slate-400"> · {cur.recorded}/{cur.plannedOccurrences} registrati</span>
                 <ProgressBar pct={cur.completionPct} tone="sky" />
               </>
             }
@@ -7314,13 +7342,13 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             sub={cur.cancelledCount > 0 ? `${cur.cancelledHours.toFixed(1)}h perse nel mese` : 'Nessuna assenza registrata'}
           />
           <StatCard
-            label="Doppie Â· compenso stimato"
+            label="Doppie · compenso stimato"
             value={`${cur.doubleHours.toFixed(1)}h`}
             tone="violet"
             icon={Wallet}
             sub={
               <>
-                {cur.singleHours.toFixed(1)}h singole Â· lordo stimato <span className="font-bold text-violet-700">â‚¬ {cur.payBase.toFixed(2)}</span>
+                {cur.singleHours.toFixed(1)}h singole · lordo stimato <span className="font-bold text-violet-700">€ {cur.payBase.toFixed(2)}</span>
               </>
             }
           />
@@ -7336,15 +7364,14 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <table className="w-full text-sm border-collapse whitespace-nowrap">
                   <thead className="sticky top-0 z-10 bg-white">
                     <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
-                      <th className="text-left py-2 pr-3 font-bold">Ragazzo</th>
-                      <th className="text-right px-2 py-2 font-bold">Fabbisogno/sett</th>
-                      <th className="text-right px-2 py-2 font-bold">Pianif/sett</th>
-                      <th className="text-right px-2 py-2 font-bold">Erogate/sett</th>
-                      <th className="text-right px-2 py-2 font-bold">Gap</th>
+                      <SortTh label="Ragazzo" active={kpiYouthSort.key === 'name'} dir={kpiYouthSort.dir} onClick={() => toggleYouthSort('name')} />
+                      <SortTh label="Fabbisogno/sett" align="right" active={kpiYouthSort.key === 'required'} dir={kpiYouthSort.dir} onClick={() => toggleYouthSort('required')} />
+                      <SortTh label="Pianif/sett" align="right" active={kpiYouthSort.key === 'weeklyPlanned'} dir={kpiYouthSort.dir} onClick={() => toggleYouthSort('weeklyPlanned')} />
+                      <SortTh label="Gap" align="right" active={kpiYouthSort.key === 'gap'} dir={kpiYouthSort.dir} onClick={() => toggleYouthSort('gap')} />
                     </tr>
                   </thead>
                   <tbody>
-                    {cur.youthRows.map(r => {
+                    {sortRows(cur.youthRows, kpiYouthSort.key, kpiYouthSort.dir, r => youthAccess(r, kpiYouthSort.key)).map(r => {
                       const ok = r.gap <= 0.05;
                       return (
                         <tr key={r.youth.id} className="border-b border-slate-100">
@@ -7358,7 +7385,6 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           </td>
                           <td className="text-right px-2 py-1.5 tabular-nums text-slate-600">{r.required}h</td>
                           <td className="text-right px-2 py-1.5 tabular-nums text-amber-600">{r.weeklyPlanned.toFixed(1)}h</td>
-                          <td className="text-right px-2 py-1.5 tabular-nums text-blue-700">{r.weeklyExecuted.toFixed(1)}h</td>
                           <td className="text-right px-2 py-1.5">
                             {ok ? (
                               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><CheckCircle2 size={12} /> ok</span>
@@ -7374,12 +7400,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </div>
             )}
             {cur.youthRows.length > 0 && (
-              <p className="mt-3 text-[11px] text-slate-400">Fabbisogno = ore settimanali richieste in anagrafica Â· Pianif/sett = settimana tipo Â· Erogate/sett = sole ore effettive registrate nel Consuntivo del mese Ã· {weeks} settimane Â· Gap = fabbisogno - ore pianificate (rosso = da coprire).</p>
+              <p className="mt-3 text-[11px] text-slate-400">Fabbisogno = ore settimanali richieste in anagrafica · Pianif/sett = settimana tipo · Gap = fabbisogno - ore pianificate (rosso = da coprire). Clicca sulle intestazioni per ordinare.</p>
             )}
           </Card>
 
           <Card className="p-4">
-            <h3 className={`${cardLabel} !mb-0 font-extrabold`}>Tutor Â· ore e compenso stimato</h3>
+            <h3 className={`${cardLabel} !mb-0 font-extrabold`}>Tutor · ore e compenso stimato</h3>
             {cur.tutorRows.length === 0 ? (
               <p className="text-slate-400 italic text-sm py-4 text-center mt-3">Nessun turno nel mese selezionato.</p>
             ) : (
@@ -7387,15 +7413,15 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <table className="w-full text-sm border-collapse whitespace-nowrap">
                   <thead className="sticky top-0 z-10 bg-white">
                     <tr className="text-[10px] uppercase tracking-wide text-slate-500 border-b-2 border-slate-200">
-                      <th className="text-left py-2 pr-3 font-bold">Tutor</th>
-                      <th className="text-right px-2 py-2 font-bold">Pianif</th>
-                      <th className="text-right px-2 py-2 font-bold">Erogate</th>
-                      <th className="text-right px-2 py-2 font-bold">Doppie</th>
-                      <th className="text-right px-2 py-2 font-bold">Stimato</th>
+                      <SortTh label="Tutor" active={kpiTutorSort.key === 'name'} dir={kpiTutorSort.dir} onClick={() => toggleTutorSort('name')} />
+                      <SortTh label="Pianif" align="right" active={kpiTutorSort.key === 'planned'} dir={kpiTutorSort.dir} onClick={() => toggleTutorSort('planned')} />
+                      <SortTh label="Erogate" align="right" active={kpiTutorSort.key === 'executed'} dir={kpiTutorSort.dir} onClick={() => toggleTutorSort('executed')} />
+                      <SortTh label="Doppie" align="right" active={kpiTutorSort.key === 'doubleH'} dir={kpiTutorSort.dir} onClick={() => toggleTutorSort('doubleH')} />
+                      <SortTh label="Stimato" align="right" active={kpiTutorSort.key === 'pay'} dir={kpiTutorSort.dir} onClick={() => toggleTutorSort('pay')} />
                     </tr>
                   </thead>
                   <tbody>
-                    {cur.tutorRows.map(r => (
+                    {sortRows(cur.tutorRows, kpiTutorSort.key, kpiTutorSort.dir, r => tutorAccess(r, kpiTutorSort.key)).map(r => (
                       <tr key={r.tutor.id} className="border-b border-slate-100">
                         <td className="py-1.5 pr-3">
                           <span className="flex items-center gap-1.5">
@@ -7408,7 +7434,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <td className="text-right px-2 py-1.5 tabular-nums text-amber-600">{r.planned.toFixed(1)}h</td>
                         <td className="text-right px-2 py-1.5 tabular-nums text-blue-700">{r.executed.toFixed(1)}h</td>
                         <td className="text-right px-2 py-1.5 tabular-nums text-violet-600">{r.doubleH.toFixed(1)}h</td>
-                        <td className="text-right px-2 py-1.5 tabular-nums font-bold text-slate-700">â‚¬ {r.pay.toFixed(2)}</td>
+                        <td className="text-right px-2 py-1.5 tabular-nums font-bold text-slate-700">€ {r.pay.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -7416,7 +7442,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </div>
             )}
             {cur.tutorRows.length > 0 && (
-              <p className="mt-3 text-[11px] text-slate-400">Pianif/Erogate = ore mensili (settimana tipo espansa, variazioni consuntivo incluse) Â· Doppie = minuti con â‰¥2 ragazzi Â· Stimato = lordo dalle tariffe di Calcolo Paga.</p>
+              <p className="mt-3 text-[11px] text-slate-400">Pianif/Erogate = ore mensili (settimana tipo espansa, variazioni consuntivo incluse) · Doppie = minuti con =2 ragazzi · Stimato = lordo dalle tariffe di Calcolo Paga. Clicca sulle intestazioni per ordinare.</p>
             )}
           </Card>
         </div>
@@ -7441,7 +7467,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               })}
             </div>
           )}
-          <p className="mt-3 text-[11px] text-slate-400">Conflitti = due o piÃ¹ turni della settimana tipo con lo stesso tutor, nello stesso giorno, con fasce orarie sovrapposte <span className="font-semibold text-rose-500">per gli stessi ragazzi</span> (lo stesso ragazzo prenotato due volte). Turni paralleli con ragazzi diversi non contano.</p>
+          <p className="mt-3 text-[11px] text-slate-400">Conflitti = due o più turni della settimana tipo con lo stesso tutor, nello stesso giorno, con fasce orarie sovrapposte <span className="font-semibold text-rose-500">per gli stessi ragazzi</span> (lo stesso ragazzo prenotato due volte). Turni paralleli con ragazzi diversi non contano.</p>
         </Card>
 
         {kpiShowPending && (
@@ -7450,7 +7476,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
                 <div className="min-w-0">
                   <h3 className="font-extrabold text-slate-800">Turni da registrare</h3>
-                  <p className="text-xs text-slate-500 capitalize">{format(kpiMonth, 'MMMM yyyy', { locale: it })} Â· {cur.pending.length} turni pianificati senza corrispettivo nel Consuntivo</p>
+                  <p className="text-xs text-slate-500 capitalize">{format(kpiMonth, 'MMMM yyyy', { locale: it })} · {cur.pending.length} turni pianificati senza corrispettivo nel Consuntivo</p>
                 </div>
                 <button onClick={() => setKpiShowPending(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 shrink-0" title="Chiudi"><X size={18} /></button>
               </div>
@@ -7465,7 +7491,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         <th className="text-left py-2 pr-3 font-bold">Tutor</th>
                         <th className="text-left py-2 pr-3 font-bold">Ragazzo/i</th>
                         <th className="text-left py-2 pr-3 font-bold">Fascia</th>
-                        <th className="text-left py-2 font-bold">AttivitÃ </th>
+                        <th className="text-left py-2 font-bold">Attività</th>
                         <th className="text-right py-2 font-bold">Azione</th>
                       </tr>
                     </thead>
@@ -7479,7 +7505,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             <td className="py-1.5 pr-3">
                               <span className="inline-flex items-center gap-1.5">
                                 <span className={`h-5 w-5 rounded-full ${tc.bg} ${tc.text} text-[10px] font-bold flex items-center justify-center shrink-0`}>{getInitials(t?.name)}</span>
-                                <span className="max-w-[8rem] truncate font-medium">{t?.name || 'â€”'}</span>
+                                <span className="max-w-[8rem] truncate font-medium">{t?.name || '—'}</span>
                               </span>
                             </td>
                             <td className="py-1.5 pr-3">
@@ -7487,11 +7513,11 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                 {shiftYouthIds(p.template).map(yid => {
                                   const y = youths.find(x => x.id === yid);
                                   const yc = getYouthColor(yid, youths);
-                                  return <span key={yid} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text}`}>{y?.name || 'â€”'}</span>;
+                                  return <span key={yid} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${yc.bg} ${yc.text}`}>{y?.name || '—'}</span>;
                                 })}
                               </span>
                             </td>
-                            <td className="py-1.5 pr-3 tabular-nums text-slate-600">{p.template.startTime}â€“{p.template.endTime}</td>
+                            <td className="py-1.5 pr-3 tabular-nums text-slate-600">{p.template.startTime}–{p.template.endTime}</td>
                             <td className="py-1.5 font-medium text-slate-600 max-w-[10rem] truncate">{p.template.activity}</td>
                             <td className="py-1.5 pl-3 text-right">
                               <button
@@ -7581,7 +7607,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 Sei sicuro di voler cancellare la scheda di <strong>{tutorToDelete?.name}</strong>?
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Verranno eliminati anche tutti i turni associati. L'operazione non puÃ² essere annullata.
+                Verranno eliminati anche tutti i turni associati. L'operazione non può essere annullata.
               </p>
             </div>
           </div>
@@ -7614,7 +7640,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 Sei sicuro di voler cancellare la scheda di <strong>{youthToDelete?.name}</strong>?
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Verranno eliminati anche tutti i turni associati. L'operazione non puÃ² essere annullata.
+                Verranno eliminati anche tutti i turni associati. L'operazione non può essere annullata.
               </p>
             </div>
           </div>
@@ -7669,7 +7695,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   })}
                   {editingShift?.startTime && (
                     <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold tabular-nums">
-                      {editingShift.startTime}â€“{editingShift.endTime}
+                      {editingShift.startTime}–{editingShift.endTime}
                     </span>
                   )}
                   {(editingShift?.status || 'pianificato') === 'cancellato' && (
@@ -7738,7 +7764,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           options={youths.filter(y => !shiftYouthIds(editingShift as Shift).includes(y.id))}
                           value=""
                           onChange={id => addEditingYouth(id)}
-                          placeholder="Aggiungi un altro ragazzo/aâ€¦"
+                          placeholder="Aggiungi un altro ragazzo/a…"
                           colorOf={id => getYouthColor(id, youths)}
                         />
                       </div>
@@ -7762,7 +7788,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       });
                     }}
                   >
-                    {['LunedÃ¬', 'MartedÃ¬', 'MercoledÃ¬', 'GiovedÃ¬', 'VenerdÃ¬', 'Sabato'].map((d, i) => (
+                    {['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'].map((d, i) => (
                       <option key={i} value={i + 1}>{d}</option>
                     ))}
                   </select>
@@ -7779,7 +7805,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 </div>
               )}
               <div>
-                <label className="block text-base font-medium text-slate-800 mb-1.5">AttivitÃ </label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Attività</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -7823,7 +7849,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     {sConf && (
                       <div className="sm:col-span-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
                         <XCircle size={15} className="shrink-0 text-red-500" />
-                        <span>L'orario <strong>{editingShift.startTime}â€“{editingShift.endTime}</strong> cade in una fascia di non disponibilitÃ  del tutor selezionato: il salvataggio verrÃ  bloccato.</span>
+                        <span>L'orario <strong>{editingShift.startTime}–{editingShift.endTime}</strong> cade in una fascia di non disponibilità del tutor selezionato: il salvataggio verrà bloccato.</span>
                       </div>
                     )}
                   </>
@@ -7831,7 +7857,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               })()}
               {shiftModalMode === 'plan' && (
                 <div>
-                  <label className="block text-base font-medium text-slate-800 mb-1.5">ValiditÃ  (settimane)</label>
+                  <label className="block text-base font-medium text-slate-800 mb-1.5">Validità (settimane)</label>
                   <input
                     type="number"
                     min={1}
@@ -7839,7 +7865,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     className={fieldCls}
                     value={editingShift?.durationWeeks || payRates.weeksPerMonth || 4}
                     onChange={e => setEditingShift({ ...editingShift, durationWeeks: e.target.value === '' ? undefined : (parseInt(e.target.value, 10) || 1) })}
-                    title="Numero di settimane in cui questo turno Ã¨ attivo (default: Settimane/mese di Calcolo Paga)"
+                    title="Numero di settimane in cui questo turno è attivo (default: Settimane/mese di Calcolo Paga)"
                   />
                 </div>
               )}
@@ -7847,7 +7873,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             {shiftModalMode === 'validate' && (
               <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700 flex items-center gap-2">
                 <MousePointer2 size={14} />
-                Orari pianificati di riferimento: modifica gli orari effettivi qui o <strong>trascinando il box</strong> sul calendario Â· le differenze rispetto al pianificato sono riportate nel Riepilogo Ore (colonna Extra/Rec.)
+                Orari pianificati di riferimento: modifica gli orari effettivi qui o <strong>trascinando il box</strong> sul calendario · le differenze rispetto al pianificato sono riportate nel Riepilogo Ore (colonna Extra/Rec.)
               </div>
             )}
           </YouthSection>
@@ -7921,8 +7947,8 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         </div>
                         <p className={`text-xs mt-1.5 leading-snug ${cancOn ? 'text-white/85' : 'text-slate-400'}`}>
                           {cancOn
-                            ? 'Turno annullato Â· le ore pianificate risultano come da recuperare nel Riepilogo Ore'
-                            : 'Es. mancanza tutor Â· il turno non Ã¨ svolto e genera ore da recuperare'}
+                            ? 'Turno annullato · le ore pianificate risultano come da recuperare nel Riepilogo Ore'
+                            : 'Es. mancanza tutor · il turno non è svolto e genera ore da recuperare'}
                         </p>
                       </button>
                     </div>
@@ -7934,7 +7960,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                       }`}>
                         {deltaH > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                         Delta vs pianificato: <strong>{deltaH > 0 ? '+' : ''}{deltaH.toFixed(1)}h</strong>
-                        {deltaH > 0 ? ' â†’ ore extra scalate dal monte ore' : ' â†’ ore da recuperare per il ragazzo'}
+                        {deltaH > 0 ? ' ? ore extra scalate dal monte ore' : ' ? ore da recuperare per il ragazzo'}
                       </div>
                     )}
                   </div>
@@ -7944,7 +7970,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <label className="block text-base font-medium text-slate-800 mb-1.5">Note consuntivo</label>
                 <textarea
                   className={fieldCls + " min-h-[60px]"}
-                  placeholder="Come Ã¨ andato il turno, variazioni, note..."
+                  placeholder="Come è andato il turno, variazioni, note..."
                   value={editingShift.actualNotes || ''}
                   onChange={e => setEditingShift({ ...editingShift, actualNotes: e.target.value })}
                 />
@@ -7981,7 +8007,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                         }
                       }}
                       className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold shadow-md hover:from-emerald-600 hover:to-teal-700 transition flex items-center justify-center gap-2"
-                      title="Rimuove l'indisponibilitÃ  corrente del tutor per questo giorno (vale anche per gli altri giorni se era impostata per tutta la settimana)"
+                      title="Rimuove l'indisponibilità corrente del tutor per questo giorno (vale anche per gli altri giorni se era impostata per tutta la settimana)"
                     >
                       <CheckCircle2 size={16} /> Disponibile
                     </button>
@@ -8067,7 +8093,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 />
               </div>
               <div>
-                <label className="block text-base font-medium text-slate-800 mb-1.5">CittÃ </label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Città</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -8114,12 +8140,12 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   value={newTutor.role || ''}
                   onChange={e => setNewTutor({ ...newTutor, role: e.target.value })}
                 >
-                  <option value="">â€”</option>
+                  <option value="">—</option>
                   {TUTOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-base font-medium text-slate-800 mb-1.5">SpecialitÃ  (separate da virgola)</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Specialità (separate da virgola)</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -8129,7 +8155,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-base font-medium text-slate-800 mb-1.5">Ore Settimanali (min â€“ max)</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Ore Settimanali (min – max)</label>
                 <DualRangeSlider
                   min={1}
                   max={60}
@@ -8240,7 +8266,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                           </button>
                         </div>
                         {ranges.length === 0 ? (
-                          <p className="text-xs text-slate-400">Nessuna fascia oraria non disponibile (intervallo 08:00 â€“ 19:00).</p>
+                          <p className="text-xs text-slate-400">Nessuna fascia oraria non disponibile (intervallo 08:00 – 19:00).</p>
                         ) : (
                           <div className="space-y-3">
                             {ranges.map((range, i) => {
@@ -8251,7 +8277,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                               return (
                                 <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
                                   <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} â€“ {toTxt(vMax)}</span>
+                                    <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -8325,7 +8351,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                                   : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                             }`}
                           >
-                            {day}{count > 0 ? ` Â· ${count}` : ''}
+                            {day}{count > 0 ? ` · ${count}` : ''}
                           </button>
                         );
                       })}
@@ -8333,7 +8359,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     {(() => {
                       const ranges = normalizeUnavailableRanges(newTutor.unavailableRanges)[unavailDay] || [];
                       if (ranges.length === 0) {
-                        return <p className="text-xs text-slate-400">Nessuna fascia per questo giorno (intervallo 08:00 â€“ 19:00).</p>;
+                        return <p className="text-xs text-slate-400">Nessuna fascia per questo giorno (intervallo 08:00 – 19:00).</p>;
                       }
                       return (
                         <div className="space-y-3">
@@ -8345,7 +8371,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                             return (
                               <div key={i} className="rounded-lg border border-slate-200 bg-white p-3">
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} â€“ {toTxt(vMax)}</span>
+                                  <span className="text-xs font-bold text-rose-700">Fascia {i + 1}: {toTxt(vMin)} – {toTxt(vMax)}</span>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -8466,7 +8492,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 <input
                   type="text"
                   className={fieldCls}
-                  placeholder="CittÃ "
+                  placeholder="Città"
                   value={newYouth.birthPlace || ''}
                   onChange={e => setNewYouth({ ...newYouth, birthPlace: e.target.value })}
                 />
@@ -8611,7 +8637,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
             </div>
           </YouthSection>
 
-          <YouthSection icon={<HeartPulse size={16} />} title="Salute e VulnerabilitÃ " chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
+          <YouthSection icon={<HeartPulse size={16} />} title="Salute e Vulnerabilità" chipBg="bg-rose-500" headerBg="bg-gradient-to-r from-rose-50 to-white border-rose-100" textColor="text-rose-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-base font-medium text-slate-800 mb-1.5">Diagnosi (virgola)</label>
@@ -8654,7 +8680,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   options={tutors}
                   values={newYouth.tutorIds || []}
                   onChange={ids => setNewYouth({ ...newYouth, tutorIds: ids })}
-                  placeholder="Seleziona uno o piÃ¹ tutor..."
+                  placeholder="Seleziona uno o più tutor..."
                   colorOf={id => getTutorColor(id, tutors)}
                 />
               </div>
@@ -8730,7 +8756,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-base font-medium text-slate-800 mb-1.5">Bisogni/NecessitÃ  (virgola)</label>
+                <label className="block text-base font-medium text-slate-800 mb-1.5">Bisogni/Necessità (virgola)</label>
                 <input
                   type="text"
                   className={fieldCls}
@@ -9010,7 +9036,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   const handleCreateUser = async () => {
-    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore puÃ² creare utenti.", 'error'); return; }
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore può creare utenti.", 'error'); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`,
@@ -9047,7 +9073,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore puÃ² eliminare utenti.", 'error'); return; }
+    if (!isAdminUser(currentUser) || !canDelete(currentUser, 'USERS')) { toast("Solo l'amministratore può eliminare utenti.", 'error'); return; }
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
@@ -9184,13 +9210,13 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
             </HeaderGroup>
             <div className="flex items-center xl:self-center">
               <GuideButton
-                title="Guida Â· Gestione Utenti"
+                title="Guida · Gestione Utenti"
                 intro="Creazione e gestione degli account di accesso al portale, con permessi granulari per voce di menu. I comandi sono raggruppati per funzione (CONTROLLO, CREA). Ecco cosa fa ogni elemento:"
                 items={[
                   { btn: 'Log Accessi', icon: 'Storico', desc: 'Apre la finestra con l\'elenco degli accessi registrati (data, utente, esito), utile per il controllo.' },
                   { btn: 'Nuovo Utente', icon: 'Crea', desc: 'Crea un account: username, password, tipologia di permessi e, facoltativo, l\'associazione a un tutor.' },
                   { btn: 'Scheda utente (modifica)', icon: 'Dettaglio', desc: 'Consente di cambiare permessi, email, tutor associato o password di un utente esistente.' },
-                  { btn: 'Presenza online', icon: 'Stato', desc: 'Mostra se un utente ha il portale aperto ora e quando Ã¨ stata l\'ultima attivitÃ .' },
+                  { btn: 'Presenza online', icon: 'Stato', desc: 'Mostra se un utente ha il portale aperto ora e quando è stata l\'ultima attività.' },
                   { btn: 'Elimina utente', icon: 'Cancella', desc: 'Rimuove l\'account (con conferma); non elimina il tutor associato.' },
                 ]}
               />
@@ -9211,7 +9237,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 </div>
                 <div className="flex flex-col min-w-0">
                   <h3 className="font-bold text-slate-800">{user.username}</h3>
-                  <span className="text-xs text-slate-500 block">ID: {user.id.slice(0, 8)}â€¦</span>
+                  <span className="text-xs text-slate-500 block">ID: {user.id.slice(0, 8)}…</span>
                   {userPresence[user.id]?.online ? (
                     <span className="mt-1.5 self-start inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -9311,7 +9337,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
               ))}
             </select>
             <p className="text-xs text-slate-400 mt-1">
-              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrÃ  solo i propri turni in Pianificazione e Consuntivo.
+              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrà solo i propri turni in Pianificazione e Consuntivo.
             </p>
           </div>
           <div>
@@ -9367,7 +9393,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
               ))}
             </select>
             <p className="text-xs text-slate-400 mt-1">
-              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrÃ  solo i propri turni in Pianificazione e Consuntivo.
+              Se associ un tutor, l'utente (senza permesso "ADMIN COMPLETO") vedrà solo i propri turni in Pianificazione e Consuntivo.
             </p>
           </div>
 
@@ -9384,7 +9410,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
           <div className="border-t pt-4 mt-2">
             <h4 className="text-sm font-bold text-slate-700 mb-1">Gestione password</h4>
             <p className="text-xs text-slate-400 mb-3">
-              Imposta una nuova password per l'utente. La password corrente non Ã¨ visibile per motivi di sicurezza: una volta resettata, comunicala all'utente di persona.
+              Imposta una nuova password per l'utente. La password corrente non è visibile per motivi di sicurezza: una volta resettata, comunicala all'utente di persona.
             </p>
 
             <div className="space-y-2">
@@ -9430,7 +9456,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                 Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.username}</strong>?
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                L'utente non potrÃ  piÃ¹ accedere al sistema. L'operazione non puÃ² essere annullata.
+                L'utente non potrà più accedere al sistema. L'operazione non può essere annullata.
               </p>
             </div>
           </div>
@@ -9455,7 +9481,7 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
       <Modal isOpen={isAccessLogOpen} onClose={() => setIsAccessLogOpen(false)} title="Log Accessi" size="xl">
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm text-slate-500">
-            Storico sessioni di accesso degli utenti, in ordine dal piÃ¹ vecchio al piÃ¹ recente
+            Storico sessioni di accesso degli utenti, in ordine dal più vecchio al più recente
           </p>
           <button
             onClick={fetchAccessLogs}
@@ -9520,10 +9546,10 @@ function UserManagementView({ tutors, currentUser }: { tutors: Tutor[]; currentU
                         {(log.city || log.country || log.isp) && (
                           <div className="mt-1.5 pt-1.5 border-t border-slate-200 text-[11px] leading-4 text-slate-500 break-words">
                             {[log.city, log.region, log.country].filter(Boolean).join(', ')}
-                            {log.postal_code && ` Â· ${log.postal_code}`}
-                            {log.timezone && ` Â· ${(log.timezone as string).replace('_', ' ')}${log.utc_offset ? ` (UTC${log.utc_offset})` : ''}`}
+                            {log.postal_code && ` · ${log.postal_code}`}
+                            {log.timezone && ` · ${(log.timezone as string).replace('_', ' ')}${log.utc_offset ? ` (UTC${log.utc_offset})` : ''}`}
                             <br />
-                            {log.isp || 'ISP sconosciuto'}{log.asn ? ` Â· ASN ${log.asn}` : ''}
+                            {log.isp || 'ISP sconosciuto'}{log.asn ? ` · ASN ${log.asn}` : ''}
                           </div>
                         )}
                       </td>
@@ -9580,7 +9606,7 @@ const AUDIT_FIELD_LABEL: Record<string, string> = {
   phone: 'Telefono',
   email: 'Email',
   notes: 'Note',
-  specialties: 'SpecialitÃ ',
+  specialties: 'Specialità',
   max_hours_per_week: 'Max ore / settimana',
   min_hours_per_week: 'Min ore / settimana',
   unavailable_days: 'Giorni non disponibili',
@@ -9595,11 +9621,11 @@ const AUDIT_FIELD_LABEL: Record<string, string> = {
   actual_end_time: 'Fine effettiva',
   is_template: 'Turno template',
   tutor_id: 'Tutor assegnato',
-  activity: 'AttivitÃ ',
+  activity: 'Attività',
   aggregate: 'Ragazzi',
 };
 
-// Blocco diff per modifiche (create/update): mostra campo, vecchio valore â†’ nuovo valore.
+// Blocco diff per modifiche (create/update): mostra campo, vecchio valore ? nuovo valore.
 function AuditDiffBlock({ oldRec, newRec, lookup }: { oldRec: any; newRec: any; lookup?: AuditNameLookup | null }) {
   if (!oldRec || !newRec) return null;
   const keys = Array.from(new Set([...Object.keys(oldRec), ...Object.keys(newRec)]));
@@ -9784,7 +9810,7 @@ function AuditView() {
       <div className="flex flex-wrap gap-2">
         <select value={filterEntity} onChange={e => setFilterEntity(e.target.value)}
           className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-300">
-          <option value="all">Tutte le entitÃ </option>
+          <option value="all">Tutte le entità</option>
           <option value="shift">Turni</option>
           <option value="tutor">Tutor</option>
           <option value="youth">Ragazzi</option>
@@ -9850,16 +9876,16 @@ function AuditView() {
                   </div>
                   <p className="text-sm text-slate-600 mt-1 break-words">
                     {log.entity === 'tutor' ? (
-                      <button onClick={(e) => goToTutorByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || 'â€”'}</button>
+                      <button onClick={(e) => goToTutorByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || '—'}</button>
                     ) : log.entity === 'youth' ? (
-                      <button onClick={(e) => goToYouthByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || 'â€”'}</button>
-                    ) : (log.entity_name || 'â€”')}
+                      <button onClick={(e) => goToYouthByName(log.entity_name, e as unknown as React.MouseEvent)} className="text-slate-600 hover:text-teal-700 hover:underline cursor-pointer">{log.entity_name || '—'}</button>
+                    ) : (log.entity_name || '—')}
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 font-semibold shadow-sm">
                       <CalendarClock size={13} className="text-teal-600 shrink-0" />
                       <span className="tabular-nums font-bold">{format(new Date(log.created_at), 'dd/MM/yyyy')}</span>
-                      <span className="text-teal-600">Â·</span>
+                      <span className="text-teal-600">·</span>
                       <span className="tabular-nums font-bold">{format(new Date(log.created_at), 'HH:mm')}</span>
                     </span>
                   </div>
