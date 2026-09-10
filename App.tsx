@@ -7159,6 +7159,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           if (!exists) pending.push({ date: ds, template: t });
         }
       });
+      pending.sort((a, b) => a.date.localeCompare(b.date));
 
       const plannedTotal = tutorRows.reduce((a, r) => a + r.planned, 0);
       const executedTotal = tutorRows.reduce((a, r) => a + r.executed, 0);
