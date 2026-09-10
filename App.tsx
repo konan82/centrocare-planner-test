@@ -2502,6 +2502,7 @@ function App() {
       const dayShifts = visibleShifts.filter(s => {
         if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
         if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
+        if (isPlan && zeroWeeksOnly && s.durationWeeks !== 0) return false;
         if (isPlan) return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === idx + 1;
         if (!s.date || s.isTemplate) return false;
         return (typeof s.date === 'string' ? s.date.split('T')[0] : '') === dateStr;
@@ -4831,7 +4832,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     const dayShifts = visibleShifts.filter(s => {
                       if (tutorFilter !== 'all' && s.tutorId !== tutorFilter) return false;
                       if (youthFilter !== 'all' && !shiftYouthIds(s).includes(youthFilter)) return false;
-                      if (isPlan && zeroWeeksOnly && (s.durationWeeks ?? 0) !== 0) return false;
+                      if (isPlan && zeroWeeksOnly && s.durationWeeks !== 0) return false;
                       if (isPlan) {
                         return s.isTemplate && (s.templateWeekday || weekdayOf(s.date)) === dayIdx + 1;
                       }
