@@ -535,7 +535,7 @@ const CollapsibleHeader: React.FC<CollapsibleHeaderProps> = ({ icon, iconCls, to
   }, []);
 
   return (
-    <div ref={wrapperRef} onMouseEnter={handleEnter} onMouseLeave={handleLeave} className="relative shrink-0">
+    <div ref={wrapperRef} onMouseEnter={handleEnter} onMouseLeave={handleLeave} className="sticky top-0 z-30 shrink-0">
       {collapsed ? (
         <div onClick={handleTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
           <div className={`p-1.5 rounded-lg text-white shadow-sm shrink-0 ${iconCls}`}>
@@ -10218,6 +10218,7 @@ function AuditView() {
 
   return (
     <div className="space-y-6">
+      <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 md:-mx-8 px-3 sm:px-4 md:px-8 py-3 bg-slate-50/95 backdrop-blur space-y-4 sm:space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-2xl font-bold text-slate-800">Audit Trail</h2>
         <button
@@ -10286,6 +10287,7 @@ function AuditView() {
         <span className="inline-flex items-center px-3 py-2 rounded-lg bg-slate-100 text-sm text-slate-500 font-medium">
           {visible.length} eventi
         </span>
+      </div>
       </div>
 
       {error && (
