@@ -5955,8 +5955,9 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               <div className="flex items-center xl:self-center">
                 <GuideButton
                   title="Guida · Calcolo Paga"
-                  intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. I comandi sono raggruppati per funzione (PERIODO, ESPORTA). Ecco cosa fa ogni elemento:"
+                  intro="Calcolo mensile delle retribuzioni per ogni tutor, basato sui turni del consuntivo. I comandi sono raggruppati per funzione (PARAMETRI, PERIODO, ESPORTA). Ecco cosa fa ogni elemento:"
                   items={[
+                    { btn: 'Tariffe singolo / doppio', icon: 'Usa', desc: 'Modifica le tariffe orarie (€/h) usate per il calcolo: singolo (1 ragazzo) e doppio (2+ ragazzi). Salva con "Salva tariffe": le modifiche valgono dal mese in corso.' },
                     { btn: 'Periodo (‹ ›)', icon: 'Sposta', desc: 'Scegli il mese di paga; il pulsante centrale torna al mese corrente.' },
                     { btn: 'Report PDF', icon: 'Scarica', desc: 'Genera e scarica il report mensile con le ore e i compensi di ogni tutor, con tanto di note su sovrapposizioni.' },
                     { btn: 'Tabella tutor', icon: 'Dettaglio', desc: 'Per ogni tutor: giorni lavorati, ore normali/doppie/notte, compenso lordo (con eventuale extra/quota riservata) e la percentuale/importo anticipato.' },
@@ -5966,84 +5967,77 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
               </div>
             </>
           }
-        >
-        </CollapsibleHeader>
-
-        <Card className="p-0 overflow-hidden border-lime-200 shadow-lg">
-          <div className="bg-gradient-to-r from-lime-500 to-emerald-500 px-6 py-3">
-            <h3 className="font-bold text-white flex items-center text-base">
-              <Wallet size={18} className="mr-2" /> Parametri di calcolo
-            </h3>
+>
+          <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-widest text-slate-500">
+            <Wallet size={13} className="text-lime-600" /> Parametri di calcolo
           </div>
-          <div className="p-6">
-            <div className="flex flex-wrap items-stretch gap-4">
-              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span className="w-9 h-9 rounded-xl bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center text-orange-600 transition-colors shadow-sm">
-                    <UserCheck size={18} />
-                  </span>
-                  <div>
-                    <span className="text-sm font-extrabold text-orange-700 uppercase tracking-wide block leading-tight">Singolo</span>
-                    <span className="text-[10px] text-orange-500 font-medium">Tariffa oraria</span>
-                  </div>
+          <div className="flex flex-wrap items-stretch gap-3">
+            <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50/70 to-white px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm">
+                  <UserCheck size={16} />
+                </span>
+                <div>
+                  <span className="text-xs font-extrabold text-orange-700 uppercase tracking-wide block leading-tight">Singolo</span>
+                  <span className="text-[10px] text-orange-500 font-medium">Tariffa oraria</span>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 font-black text-2xl">€</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-orange-200 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition text-2xl font-black text-orange-700 tabular-nums placeholder:text-orange-300"
-                    placeholder="0.00"
-                    value={payRatesDraft.rateSingle || ''}
-                    onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                  />
-                </div>
-                <span className="text-[11px] text-orange-500/70 mt-2 block font-medium">€/h per turno con 1 ragazzo</span>
               </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400 font-black text-xl">€</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  className="w-full pl-9 pr-3 py-3 bg-white rounded-xl border-2 border-orange-200 outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition text-xl font-black text-orange-700 tabular-nums placeholder:text-orange-300"
+                  placeholder="0.00"
+                  value={payRatesDraft.rateSingle || ''}
+                  onChange={e => setPayRatesDraft({ ...payRatesDraft, rateSingle: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                />
+              </div>
+              <span className="text-[10px] text-orange-500/70 mt-1.5 block font-semibold">€/h per turno con 1 ragazzo</span>
+            </div>
 
-              <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm hover:shadow-md transition-shadow group">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span className="w-9 h-9 rounded-xl bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center text-violet-600 transition-colors shadow-sm">
-                    <Users size={18} />
-                  </span>
-                  <div>
-                    <span className="text-sm font-extrabold text-violet-700 uppercase tracking-wide block leading-tight">Doppio</span>
-                    <span className="text-[10px] text-violet-500 font-medium">Tariffa oraria</span>
-                  </div>
+            <div className="flex-1 min-w-[200px] rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/70 to-white px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600 shadow-sm">
+                  <Users size={16} />
+                </span>
+                <div>
+                  <span className="text-xs font-extrabold text-violet-700 uppercase tracking-wide block leading-tight">Doppio</span>
+                  <span className="text-[10px] text-violet-500 font-medium">Tariffa oraria</span>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 font-black text-2xl">€</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    className="w-full pl-11 pr-4 py-4 bg-white rounded-xl border-2 border-violet-200 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 transition text-2xl font-black text-violet-700 tabular-nums placeholder:text-violet-300"
-                    placeholder="0.00"
-                    value={payRatesDraft.rateDouble || ''}
-                    onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
-                  />
-                </div>
-                <span className="text-[11px] text-violet-500/70 mt-2 block font-medium">€/h per turno con 2+ ragazzi</span>
               </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400 font-black text-xl">€</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  className="w-full pl-9 pr-3 py-3 bg-white rounded-xl border-2 border-violet-200 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100 transition text-xl font-black text-violet-700 tabular-nums placeholder:text-violet-300"
+                  placeholder="0.00"
+                  value={payRatesDraft.rateDouble || ''}
+                  onChange={e => setPayRatesDraft({ ...payRatesDraft, rateDouble: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                />
+              </div>
+              <span className="text-[10px] text-violet-500/70 mt-1.5 block font-semibold">€/h per turno con 2+ ragazzi</span>
+            </div>
 
-              <div className="flex items-center shrink-0">
-                <button
-                  onClick={handleSavePayRates}
-                  disabled={paySaving || !ratesDirty}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-lime-600 to-emerald-600 text-white text-sm font-bold shadow-md hover:from-lime-700 hover:to-emerald-700 disabled:opacity-40 active:scale-95 transition-all"
-                >
-                  <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva parametri'}
-                </button>
-                {paySavedFlash && (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
-                    <CheckCircle2 size={15} /> Salvate
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center shrink-0 gap-2">
+              <button
+                onClick={handleSavePayRates}
+                disabled={paySaving || !ratesDirty}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-lime-600 to-emerald-600 text-white text-sm font-bold shadow-md hover:from-lime-700 hover:to-emerald-700 disabled:opacity-40 active:scale-95 transition-all"
+              >
+                <Save size={15} /> {paySaving ? 'Salvo…' : 'Salva tariffe'}
+              </button>
+              {paySavedFlash && (
+                <span className="inline-flex items-center gap-1 text-emerald-600 text-sm font-semibold">
+                  <CheckCircle2 size={15} /> Salvate
+                </span>
+              )}
             </div>
           </div>
-        </Card>
+</CollapsibleHeader>
 
         <button
           onClick={() => setShowPayHelp(v => !v)}
