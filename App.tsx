@@ -6510,7 +6510,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
           ref={reportHeaderWrapperRef}
           onMouseEnter={handleReportHeaderEnter}
           onMouseLeave={handleReportHeaderLeave}
-          className="relative shrink-0"
+          className="sticky top-0 z-30 shrink-0"
         >
           {reportHeaderCollapsed ? (
             <div onClick={handleReportHeaderTap} className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 px-3 sm:px-4 py-2 cursor-pointer select-none">
