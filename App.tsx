@@ -1863,6 +1863,7 @@ function App() {
   const calHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calHeaderWrapperRef = useRef<HTMLDivElement | null>(null);
   const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  const matrixScrollRef = useRef<HTMLDivElement | null>(null);
 
   const handleCalHeaderEnter = useCallback(() => {
     if (isTouch) return;
@@ -4339,6 +4340,17 @@ function App() {
     const colIndexes = isPlan && planFocusWeekday !== null
       ? [planFocusWeekday]
       : calView === 'today' && todayIdx >= 0 ? [todayIdx] : [0, 1, 2, 3, 4, 5];
+    // Scorri la matrice orizzontalmente fino alla colonna del giorno richiesto (mobile)
+    const scrollMatrixToDay = (i: number) => {
+      const el = matrixScrollRef.current;
+      if (!el) return;
+      const th = document.getElementById(`matrix-day-${i}`) as HTMLElement | null;
+      el.scrollTo({
+        left: th ? Math.max(0, th.offsetLeft - 64) : 0,
+        top: el.scrollTop,
+        behavior: 'smooth'
+      });
+    };
     // Giorni NON disponibili del tutor filtrato (nel calendario mostriamo Lun..Sab = colonne 0..5)
     const tutorUnavailableWeekdays = new Set<number>();
     const filteredTutor = tutorFilter && tutorFilter !== 'all' ? tutors.find(t => t.id === tutorFilter) : null;
@@ -4957,7 +4969,26 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
 
         {/* Weekly Time Matrix */}
         <div className="flex-1 min-h-[240px] md:min-h-0 rounded-2xl bg-white shadow-md ring-1 ring-slate-200 overflow-hidden flex flex-col">
-          <div className="overflow-auto flex-1 min-h-0">
+          <div className="md:hidden flex items-center gap-1 px-2 py-2 border-b border-slate-200 bg-slate-50/80 overflow-x-auto">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400 px-1">Giorno</span>
+            {colIndexes.map(i => {
+              const label = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'][i];
+              const isSel = colIndexes.length === 1 && colIndexes[0] === i;
+              return (
+                <button
+                  key={i}
+                  onClick={() => scrollMatrixToDay(i)}
+                  title={!isPlan ? format(calendarDays[i], 'EEEE d MMMM', { locale: it }) : `Giorno ${label}`}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition active:scale-95 ${
+                    isSel ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 shadow-sm'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div ref={matrixScrollRef} className="overflow-auto flex-1 min-h-0 snap-x snap-proximity md:snap-none">
             <table id="weekly-matrix" className="w-full min-w-[1000px] border-separate border-spacing-0">
               <thead>
                 <tr>
@@ -4969,7 +5000,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                     const isToday = calView === 'today' || (!isPlan && isSameDay(calendarDays[i], new Date()));
                     const highlightCol = tutorFilter !== 'all' && tutorFilter && tutorUnavailableWeekdays.has(i);
                     return (
-                      <th key={i} className={`sticky top-0 z-30 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
+                      <th key={i} id={`matrix-day-${i}`} className={`sticky top-0 z-30 snap-start scroll-ml-16 border-b border-r border-slate-200 p-3 text-center min-w-[138px] ${
                         isPlan && planFocusWeekday === i
                           ? 'bg-gradient-to-b from-emerald-200 to-emerald-50'
                           : highlightCol
