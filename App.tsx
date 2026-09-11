@@ -2018,7 +2018,7 @@ function App() {
       const tutorData = {
         id: newTutor.id || Math.random().toString(36).slice(2, 11),
         name: newTutor.name,
-        specialties: newTutor.specialties || [],
+        specialties: (newTutor.specialties || []).map(s => s.trim()).filter(Boolean),
         max_hours_per_week: newTutor.maxHoursPerWeek ?? 20,
         min_hours_per_week: newTutor.minHoursPerWeek ?? 1,
         unavailable_days: newTutor.unavailableDays || [],
@@ -8627,7 +8627,7 @@ const BTN = "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-x
                   className={fieldCls}
                   placeholder="Autismo, Logopedia, DSA..."
                   value={newTutor.specialties?.join(', ') || ''}
-                  onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map(s => s.trim()) })}
+                  onChange={e => setNewTutor({ ...newTutor, specialties: (e.target.value || '').split(',').map((s, i, arr) => (i === arr.length - 1 ? s.trimStart() : s.trim())) })}
                 />
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
