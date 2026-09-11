@@ -1634,6 +1634,10 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    // I dati vanno caricati SOLO con una sessione autenticata: le tabelle hanno RLS
+    // e una query "anon" (schermata di login) ritorna 0 righe, lasciando il calendario
+    // vuoto dopo il login. Rileggiamo tutto quando cambia lo stato di autenticazione.
+    if (!token || !currentUser) return;
     (async () => {
       setIsLoading(true);
       setLoadError(null);
@@ -1693,7 +1697,7 @@ function App() {
         setTimeout(() => { window.location.reload(); }, 5000);
       }
     })();
-  }, []);
+  }, [token, currentUser]);
 
   // -------------------------------------------------------------------------
   // Realtime sync (Supabase Realtime · postgres_changes): applica subito le
